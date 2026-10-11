@@ -1,0 +1,14 @@
+{
+  "name": "veneer-mods",
+  "description": "Mods for Claude Code: the Claude desktop look in the terminal.",
+  "owner": {
+    "name": "Mitchell Medeiros"
+  },
+  "plugins": [
+    {
+      "name": "veneer",
+      "source": "./",
+      "description": "The Claude desktop look in the terminal: a filled user message, code blocks with a language label, tables and headings in your font, and edit badges."
+    }
+  ]
+}

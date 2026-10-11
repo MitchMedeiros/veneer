@@ -1,0 +1,18 @@
+{
+  "name": "veneer",
+  "version": "0.1.0",
+  "description": "The Claude desktop look in the terminal. Draws your messages as a filled block, and wherever it cannot draw, Claude Code draws its own rows.",
+  "author": { "name": "Mitchell Medeiros" },
+  "license": "MIT",
+  "types": "./types/index.d.ts",
+  "keywords": ["claude-code-mods", "claude-mods", "function-hooks", "terminal", "theme"],
+  "userConfig": {
+    "messageAlign": {
+      "type": "string",
+      "title": "Message alignment",
+      "description": "Where your own messages sit in the transcript.",
+      "default": "left",
+      "options": ["left", "right"]
+    }
+  }
+}
