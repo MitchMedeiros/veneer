@@ -6,13 +6,15 @@ import { configOf } from "./config";
 import { OFF_TEXT, terminalOff } from "./gate";
 import { changeCounts, withBadges } from "./badge";
 import { diffCard, parseDiff } from "./diff";
+import { toolGroup } from "./group";
 import { headingSketch } from "./heading";
 import { hasDrawn, splitReply } from "./markdown";
 import type { Segment } from "./markdown";
+import { outputCard, parseOutput } from "./output";
 import { baseOf } from "./palette";
 import { cellHeightOf, MAX_COLUMNS, rasterize } from "./picture";
 import type { Picture, PictureIo } from "./picture";
-import { GUTTER, replyTree } from "./reply";
+import { BULLET, GUTTER, MARGIN, replyTree } from "./reply";
 import { tableSketch } from "./table";
 import { toolRow } from "./tool-row";
 import { loadPalette } from "./theme";
@@ -25,6 +27,11 @@ const offAtom = atom({ plugin: "veneer", key: "off" } as const, null as Off | nu
 // The tool calls whose diff card shows every line.
 const expandedAtom = atom({ plugin: "veneer", key: "expanded" } as const, [] as string[]);
 const paletteAtom = atom({ plugin: "veneer", key: "palette" } as const, baseOf("dark") as Palette);
+
+// Opens a folded entry, or folds an open one again.
+function flip($: EngineInterface, id: string): void {
+  void update($, expandedAtom, (ids) => (ids.includes(id) ? ids.filter((other) => other !== id) : [...ids, id]));
+}
 
 async function themeFile($: EngineInterface, path: string): Promise<string | undefined> {
   return $.fs.read(path).catch(() => undefined);
@@ -128,29 +135,26 @@ export const register: Register = (on, options) => {
       e.surface !== "terminal" ||
       native.type !== "engine" ||
       isSummary === true ||
-      !/\||^ {0,3}#|^\s*(```|~~~)/m.test(text)
+      text.trim() === "" ||
+      (await read($, offAtom)) !== null
     ) {
       return native;
     }
 
     const ui = $.ui.resolve(e);
-
-    if (!("Image" in ui) || (await read($, offAtom)) !== null) {
-      return native;
-    }
-
     const segments = splitReply(text);
+    const bullet = isFirstOfReply ? BULLET : null;
+    const drawn = new Map<Segment, { picture: Picture; alt: string }>();
 
-    if (!hasDrawn(segments)) {
-      return native;
+    if (!("Image" in ui) || !hasDrawn(segments)) {
+      return replyTree(ui, segments, drawn, bullet);
     }
 
     const palette = await read($, paletteAtom);
     const font = { family: config.fontFamily, cellHeight: cellHeightOf(config.cellRatio) };
-    const available = Math.min(MAX_COLUMNS, (e.viewport?.columns ?? 100) - GUTTER);
+    const available = Math.min(MAX_COLUMNS, (e.viewport?.columns ?? 100) - GUTTER - MARGIN);
     const dir = await pictureDir($);
     const io = pictureIo($);
-    const drawn = new Map<Segment, { picture: Picture; alt: string }>();
 
     await Promise.all(
       segments.map(async (segment) => {
@@ -170,7 +174,7 @@ export const register: Register = (on, options) => {
       }),
     );
 
-    return replyTree(ui, segments, drawn, isFirstOfReply);
+    return replyTree(ui, segments, drawn, bullet);
   });
 
   on("ui.render", { component: "ToolUse" }, async ($, e, next) => {
@@ -190,19 +194,64 @@ export const register: Register = (on, options) => {
 
   on("ui.render", { component: "ToolResult" }, async ($, e, next) => {
     const native = await next(e);
-    const diff =
-      e.surface === "terminal" && native.type === "engine" && !e.props.isErrored ? parseDiff(e.props.output) : null;
 
-    if (diff === null || (await read($, offAtom)) !== null) {
+    if (
+      e.surface !== "terminal" ||
+      native.type !== "engine" ||
+      e.props.isErrored ||
+      (await read($, offAtom)) !== null
+    ) {
+      return native;
+    }
+
+    const { tool, output } = e.props;
+    const diff = parseDiff(output);
+    const lines = diff === null ? parseOutput(tool, output, await $.session.cwd()) : null;
+
+    if (diff === null && lines === null) {
       return native;
     }
 
     const id = e.props.tool_use_id;
     const expanded = (await read($, expandedAtom)).includes(id);
-    const toggle = () =>
-      void update($, expandedAtom, (ids) => (ids.includes(id) ? ids.filter((other) => other !== id) : [...ids, id]));
+    const toggle = () => flip($, id);
+    const ui = $.ui.resolve(e);
 
-    return diffCard($.ui.resolve(e), diff, (await read($, paletteAtom)).isAnsi, expanded, toggle);
+    return diff === null
+      ? outputCard(ui, lines ?? [], expanded, toggle, id)
+      : diffCard(ui, diff, (await read($, paletteAtom)).isAnsi, expanded, toggle, id);
+  });
+
+  on("ui.render", { component: "Spinner" }, async ($, e, next) => {
+    const native = await next(e);
+
+    if (e.surface !== "terminal" || native.type !== "engine" || (await read($, offAtom)) !== null) {
+      return native;
+    }
+
+    const { Box } = $.ui.resolve(e);
+
+    return <Box marginLeft={MARGIN}>{native}</Box>;
+  });
+
+  on("ui.render", { component: "ToolGroup" }, async ($, e, next) => {
+    const native = await next(e);
+
+    if (
+      e.surface !== "terminal" ||
+      native.type !== "engine" ||
+      e.props.isExpanded ||
+      (await read($, offAtom)) !== null
+    ) {
+      return native;
+    }
+
+    const open = new Set(await read($, expandedAtom));
+
+    return toolGroup($.ui.resolve(e), e.props.calls, e.requestId, await $.session.cwd(), {
+      open,
+      toggle: (id) => flip($, id),
+    });
   });
 
   on("config.set", async ($, e, next) => {

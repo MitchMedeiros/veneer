@@ -1,0 +1,85 @@
+import type { On, RenderElement } from "claude-code";
+import { expect, mock, test } from "claude-code/testing";
+
+const NATIVE: RenderElement = { type: "engine", ref: 0 };
+
+function stub(on: On) {
+  mock.clock(on, { now: 10_000 });
+  on("env.get", () => ({ value: undefined }));
+  on("session.cwd", () => ({ value: "/work" }));
+  on("ui.toast", () => ({ value: undefined }));
+  on("ui.log", () => ({ value: undefined }));
+  on("ui.render", () => NATIVE);
+}
+
+const call = (tool: string, input: unknown, output: unknown, id: string) => ({
+  tool_use_id: id,
+  tool,
+  input,
+  output,
+  isRunning: false,
+  isErrored: false,
+  isInterrupted: false,
+});
+
+const group = (id: string, isExpanded = false) =>
+  ({
+    plugin: "veneer",
+    viewport: { columns: 100, rows: 30 },
+    surface: "terminal",
+    component: "ToolGroup",
+    requestId: id,
+    props: {
+      isActive: false,
+      isExpanded,
+      calls: [
+        call("Bash", { command: "ls" }, { stdout: "a\nhidden", stderr: "" }, "c1"),
+        call("Read", { file_path: "/work/a.ts" }, { type: "text", file: { content: "x", startLine: 1 } }, "c2"),
+        call("Read", { file_path: "/work/b.ts" }, { type: "text", file: { content: "y", startLine: 1 } }, "c3"),
+      ],
+    },
+  }) as never;
+
+test("a group is one line of counts per tool, closed", async ($, on) => {
+  stub(on);
+
+  const ui = await $.ui.mount(group("g1"));
+
+  expect(await ui.find({ type: "Text", text: "Run " })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "Read " })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "2  " })).toBeDefined();
+  expect(await ui.find({ type: "Link" })).toBeUndefined();
+});
+
+test("pressing the line opens a row for each call, and again closes them", async ($, on) => {
+  stub(on);
+
+  const ui = await $.ui.mount(group("g2"));
+
+  await ui.press({ key: "group:g2" });
+  expect(await ui.find({ type: "Link" })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "  ls" })).toBeDefined();
+
+  await ui.press({ key: "group:g2" });
+  expect(await ui.find({ type: "Link" })).toBeUndefined();
+});
+
+test("pressing a row opens its output card", async ($, on) => {
+  stub(on);
+
+  const ui = await $.ui.mount(group("g3"));
+
+  await ui.press({ key: "group:g3" });
+  expect(await ui.find({ type: "Text", text: "hidden" })).toBeUndefined();
+
+  await ui.press({ key: "row:call:c1" });
+  expect(await ui.find({ type: "Text", text: "hidden" })).toBeDefined();
+});
+
+test("a group the engine already expanded keeps the native drawing", async ($, on) => {
+  stub(on);
+
+  const ui = await $.ui.mount(group("g4", true));
+
+  expect(await ui.find({ type: "Text", text: "Run " })).toBeUndefined();
+});

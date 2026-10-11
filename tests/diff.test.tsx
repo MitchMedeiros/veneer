@@ -80,10 +80,10 @@ test("a long diff folds, and pressing the fold line shows every line and back", 
   expect(await ui.find({ type: "Text", text: "line 24" })).toBeDefined();
   expect(await ui.find({ type: "Text", text: "line 25" })).toBeUndefined();
 
-  await ui.press({ key: "toggle" });
+  await ui.press({ key: "fold:r4" });
   expect(await ui.find({ type: "Text", text: "line 30" })).toBeDefined();
 
-  await ui.press({ key: "toggle" });
+  await ui.press({ key: "fold:r4" });
   expect(await ui.find({ type: "Text", text: "line 30" })).toBeUndefined();
 });
 

@@ -4,18 +4,26 @@ import { codeCard } from "./code";
 import type { Segment } from "./markdown";
 import type { Picture } from "./picture";
 
-type Ui = Pick<ElementTable, "Box" | "Text" | "Markdown"> & Pick<Extract<ElementTable, { Image: unknown }>, "Image">;
+type Ui = Pick<ElementTable, "Box" | "Text" | "Markdown"> &
+  Partial<Pick<Extract<ElementTable, { Image: unknown }>, "Image">>;
 
 // Columns the bullet gutter takes, as Claude Code's own reply rows leave.
 export const GUTTER = 2;
 
+// Columns left of the bullet, so it lines up with the icons of the tool rows and the edge of the cards.
+export const MARGIN = 2;
+
+// The mark before a reply: a four-point star, which any font draws.
+export const BULLET = "✦";
+
 // A reply block: its text left to the native `Markdown`, each table and heading as the picture drawn for it. A segment
-// without a picture falls back to its own markdown, so one failed picture never hides content.
+// without a picture falls back to its own markdown, so one failed picture never hides content. The first block of a
+// reply starts with the bullet, in the theme's accent colour.
 export function replyTree(
   { Box, Text, Markdown, Image }: Ui,
   segments: readonly Segment[],
   pictures: ReadonlyMap<Segment, { picture: Picture; alt: string }>,
-  hasBullet: boolean,
+  bullet: string | null,
 ): RenderElement {
   const rows = segments.map((segment, i) => {
     const drawn = pictures.get(segment);
@@ -32,7 +40,7 @@ export function replyTree(
       );
     }
 
-    if (drawn === undefined) {
+    if (drawn === undefined || Image === undefined) {
       return <Markdown key={`text-${i}`} text={segment.raw} />;
     }
 
@@ -55,9 +63,9 @@ export function replyTree(
   });
 
   return (
-    <Box flexDirection="row">
+    <Box flexDirection="row" marginLeft={MARGIN}>
       <Box width={GUTTER} flexShrink={0}>
-        <Text>{hasBullet ? "⏺" : " "}</Text>
+        <Text color="claude">{bullet ?? " "}</Text>
       </Box>
       <Box flexDirection="column" flexGrow={1}>
         {rows}

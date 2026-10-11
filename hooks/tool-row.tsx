@@ -6,7 +6,7 @@ export type ToolCall = { tool: string; input: unknown; isRunning: boolean; isErr
 
 type Input = Record<string, unknown>;
 
-type Look = {
+export type Look = {
   icon: string;
   label: string;
   // Edits take the success colour, as the diff does, and every other tool the suggestion colour.
@@ -42,8 +42,18 @@ const LOOKS: Record<string, Look> = {
   TodoWrite: { icon: "", label: "Todos", tone: "suggestion", detail: () => undefined },
 };
 
+// A tool with no look of its own is named as it is, with a gear.
+export const lookOf = (tool: string): Look =>
+  LOOKS[tool] ?? { icon: "", label: tool, tone: "suggestion", detail: () => undefined };
+
+export const inputOf = (input: unknown): Input => (input ?? {}) as Input;
+
+// The file a call works on, when the tool names one.
+export const pathOf = (look: Look, input: Input): string | undefined =>
+  look.pathKey === undefined ? undefined : text(look.pathKey)(input);
+
 // The path as shown: relative to the folder the session runs in when it lies under it.
-function shortPath(path: string, cwd: string): string {
+export function shortPath(path: string, cwd: string): string {
   const root = cwd.replace(/\/+$/, "");
 
   return path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path;
@@ -58,10 +68,10 @@ export function toolRow({ Box, Text, Link }: Ui, call: ToolCall, cwd: string): R
     return null;
   }
 
-  const input = (call.input ?? {}) as Input;
+  const input = inputOf(call.input);
   const detail = look.detail(input);
   const tone = call.isErrored ? "error" : look.tone;
-  const path = look.pathKey === undefined ? undefined : text(look.pathKey)(input);
+  const path = pathOf(look, input);
 
   return (
     <Box flexDirection="row" marginTop={1} marginLeft={2} gap={2}>

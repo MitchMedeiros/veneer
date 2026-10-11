@@ -1,5 +1,7 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
+import { foldButton, MAX_LINES, TAB } from "./fold";
+
 type Ui = Pick<ElementTable, "Box" | "Text" | "Button">;
 
 export type DiffLine = {
@@ -10,10 +12,6 @@ export type DiffLine = {
 };
 
 export type Diff = { lines: DiffLine[]; breaks: ReadonlySet<number> };
-
-// Lines drawn before the rest is folded into a count.
-const MAX_LINES = 24;
-const TAB = "    ";
 
 type Hunk = { oldStart?: number; newStart?: number; lines?: unknown };
 
@@ -80,12 +78,14 @@ export function parseDiff(output: unknown): Diff | null {
 // new number, or its old one where it was removed. The ansi themes draw the diff without fills, so there the numbers
 // and text take the success and error colours.
 export function diffCard(
-  { Box, Text, Button }: Ui,
+  ui: Ui,
   diff: Diff,
   isAnsi: boolean,
   expanded: boolean,
   toggle: () => void,
+  id: string,
 ): RenderElement {
+  const { Box, Text } = ui;
   const shown = expanded ? diff.lines : diff.lines.slice(0, MAX_LINES);
   const numberOf = (line: DiffLine) => line.newNumber ?? line.oldNumber;
   const digits = Math.max(1, ...shown.map((line) => String(numberOf(line) ?? "").length));
@@ -112,15 +112,7 @@ export function diffCard(
           </Box>
         </Box>
       ))}
-      {diff.lines.length > MAX_LINES ? (
-        <Box paddingLeft={1}>
-          <Button key="toggle" plain onPress={toggle}>
-            <Text color="claude">
-              {expanded ? "Show fewer lines" : `Show ${diff.lines.length - MAX_LINES} more lines`}
-            </Text>
-          </Button>
-        </Box>
-      ) : null}
+      {foldButton(ui, diff.lines.length, expanded, toggle, id)}
     </Box>
   );
 }
