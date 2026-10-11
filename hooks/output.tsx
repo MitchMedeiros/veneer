@@ -1,11 +1,13 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
 import { foldButton, MAX_LINES, TAB } from "./fold";
+import { lineChildren } from "./syntax/runs";
+import type { StyledRun } from "./syntax/types";
 import { shortPath } from "./tool-row";
 
 type Ui = Pick<ElementTable, "Box" | "Text" | "Button">;
 
-export type OutputLine = { text: string; number?: number; tone?: "error" };
+export type OutputLine = { text: string; number?: number; tone?: "error"; runs?: StyledRun[] };
 
 const ESCAPE = new RegExp(`${String.fromCharCode(27)}\\[[0-?]*[ -/]*[@-~]`, "g");
 
@@ -71,7 +73,7 @@ export function outputCard(
           {digits > 0 ? <Text dimColor>{` ${String(line.number ?? "").padStart(digits)} `}</Text> : null}
           <Box flexGrow={1} flexShrink={1} paddingLeft={1}>
             <Text color={line.tone} wrap="wrap">
-              {line.text === "" ? " " : line.text}
+              {lineChildren(ui, line.text, line.runs)}
             </Text>
           </Box>
         </Box>

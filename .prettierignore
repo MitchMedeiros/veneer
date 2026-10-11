@@ -2,3 +2,5 @@ node_modules
 .claude/types
 .claude-plugin/types
 package-lock.json
+grammars
+tools/samples

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Sample &amp; test</title>
+  <style>
+    body { margin: 0; color: #333; }
+    .a > b { font-weight: bold; }
+  </style>
+  <script type="module">
+    const x = `template ${1 + 1}`;
+    document.querySelector("#id").addEventListener("click", () => console.log(x));
+  </script>
+</head>
+<body class="home page" data-x='single' hidden>
+  <!-- a comment -->
+  <a href="https://example.com/?a=1&b=2" target="_blank">Link</a>
+  <input type="text" value="v" disabled>
+  <pre>
+    preformatted
+  </pre>
+  <button onclick="alert('hi')">Go</button>
+</body>
+</html>

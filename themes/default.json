@@ -1,0 +1,54 @@
+{
+  "name": "Veneer default",
+  "tokenColors": [
+    {
+      "scope": ["comment", "punctuation.definition.comment"],
+      "settings": { "foreground": "#7f848e", "fontStyle": "italic" }
+    },
+    { "scope": ["string", "punctuation.definition.string"], "settings": { "foreground": "#98c379" } },
+    { "scope": ["constant.character.escape", "string.regexp"], "settings": { "foreground": "#56b6c2" } },
+    {
+      "scope": ["constant.numeric", "constant.language", "constant.character", "support.constant"],
+      "settings": { "foreground": "#d19a66" }
+    },
+    {
+      "scope": ["keyword", "storage", "keyword.operator.new", "keyword.operator.expression"],
+      "settings": { "foreground": "#c678dd" }
+    },
+    {
+      "scope": ["keyword.operator", "punctuation.separator", "punctuation.terminator"],
+      "settings": { "foreground": "#abb2bf" }
+    },
+    {
+      "scope": ["entity.name.function", "support.function", "meta.function-call entity.name.function"],
+      "settings": { "foreground": "#61afef" }
+    },
+    {
+      "scope": [
+        "entity.name.type",
+        "entity.name.class",
+        "support.class",
+        "support.type",
+        "entity.other.inherited-class"
+      ],
+      "settings": { "foreground": "#e5c07b" }
+    },
+    {
+      "scope": ["variable.parameter", "variable.other.property", "variable.other.object.property"],
+      "settings": { "foreground": "#e06c75" }
+    },
+    {
+      "scope": ["entity.name.tag", "meta.tag", "entity.other.attribute-name"],
+      "settings": { "foreground": "#e06c75" }
+    },
+    {
+      "scope": ["markup.heading", "entity.name.section"],
+      "settings": { "foreground": "#e06c75", "fontStyle": "bold" }
+    },
+    { "scope": ["markup.bold"], "settings": { "fontStyle": "bold" } },
+    { "scope": ["markup.italic"], "settings": { "fontStyle": "italic" } },
+    { "scope": ["markup.inserted"], "settings": { "foreground": "#98c379" } },
+    { "scope": ["markup.deleted"], "settings": { "foreground": "#e06c75" } },
+    { "scope": ["invalid"], "settings": { "foreground": "#e06c75" } }
+  ]
+}

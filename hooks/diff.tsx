@@ -1,6 +1,8 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
 import { foldButton, MAX_LINES, TAB } from "./fold";
+import { lineChildren } from "./syntax/runs";
+import type { StyledRun } from "./syntax/types";
 
 type Ui = Pick<ElementTable, "Box" | "Text" | "Button">;
 
@@ -84,6 +86,7 @@ export function diffCard(
   expanded: boolean,
   toggle: () => void,
   id: string,
+  runs: readonly (StyledRun[] | undefined)[] = [],
 ): RenderElement {
   const { Box, Text } = ui;
   const shown = expanded ? diff.lines : diff.lines.slice(0, MAX_LINES);
@@ -106,7 +109,7 @@ export function diffCard(
             >{` ${String(numberOf(line) ?? "").padStart(digits)} `}</Text>
             <Box flexGrow={1} flexShrink={1} paddingLeft={1} backgroundColor={fillOf(line.kind)}>
               <Text color={isAnsi ? tone(line.kind) : undefined} wrap="wrap">
-                {line.text === "" ? " " : line.text}
+                {lineChildren(ui, line.text, runs[i])}
               </Text>
             </Box>
           </Box>

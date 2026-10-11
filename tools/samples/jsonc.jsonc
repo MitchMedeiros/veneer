@@ -1,0 +1,6 @@
+{
+  // line comment
+  "a": 1, /* block */
+  "b": [1, 2, 3,],
+  "c": "str", // trailing
+}

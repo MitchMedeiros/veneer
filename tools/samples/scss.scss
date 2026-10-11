@@ -1,0 +1,20 @@
+@use "sass:math";
+$base: 16px !default;
+$map: (key1: value1, key2: value2);
+
+@mixin respond($bp) {
+  @media (min-width: $bp) { @content; }
+}
+
+// line comment
+.nav {
+  &__item { padding: math.div($base, 2); }
+  &:hover { color: darken(#06c, 10%); }
+  @include respond(640px) { display: flex; }
+  @each $name, $glyph in $map {
+    .icon-#{$name}:before { content: $glyph; }
+  }
+  @if $base > 10px { width: 100%; } @else { width: auto; }
+}
+%placeholder { margin: 0; }
+.a { @extend %placeholder; }

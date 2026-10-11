@@ -15,6 +15,10 @@ import { baseOf } from "./palette";
 import { cellHeightOf, MAX_COLUMNS, rasterize } from "./picture";
 import type { Picture, PictureIo } from "./picture";
 import { BULLET, GUTTER, MARGIN, replyTree } from "./reply";
+import { filePathOf, paintDiff, paintFences, paintLines } from "./paint";
+import type { Painter } from "./paint";
+import { highlight } from "./syntax/highlight";
+import type { SyntaxIo } from "./syntax/highlight";
 import { tableSketch } from "./table";
 import { toolRow } from "./tool-row";
 import { loadPalette } from "./theme";
@@ -54,6 +58,15 @@ const pictureIo = ($: EngineInterface): PictureIo => ({
       () => undefined,
     ),
 });
+
+// Highlights code with the theme file the person set, or the shipped one. A path may start with `~/`.
+async function painterFor($: EngineInterface, setting: string): Promise<Painter> {
+  const home = await $.env.get("HOME");
+  const themePath = setting.startsWith("~/") && home !== undefined ? `${home}${setting.slice(1)}` : setting;
+  const io: SyntaxIo = { root: $.plugin.root, read: (path) => $.fs.read(path).catch(() => undefined) };
+
+  return (hint, code) => highlight(io, themePath, hint, code);
+}
 
 async function pictureDir($: EngineInterface): Promise<string> {
   return `${((await $.env.get("TMPDIR")) ?? "/tmp").replace(/[\\/]+$/, "")}/veneer-pictures`;
@@ -145,9 +158,12 @@ export const register: Register = (on, options) => {
     const segments = splitReply(text);
     const bullet = isFirstOfReply ? BULLET : null;
     const drawn = new Map<Segment, { picture: Picture; alt: string }>();
+    const fences = segments.some((segment) => segment.kind === "code")
+      ? await paintFences(await painterFor($, config.syntaxTheme), segments)
+      : undefined;
 
     if (!("Image" in ui) || !hasDrawn(segments)) {
-      return replyTree(ui, segments, drawn, bullet);
+      return replyTree(ui, segments, drawn, bullet, fences);
     }
 
     const palette = await read($, paletteAtom);
@@ -174,7 +190,7 @@ export const register: Register = (on, options) => {
       }),
     );
 
-    return replyTree(ui, segments, drawn, bullet);
+    return replyTree(ui, segments, drawn, bullet, fences);
   });
 
   on("ui.render", { component: "ToolUse" }, async ($, e, next) => {
@@ -216,10 +232,20 @@ export const register: Register = (on, options) => {
     const expanded = (await read($, expandedAtom)).includes(id);
     const toggle = () => flip($, id);
     const ui = $.ui.resolve(e);
+    const path = tool === "Read" || diff !== null ? filePathOf(output) : undefined;
 
-    return diff === null
-      ? outputCard(ui, lines ?? [], expanded, toggle, id)
-      : diffCard(ui, diff, (await read($, paletteAtom)).isAnsi, expanded, toggle, id);
+    const paint = path === undefined ? undefined : await painterFor($, config.syntaxTheme);
+
+    if (diff === null) {
+      const shown =
+        path === undefined || paint === undefined ? (lines ?? []) : await paintLines(paint, path, lines ?? []);
+
+      return outputCard(ui, shown, expanded, toggle, id);
+    }
+
+    const runs = path === undefined || paint === undefined ? [] : await paintDiff(paint, path, diff);
+
+    return diffCard(ui, diff, (await read($, paletteAtom)).isAnsi, expanded, toggle, id, runs);
   });
 
   on("ui.render", { component: "Spinner" }, async ($, e, next) => {

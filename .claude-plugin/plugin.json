@@ -27,6 +27,12 @@
       "title": "Cell proportion",
       "description": "Height of a terminal cell over its width. Change it if pictures look tall, short or letterboxed.",
       "default": "2.9"
+    },
+    "syntaxTheme": {
+      "type": "string",
+      "title": "Syntax theme",
+      "description": "Path to a VS Code color theme file for code. Leave empty for the built-in colors.",
+      "default": ""
     }
   }
 }

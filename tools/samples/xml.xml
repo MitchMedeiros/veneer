@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE note SYSTEM "note.dtd">
+<root xmlns:x="http://example.com/x" id="1">
+  <!-- comment -->
+  <x:item name="a" value='b'>Text &lt; entity &#169;</x:item>
+  <empty />
+  <![CDATA[ raw <data> ]]>
+</root>

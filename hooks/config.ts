@@ -4,6 +4,7 @@ export type Config = {
   align: "left" | "right";
   fontFamily: string;
   cellRatio: number;
+  syntaxTheme: string;
 };
 
 const DEFAULT_FONT = "Helvetica Neue";
@@ -23,4 +24,5 @@ export const configOf = (options: PluginOptions): Config => ({
       ? options.fontFamily.trim()
       : DEFAULT_FONT,
   cellRatio: ratioOf(options.cellRatio),
+  syntaxTheme: typeof options.syntaxTheme === "string" ? options.syntaxTheme.trim() : "",
 });

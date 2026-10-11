@@ -1,0 +1,29 @@
+@charset "utf-8";
+@import url("other.css") screen;
+:root {
+  --main-color: #06c;
+  --gap: calc(1rem + 2px);
+}
+
+/* comment */
+.card > .title:not(.hidden)::before,
+a[href^="http"]:hover {
+  color: rgb(0 0 0 / 50%);
+  margin: 0 auto !important;
+  font: italic bold 12px/30px Georgia, serif;
+  background: url(data:image/png;base64,AAAA) no-repeat;
+  transition: all 0.3s ease-in-out;
+}
+
+@media (min-width: 640px) and (max-width: 1024px) {
+  #id.class {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    content: "a\"b";
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@font-face { font-family: "X"; src: local("X"), url(x.woff2) format("woff2"); }

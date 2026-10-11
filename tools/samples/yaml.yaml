@@ -1,0 +1,26 @@
+# comment
+name: CI
+on:
+  push:
+    branches: [main, "release/*"]
+env:
+  FLAG: true
+  NUM: 12.5
+  EMPTY: ~
+anchors: &base
+  a: 1
+merged:
+  <<: *base
+  b: 'single quoted'
+list:
+  - one
+  - key: value
+    other: "double \"quoted\""
+  - |
+    literal block
+    second line
+  - >-
+    folded text
+    continues
+---
+second: doc

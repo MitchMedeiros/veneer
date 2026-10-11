@@ -1,0 +1,10 @@
+{
+  "name": "veneer",
+  "version": "0.1.0",
+  "private": true,
+  "nested": { "list": [1, 2.5, -3e10, true, false, null], "empty": {}, "arr": [] },
+  "text": "with \"escapes\" and é and \n newline",
+  "scripts": {
+    "check": "npm run lint && npm test"
+  }
+}

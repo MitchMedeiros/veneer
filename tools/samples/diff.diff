@@ -1,0 +1,11 @@
+diff --git a/file.txt b/file.txt
+index 83db48f..bf2a3c1 100644
+--- a/file.txt
++++ b/file.txt
+@@ -1,4 +1,5 @@ context heading
+ unchanged line
+-removed line
++added line
++another added
+ trailing context
+\ No newline at end of file

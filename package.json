@@ -7,6 +7,8 @@
     "node": ">=24"
   },
   "scripts": {
+    "build:grammars": "node tools/build-grammars.mjs",
+    "conformance": "node tools/conformance.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
@@ -14,7 +16,7 @@
     "typecheck": "tsc --noEmit -p .",
     "validate": "cd /tmp && claude plugin validate \"$OLDPWD\"",
     "test": "cd /tmp && claude plugin test \"$OLDPWD\"",
-    "check": "npm run format:check && npm run lint && npm run typecheck && npm run validate && npm test",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run conformance && npm run validate && npm test",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -27,7 +29,10 @@
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
+    "oniguruma-to-es": "^4.3.6",
     "prettier": "^3.9.10",
+    "shiki": "^4.5.0",
+    "tm-grammars": "^1.32.22",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.71.1"
   }

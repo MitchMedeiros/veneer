@@ -3,6 +3,7 @@ import type { ElementTable, RenderElement } from "claude-code";
 import { codeCard } from "./code";
 import type { Segment } from "./markdown";
 import type { Picture } from "./picture";
+import type { StyledRun } from "./syntax/types";
 
 type Ui = Pick<ElementTable, "Box" | "Text" | "Markdown"> &
   Partial<Pick<Extract<ElementTable, { Image: unknown }>, "Image">>;
@@ -18,12 +19,13 @@ export const BULLET = "✦";
 
 // A reply block: its text left to the native `Markdown`, each table and heading as the picture drawn for it. A segment
 // without a picture falls back to its own markdown, so one failed picture never hides content. The first block of a
-// reply starts with the bullet, in the theme's accent colour.
+// reply starts with the bullet, in the theme's accent colour. A fence with runs in `fences` is drawn highlighted.
 export function replyTree(
   { Box, Text, Markdown, Image }: Ui,
   segments: readonly Segment[],
   pictures: ReadonlyMap<Segment, { picture: Picture; alt: string }>,
   bullet: string | null,
+  fences: ReadonlyMap<Segment, StyledRun[][]> = new Map(),
 ): RenderElement {
   const rows = segments.map((segment, i) => {
     const drawn = pictures.get(segment);
@@ -35,7 +37,7 @@ export function replyTree(
     if (segment.kind === "code") {
       return (
         <Box key={`code-${i}`} flexDirection="column" marginTop={i > 0 ? 1 : 0}>
-          {codeCard({ Box, Text }, segment.lang, segment.code)}
+          {codeCard({ Box, Text }, segment.lang, segment.code, fences.get(segment))}
         </Box>
       );
     }

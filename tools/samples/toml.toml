@@ -1,0 +1,18 @@
+# comment
+title = "TOML Example"
+count = 42
+pi = 3.14e0
+on = true
+date = 1979-05-27T07:32:00Z
+
+[owner]
+name = "Tom"
+tags = ["a", 'b', """multi
+line"""]
+
+[[products]]
+name = "Hammer"
+sku = 0xDEADBEEF
+
+[servers.alpha]
+inline = { x = 1, y = 2 }

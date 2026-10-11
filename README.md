@@ -20,28 +20,33 @@ Needs Claude Code 2.1.287 or later. Pictures need a terminal that draws them (Gh
 
 Colors come from your Claude Code theme. Edit a theme in `~/.claude/themes/`.
 
-| Option         | Default          | Use                                                                        |
-| -------------- | ---------------- | -------------------------------------------------------------------------- |
-| `messageAlign` | `left`           | `left` or `right`                                                          |
-| `fontFamily`   | `Helvetica Neue` | Font for tables and headings. It must be installed on this machine.        |
-| `cellRatio`    | `2.9`            | Height of a terminal cell over its width. Change it if pictures letterbox. |
+| Option         | Default          | Use                                                                          |
+| -------------- | ---------------- | ---------------------------------------------------------------------------- |
+| `messageAlign` | `left`           | `left` or `right`                                                            |
+| `fontFamily`   | `Helvetica Neue` | Font for tables and headings. It must be installed on this machine.          |
+| `cellRatio`    | `2.9`            | Height of a terminal cell over its width. Change it if pictures letterbox.   |
+| `syntaxTheme`  | empty            | Path to a VS Code color theme file for code. Empty uses the built-in colors. |
 
 Set options through `/config` or under `pluginConfigs` in `settings.json`.
+
+Code in fences, edits and file reads is highlighted for the languages in `grammars/`. Any other language draws plain.
 
 ## Develop
 
 Needs Node 24 or later (`nvm use` reads `.nvmrc`) and the Claude Code CLI. Install the tooling once with `npm install`,
 which also sets up the pre-commit hook.
 
-| Command                | Does                                                    |
-| ---------------------- | ------------------------------------------------------- |
-| `npm run format`       | Format every file with Prettier                         |
-| `npm run format:check` | Check formatting without changing files                 |
-| `npm run lint`         | Lint with ESLint (`npm run lint:fix` fixes what it can) |
-| `npm run typecheck`    | Type-check with `tsc`                                   |
-| `npm run validate`     | Run `claude plugin validate` on the repo                |
-| `npm test`             | Run `claude plugin test` on the repo                    |
-| `npm run check`        | Run all of the above, as CI does                        |
+| Command                  | Does                                                    |
+| ------------------------ | ------------------------------------------------------- |
+| `npm run format`         | Format every file with Prettier                         |
+| `npm run format:check`   | Check formatting without changing files                 |
+| `npm run lint`           | Lint with ESLint (`npm run lint:fix` fixes what it can) |
+| `npm run typecheck`      | Type-check with `tsc`                                   |
+| `npm run validate`       | Run `claude plugin validate` on the repo                |
+| `npm test`               | Run `claude plugin test` on the repo                    |
+| `npm run build:grammars` | Rebuild `grammars/` from `tools/languages.json`         |
+| `npm run conformance`    | Compare the tokenizer with Shiki on `tools/samples/`    |
+| `npm run check`          | Run all of the above, as CI does                        |
 
 `validate` and `test` run from outside the repo, because Claude Code needs that. The pre-commit hook formats and lints
 the staged files and type-checks the project. CI runs `npm run check` on every push to `main` and every pull request.
