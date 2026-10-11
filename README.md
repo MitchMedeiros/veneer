@@ -36,17 +36,19 @@ Code in fences, edits and file reads is highlighted for the languages in `gramma
 Needs Node 24 or later (`nvm use` reads `.nvmrc`) and the Claude Code CLI. Install the tooling once with `npm install`,
 which also sets up the pre-commit hook.
 
-| Command                  | Does                                                    |
-| ------------------------ | ------------------------------------------------------- |
-| `npm run format`         | Format every file with Prettier                         |
-| `npm run format:check`   | Check formatting without changing files                 |
-| `npm run lint`           | Lint with ESLint (`npm run lint:fix` fixes what it can) |
-| `npm run typecheck`      | Type-check with `tsc`                                   |
-| `npm run validate`       | Run `claude plugin validate` on the repo                |
-| `npm test`               | Run `claude plugin test` on the repo                    |
-| `npm run build:grammars` | Rebuild `grammars/` from `tools/languages.json`         |
-| `npm run conformance`    | Compare the tokenizer with Shiki on `tools/samples/`    |
-| `npm run check`          | Run all of the above, as CI does                        |
+| Command                  | Does                                                     |
+| ------------------------ | -------------------------------------------------------- |
+| `npm run format`         | Format every file with Prettier                          |
+| `npm run format:check`   | Check formatting without changing files                  |
+| `npm run lint`           | Lint with ESLint (`npm run lint:fix` fixes what it can)  |
+| `npm run typecheck`      | Type-check with `tsc`                                    |
+| `npm run validate`       | Run `claude plugin validate` on the repo                 |
+| `npm test`               | Run `claude plugin test` on the repo                     |
+| `npm run build:grammars` | Rebuild `grammars/` from `tools/languages.json`          |
+| `npm run conformance`    | Compare the tokenizer with Shiki on `tools/samples/`     |
+| `npm run benchmark`      | Time the tokenizer per language in Node (not in CI)      |
+| `npm run benchmark:host` | Time the highlighter in the plugin test host (not in CI) |
+| `npm run check`          | Run the checks above, as CI does                         |
 
 `validate` and `test` run from outside the repo, because Claude Code needs that. The pre-commit hook formats and lints
 the staged files and type-checks the project. CI runs `npm run check` on every push to `main` and every pull request.

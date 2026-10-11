@@ -7,6 +7,8 @@
     "node": ">=24"
   },
   "scripts": {
+    "benchmark": "node tools/benchmark.mjs",
+    "benchmark:host": "node tools/host-bench.mjs",
     "build:grammars": "node tools/build-grammars.mjs",
     "conformance": "node tools/conformance.mjs",
     "format": "prettier --write .",

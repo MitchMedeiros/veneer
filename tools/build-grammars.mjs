@@ -10,6 +10,52 @@ const OUT = new URL("../grammars/", import.meta.url);
 const SOURCE = new URL("../node_modules/tm-grammars/grammars/", import.meta.url);
 const wanted = JSON.parse(readFileSync(new URL("./languages.json", import.meta.url), "utf8"));
 
+// How deep a recursive pattern, such as nested template arguments, is unrolled. Each level multiplies the size of the
+// regex. Oniguruma allows 20; 8 cut the first highlight of C++ by more than half, and code nested deeper is rare.
+const RECURSION_LIMIT = 8;
+
+// Unicode classes that V8 spends most of its compile time on where a grammar repeats them, and a class that matches
+// nearly the same text and compiles several times faster. The word class is the translator's Oniguruma `\w`; the
+// replacement differs from it for a few symbols (superscript digits, fractions, enclosing marks). `\d` is ASCII digits
+// only, `\s` adds U+FEFF, and `ID_Start` leaves out some combining marks that `Alphabetic` has. All are rare in code.
+const FASTER_CLASSES = [
+  [String.raw`\p{L}\p{M}\p{N}\p{Pc}`, String.raw`\p{ID_Continue}`],
+  [String.raw`\p{Alpha}`, String.raw`\p{ID_Start}`],
+  [String.raw`\p{Nd}`, String.raw`\d`],
+  [String.raw`\p{space}`, String.raw`\s`],
+];
+
+const HEX_PROPERTY = String.raw`\p{AHex}`;
+
+// `AHex` is exactly the hex digits. Its replacement is the bare range inside a character class and a class outside one.
+function hexDigits(pattern) {
+  let out = "";
+  let inClass = false;
+
+  for (let at = 0; at < pattern.length; at++) {
+    const char = pattern[at];
+
+    if (char === "\\") {
+      if (pattern.startsWith(HEX_PROPERTY, at)) {
+        out += inClass ? "0-9A-Fa-f" : "[0-9A-Fa-f]";
+        at += HEX_PROPERTY.length - 1;
+      } else {
+        out += char + (pattern[++at] ?? "");
+      }
+    } else {
+      if (char === "[") inClass = true;
+      else if (char === "]") inClass = false;
+
+      out += char;
+    }
+  }
+
+  return out;
+}
+
+const fasterClasses = (pattern) =>
+  hexDigits(FASTER_CLASSES.reduce((out, [slow, fast]) => out.replaceAll(slow, fast), pattern));
+
 const failures = [];
 
 // A regex as `/source/flags`, and `groups`: the group number in the JavaScript regex of each group the grammar wrote,
@@ -31,7 +77,13 @@ function translate(pattern, { indices, backReferences, beginGroups }, where) {
       accuracy: "loose",
       target: "ES2018",
       hasIndices: indices,
-      rules: { allowOrphanBackrefs: true, asciiWordBoundaries: true, captureGroup: true, singleline: true },
+      rules: {
+        allowOrphanBackrefs: true,
+        asciiWordBoundaries: true,
+        captureGroup: true,
+        recursionLimit: RECURSION_LIMIT,
+        singleline: true,
+      },
     });
     const hidden = new Set(details.options?.hiddenCaptures ?? []);
     const total = new RegExp(`${withoutMarks(details.pattern)}|`, details.flags).exec("")?.length ?? 1;
@@ -41,7 +93,7 @@ function translate(pattern, { indices, backReferences, beginGroups }, where) {
       if (!hidden.has(index)) groups.push(index);
     }
 
-    return { source: `/${details.pattern}/${details.flags}`, groups };
+    return { source: `/${fasterClasses(details.pattern)}/${details.flags}`, groups };
   } catch (error) {
     failures.push(`${where}: ${error.message.split("\n")[0]} in ${pattern.slice(0, 80)}`);
 
