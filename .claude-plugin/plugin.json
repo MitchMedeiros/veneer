@@ -7,23 +7,14 @@
   },
   "license": "MIT",
   "types": "./types/index.d.ts",
-  "keywords": [
-    "claude-code-mods",
-    "claude-mods",
-    "function-hooks",
-    "terminal",
-    "theme"
-  ],
+  "keywords": ["claude-code-mods", "claude-mods", "function-hooks", "terminal", "theme"],
   "userConfig": {
     "messageAlign": {
       "type": "string",
       "title": "Message alignment",
       "description": "Where your own messages sit in the transcript.",
       "default": "left",
-      "options": [
-        "left",
-        "right"
-      ]
+      "options": ["left", "right"]
     },
     "fontFamily": {
       "type": "string",
