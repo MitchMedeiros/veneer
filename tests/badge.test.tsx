@@ -43,6 +43,7 @@ const edit = (output: unknown, overrides: Record<string, unknown> = {}, id = "t1
 test("changes are counted from the lines of the stored patch", () => {
   expect(changeCounts(PATCH)).toEqual({ added: 2, removed: 1 });
   expect(changeCounts({ structuredPatch: [] })).toBeNull();
+  expect(changeCounts({ type: "create", content: "a\nb\nc\n", structuredPatch: [] })).toEqual({ added: 3, removed: 0 });
   expect(changeCounts("an error message")).toBeNull();
   expect(changeCounts(undefined)).toBeNull();
 });

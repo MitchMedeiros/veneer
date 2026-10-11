@@ -1,6 +1,6 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
-type Ui = Pick<ElementTable, "Box" | "Text">;
+type Ui = Pick<ElementTable, "Box" | "Text" | "Button">;
 
 export type DiffLine = {
   kind: "add" | "remove" | "context";
@@ -12,23 +12,41 @@ export type DiffLine = {
 export type Diff = { lines: DiffLine[]; breaks: ReadonlySet<number> };
 
 // Lines drawn before the rest is folded into a count.
-const MAX_LINES = 60;
+const MAX_LINES = 24;
 const TAB = "    ";
 
 type Hunk = { oldStart?: number; newStart?: number; lines?: unknown };
 
+// The hunks of an edit's stored result. A newly created file stores no patch, only its content, so that becomes one hunk
+// of added lines.
+export function hunksOf(output: unknown): Hunk[] | null {
+  const result = output as { type?: unknown; content?: unknown; structuredPatch?: unknown } | null | undefined;
+
+  if (Array.isArray(result?.structuredPatch) && result.structuredPatch.length > 0) {
+    return result.structuredPatch as Hunk[];
+  }
+
+  if (result?.type === "create" && typeof result.content === "string" && result.content !== "") {
+    const lines = result.content.replace(/\n$/, "").split("\n");
+
+    return [{ oldStart: 0, newStart: 1, lines: lines.map((line) => `+${line}`) }];
+  }
+
+  return null;
+}
+
 // The stored patch of an edit as numbered lines, with the indexes where a new hunk starts. Null when it holds none.
 export function parseDiff(output: unknown): Diff | null {
-  const patch = (output as { structuredPatch?: unknown } | null | undefined)?.structuredPatch;
+  const patch = hunksOf(output);
 
-  if (!Array.isArray(patch) || patch.length === 0) {
+  if (patch === null) {
     return null;
   }
 
   const lines: DiffLine[] = [];
   const breaks = new Set<number>();
 
-  for (const hunk of patch as Hunk[]) {
+  for (const hunk of patch) {
     let oldNumber = hunk.oldStart ?? 1;
     let newNumber = hunk.newStart ?? 1;
 
@@ -61,8 +79,14 @@ export function parseDiff(output: unknown): Diff | null {
 // one number column, coloured on changed lines in the line's own fill colour, as the badges are filled: the line's
 // new number, or its old one where it was removed. The ansi themes draw the diff without fills, so there the numbers
 // and text take the success and error colours.
-export function diffCard({ Box, Text }: Ui, diff: Diff, isAnsi: boolean): RenderElement {
-  const shown = diff.lines.slice(0, MAX_LINES);
+export function diffCard(
+  { Box, Text, Button }: Ui,
+  diff: Diff,
+  isAnsi: boolean,
+  expanded: boolean,
+  toggle: () => void,
+): RenderElement {
+  const shown = expanded ? diff.lines : diff.lines.slice(0, MAX_LINES);
   const numberOf = (line: DiffLine) => line.newNumber ?? line.oldNumber;
   const digits = Math.max(1, ...shown.map((line) => String(numberOf(line) ?? "").length));
   const tone = (kind: DiffLine["kind"]) => (kind === "add" ? "success" : kind === "remove" ? "error" : undefined);
@@ -88,7 +112,15 @@ export function diffCard({ Box, Text }: Ui, diff: Diff, isAnsi: boolean): Render
           </Box>
         </Box>
       ))}
-      {diff.lines.length > MAX_LINES ? <Text dimColor>{` … ${diff.lines.length - MAX_LINES} more lines`}</Text> : null}
+      {diff.lines.length > MAX_LINES ? (
+        <Box paddingLeft={1}>
+          <Button key="toggle" plain onPress={toggle}>
+            <Text color="claude">
+              {expanded ? "Show fewer lines" : `Show ${diff.lines.length - MAX_LINES} more lines`}
+            </Text>
+          </Button>
+        </Box>
+      ) : null}
     </Box>
   );
 }

@@ -52,6 +52,16 @@ test("a patch with no changed line is not a diff", () => {
   expect(parseDiff("error text")).toBeNull();
 });
 
+test("a created file, which stores no patch, becomes lines that are all added", () => {
+  const diff = parseDiff({ type: "create", content: "one\ntwo\n", structuredPatch: [] });
+
+  expect(diff?.lines.map((line) => [line.kind, line.text, line.oldNumber, line.newNumber])).toEqual([
+    ["add", "one", null, 1],
+    ["add", "two", null, 2],
+  ]);
+  expect(parseDiff({ type: "create", content: "", structuredPatch: [] })).toBeNull();
+});
+
 test("an edit result is drawn as the card, not the native block", async ($, on) => {
   stub(on, NATIVE);
 
@@ -59,6 +69,22 @@ test("an edit result is drawn as the card, not the native block", async ($, on) 
 
   expect(await ui.find({ type: "Text", text: "TWO" })).toBeDefined();
   expect(await ui.find({ type: "Text", text: "two" })).toBeDefined();
+});
+
+test("a long diff folds, and pressing the fold line shows every line and back", async ($, on) => {
+  stub(on, NATIVE);
+
+  const content = Array.from({ length: 30 }, (_, i) => `line ${i + 1}`).join("\n");
+  const ui = await $.ui.mount(result({ type: "create", content, structuredPatch: [] }, "r4"));
+
+  expect(await ui.find({ type: "Text", text: "line 24" })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "line 25" })).toBeUndefined();
+
+  await ui.press({ key: "toggle" });
+  expect(await ui.find({ type: "Text", text: "line 30" })).toBeDefined();
+
+  await ui.press({ key: "toggle" });
+  expect(await ui.find({ type: "Text", text: "line 30" })).toBeUndefined();
 });
 
 test("a failed edit keeps the native result", async ($, on) => {

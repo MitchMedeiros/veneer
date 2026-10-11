@@ -20,6 +20,7 @@ declare module "claude-code" {
     veneer: {
       off: Off | null;
       palette: Palette;
+      expanded: string[];
     };
   }
 }

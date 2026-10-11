@@ -1,5 +1,7 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
+import { hunksOf } from "./diff";
+
 type Ui = Pick<ElementTable, "Box" | "Text">;
 
 export type Changes = { added: number; removed: number };
@@ -12,15 +14,13 @@ const RIGHT_CAP = "";
 
 // Added and removed line counts from an edit's stored result, or null when it holds no change.
 export function changeCounts(output: unknown): Changes | null {
-  const patches = (output as { structuredPatch?: unknown } | null | undefined)?.structuredPatch;
+  const patches = hunksOf(output);
 
-  if (!Array.isArray(patches)) {
+  if (patches === null) {
     return null;
   }
 
-  const lines = patches.flatMap((patch) =>
-    (patch as { lines?: unknown })?.lines instanceof Array ? (patch as { lines: unknown[] }).lines : [],
-  );
+  const lines = patches.flatMap((patch) => (Array.isArray(patch?.lines) ? (patch.lines as unknown[]) : []));
   const added = lines.filter((line) => typeof line === "string" && line.startsWith("+")).length;
   const removed = lines.filter((line) => typeof line === "string" && line.startsWith("-")).length;
 

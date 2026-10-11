@@ -21,6 +21,8 @@ const NOTICE_MS = 6000;
 
 // Why Veneer is off this session; null when it draws.
 const offAtom = atom({ plugin: "veneer", key: "off" } as const, null as Off | null);
+// The tool calls whose diff card shows every line.
+const expandedAtom = atom({ plugin: "veneer", key: "expanded" } as const, [] as string[]);
 const paletteAtom = atom({ plugin: "veneer", key: "palette" } as const, baseOf("dark") as Palette);
 
 async function themeFile($: EngineInterface, path: string): Promise<string | undefined> {
@@ -192,7 +194,12 @@ export const register: Register = (on, options) => {
       return native;
     }
 
-    return diffCard($.ui.resolve(e), diff, (await read($, paletteAtom)).isAnsi);
+    const id = e.props.tool_use_id;
+    const expanded = (await read($, expandedAtom)).includes(id);
+    const toggle = () =>
+      void update($, expandedAtom, (ids) => (ids.includes(id) ? ids.filter((other) => other !== id) : [...ids, id]));
+
+    return diffCard($.ui.resolve(e), diff, (await read($, paletteAtom)).isAnsi, expanded, toggle);
   });
 
   on("config.set", async ($, e, next) => {
