@@ -12,6 +12,7 @@ const DARK: Palette = {
   success: '#4eba65',
   error: '#ff6b80',
   userBackground: '#373737',
+  isAnsi: false,
 }
 
 const LIGHT: Palette = {
@@ -23,9 +24,10 @@ const LIGHT: Palette = {
   success: '#2c7a39',
   error: '#ab2b3f',
   userBackground: '#f0f0f0',
+  isAnsi: false,
 }
 
-const TOKENS: Record<keyof Palette, string> = {
+const TOKENS: Record<Exclude<keyof Palette, 'isAnsi'>, string> = {
   text: 'text',
   inactive: 'inactive',
   subtle: 'subtle',
@@ -87,9 +89,9 @@ export const baseOf = (name: string | undefined): Palette => (name?.startsWith('
 
 // The preset a theme starts from, with the theme's own overrides on top.
 export function paletteOf(base: string | undefined, overrides: Tokens | undefined): Palette {
-  const palette = { ...baseOf(base) }
+  const palette = { ...baseOf(base), isAnsi: base?.includes('ansi') === true }
 
-  for (const key of Object.keys(TOKENS) as (keyof Palette)[]) {
+  for (const key of Object.keys(TOKENS) as (keyof typeof TOKENS)[]) {
     palette[key] = hexOf(overrides?.[TOKENS[key]]) ?? palette[key]
   }
 

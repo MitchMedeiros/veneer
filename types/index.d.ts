@@ -11,6 +11,8 @@ export type Palette = {
   success: string
   error: string
   userBackground: string
+  // The terminal's own 16 colours: a theme token there can equal the diff fill, so text needs a different one.
+  isAnsi: boolean
 }
 
 declare module 'claude-code' {

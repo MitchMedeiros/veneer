@@ -53,7 +53,13 @@ test('the theme setting picks a custom file, a preset or the terminal background
 })
 
 test('message alignment is left unless set to right', () => {
-  expect(configOf({})).toEqual({ align: 'left' })
-  expect(configOf({ messageAlign: 'right' })).toEqual({ align: 'right' })
-  expect(configOf({ messageAlign: 'middle' })).toEqual({ align: 'left' })
+  expect(configOf({}).align).toBe('left')
+  expect(configOf({ messageAlign: 'right' }).align).toBe('right')
+  expect(configOf({ messageAlign: 'middle' }).align).toBe('left')
+})
+
+test('picture options fall back to their defaults when blank or out of range', () => {
+  expect(configOf({})).toMatchObject({ fontFamily: 'Helvetica Neue', cellRatio: 2.9 })
+  expect(configOf({ fontFamily: ' Inter ', cellRatio: '2.4' })).toMatchObject({ fontFamily: 'Inter', cellRatio: 2.4 })
+  expect(configOf({ fontFamily: '  ', cellRatio: '40' })).toMatchObject({ fontFamily: 'Helvetica Neue', cellRatio: 2.9 })
 })

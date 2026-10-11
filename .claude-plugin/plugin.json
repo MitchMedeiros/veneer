@@ -1,18 +1,41 @@
 {
   "name": "veneer",
   "version": "0.1.0",
-  "description": "The Claude desktop look in the terminal. Draws your messages as a filled block, and wherever it cannot draw, Claude Code draws its own rows.",
-  "author": { "name": "Mitchell Medeiros" },
+  "description": "Turns Claude Code in the terminal into a desktop quality app with syntax highlighting on the side.",
+  "author": {
+    "name": "Mitchell Medeiros"
+  },
   "license": "MIT",
   "types": "./types/index.d.ts",
-  "keywords": ["claude-code-mods", "claude-mods", "function-hooks", "terminal", "theme"],
+  "keywords": [
+    "claude-code-mods",
+    "claude-mods",
+    "function-hooks",
+    "terminal",
+    "theme"
+  ],
   "userConfig": {
     "messageAlign": {
       "type": "string",
       "title": "Message alignment",
       "description": "Where your own messages sit in the transcript.",
       "default": "left",
-      "options": ["left", "right"]
+      "options": [
+        "left",
+        "right"
+      ]
+    },
+    "fontFamily": {
+      "type": "string",
+      "title": "Picture font",
+      "description": "Font family for tables and headings. It must be installed on this machine.",
+      "default": "Helvetica Neue"
+    },
+    "cellRatio": {
+      "type": "string",
+      "title": "Cell proportion",
+      "description": "Height of a terminal cell over its width. Change it if pictures look tall, short or letterboxed.",
+      "default": "2.9"
     }
   }
 }
