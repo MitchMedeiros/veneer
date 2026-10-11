@@ -16,6 +16,7 @@ const OTHER_MOD: RenderElement = { type: "Text", props: {}, children: ["another 
 function stub(on: On, row: RenderElement) {
   mock.clock(on, { now: 10_000 });
   on("env.get", () => ({ value: undefined }));
+  on("session.cwd", () => ({ value: "/work" }));
   on("ui.toast", () => ({ value: undefined }));
   on("ui.log", () => ({ value: undefined }));
   on("ui.render", () => row);

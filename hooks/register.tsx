@@ -14,6 +14,7 @@ import { cellHeightOf, MAX_COLUMNS, rasterize } from "./picture";
 import type { Picture, PictureIo } from "./picture";
 import { GUTTER, replyTree } from "./reply";
 import { tableSketch } from "./table";
+import { toolRow } from "./tool-row";
 import { loadPalette } from "./theme";
 import { userBubble } from "./user-message";
 
@@ -175,14 +176,16 @@ export const register: Register = (on, options) => {
   on("ui.render", { component: "ToolUse" }, async ($, e, next) => {
     const native = await next(e);
     const { isRunning, isErrored, output } = e.props;
-    const changes =
-      e.surface === "terminal" && native.type === "engine" && !isRunning && !isErrored ? changeCounts(output) : null;
 
-    if (changes === null || (await read($, offAtom)) !== null) {
+    if (e.surface !== "terminal" || native.type !== "engine" || (await read($, offAtom)) !== null) {
       return native;
     }
 
-    return withBadges($.ui.resolve(e), native, changes, (await read($, paletteAtom)).isAnsi);
+    const ui = $.ui.resolve(e);
+    const row = toolRow(ui, e.props, await $.session.cwd()) ?? native;
+    const changes = !isRunning && !isErrored ? changeCounts(output) : null;
+
+    return changes === null ? row : withBadges(ui, row, changes, (await read($, paletteAtom)).isAnsi);
   });
 
   on("ui.render", { component: "ToolResult" }, async ($, e, next) => {
