@@ -41,6 +41,16 @@ test("a file tool is an icon, a name and a path relative to the working folder",
   expect(await ui.find({ type: "Text", text: "tests/badge.test.tsx" })).toBeDefined();
 });
 
+test("a write reads Create once it made a new file, and Write otherwise", async ($, on) => {
+  stub(on, NATIVE);
+
+  const made = await $.ui.mount(row("Write", { file_path: "/work/a.ts" }, "w1", { output: { type: "create" } }));
+  const replaced = await $.ui.mount(row("Write", { file_path: "/work/a.ts" }, "w2", { output: { type: "update" } }));
+
+  expect(await made.find({ type: "Text", text: "Create" })).toBeDefined();
+  expect(await replaced.find({ type: "Text", text: "Write" })).toBeDefined();
+});
+
 test("a path outside the working folder keeps its full path", async ($, on) => {
   stub(on, NATIVE);
 
@@ -54,7 +64,7 @@ test("a command shows its first line only", async ($, on) => {
 
   const ui = await $.ui.mount(row("Bash", { command: "npm test\nnpm run lint" }, "a3"));
 
-  expect(await ui.find({ type: "Text", text: "Run" })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "Command" })).toBeDefined();
   expect(await ui.find({ type: "Text", text: "npm test" })).toBeDefined();
 });
 
@@ -63,7 +73,7 @@ test("a tool with no look keeps the native row", async ($, on) => {
 
   const ui = await $.ui.mount(row("mcp__server__lookup", {}, "a4"));
 
-  expect(await ui.find({ type: "Text", text: "Run" })).toBeUndefined();
+  expect(await ui.find({ type: "Text", text: "Command" })).toBeUndefined();
 });
 
 test("a row another mod drew passes through untouched", async ($, on) => {

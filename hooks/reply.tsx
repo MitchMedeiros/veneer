@@ -63,7 +63,7 @@ export function replyTree(
   });
 
   return (
-    <Box flexDirection="row" marginLeft={MARGIN}>
+    <Box flexDirection="row" marginLeft={MARGIN} marginTop={bullet === null ? 0 : 1}>
       <Box width={GUTTER} flexShrink={0}>
         <Text color="claude">{bullet ?? " "}</Text>
       </Box>
