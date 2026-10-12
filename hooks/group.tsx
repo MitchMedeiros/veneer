@@ -1,6 +1,9 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
 import { outputCard, parseOutput } from "./output";
+import type { OutputLine } from "./output";
+import { lineChildren } from "./syntax/runs";
+import type { StyledRun } from "./syntax/types";
 import type { Look, ToolCall } from "./tool-row";
 import { inputOf, lookOf, pathHover, pathOf, shortPath, toneOf } from "./tool-row";
 
@@ -45,6 +48,8 @@ export function toolGroup(
   id: string,
   cwd: string,
   { open, toggle }: Folds,
+  detailRuns: readonly (StyledRun[] | undefined)[] = [],
+  paintedOutput: readonly (OutputLine[] | undefined)[] = [],
 ): RenderElement {
   const groupId = `group:${id}`;
   const groupOpen = open.has(groupId);
@@ -79,7 +84,9 @@ export function toolGroup(
     const detail = look.detail(input);
     const path = pathOf(look, input);
     const tone = toneOf(call);
-    const lines = call.isRunning ? null : parseOutput(call.tool, call.output, cwd, call.isErrored);
+    const lines = call.isRunning
+      ? null
+      : (paintedOutput[i] ?? parseOutput(call.tool, call.output, cwd, call.isErrored));
     const callOpen = lines !== null && open.has(callId);
     const rowLit = lit(callId);
     const moreId = `more:${callId}`;
@@ -98,7 +105,10 @@ export function toolGroup(
               {look.label}
             </Text>
             {detail === undefined || path !== undefined ? null : (
-              <Text key="detail" dimColor wrap="truncate-end" hover={rowLit}>{`  ${detail}`}</Text>
+              <Text key="detail" dimColor wrap="truncate-end" hover={rowLit}>
+                {"  "}
+                {lineChildren({ Text }, detail, detailRuns[i], rowLit)}
+              </Text>
             )}
           </Button>
           {detail === undefined || path === undefined ? null : (

@@ -15,7 +15,8 @@ import { baseOf } from "./palette";
 import { cellHeightOf, MAX_COLUMNS, rasterize } from "./picture";
 import type { Picture, PictureIo } from "./picture";
 import { BULLET, GUTTER, MARGIN, replyTree } from "./reply";
-import { filePathOf, paintDiff, paintFences, paintLines } from "./paint";
+import { commandOfCall, rememberInput } from "./calls";
+import { filePathOf, paintCommand, paintDiff, paintFences, paintLines, paintOutput } from "./paint";
 import type { Painter } from "./paint";
 import { highlight } from "./syntax/highlight";
 import type { SyntaxIo } from "./syntax/highlight";
@@ -194,6 +195,10 @@ export const register: Register = (on, options) => {
   });
 
   on("ui.render", { component: "ToolUse" }, async ($, e, next) => {
+    if (e.props.tool === "Bash") {
+      rememberInput(e.props.tool_use_id, e.props.input);
+    }
+
     const native = await next(e);
     const { isRunning, isErrored, output } = e.props;
 
@@ -202,7 +207,9 @@ export const register: Register = (on, options) => {
     }
 
     const ui = $.ui.resolve(e);
-    const row = toolRow(ui, e.props, await $.session.cwd()) ?? native;
+    const commandRuns =
+      e.props.tool === "Bash" ? await paintCommand(await painterFor($, config.syntaxTheme), e.props) : undefined;
+    const row = toolRow(ui, e.props, await $.session.cwd(), commandRuns) ?? native;
     const changes = !isRunning && !isErrored ? changeCounts(output) : null;
 
     return changes === null ? row : withBadges(ui, row, changes, (await read($, paletteAtom)).isAnsi);
@@ -234,13 +241,22 @@ export const register: Register = (on, options) => {
     const ui = $.ui.resolve(e);
     const path = tool === "Read" || diff !== null ? filePathOf(output) : undefined;
 
-    const paint = path === undefined ? undefined : await painterFor($, config.syntaxTheme);
+    const paint =
+      path !== undefined || tool === "Bash" || tool === "Grep" ? await painterFor($, config.syntaxTheme) : undefined;
 
     if (diff === null) {
-      const shown =
-        path === undefined || paint === undefined ? (lines ?? []) : await paintLines(paint, path, lines ?? []);
+      const shown = lines ?? [];
 
-      return outputCard(ui, shown, expanded, toggle, id);
+      if (paint === undefined) {
+        return outputCard(ui, shown, expanded, toggle, id);
+      }
+
+      const painted =
+        path === undefined
+          ? await paintOutput(paint, tool, commandOfCall(id), shown)
+          : await paintLines(paint, path, shown);
+
+      return outputCard(ui, painted, expanded, toggle, id);
     }
 
     const runs = path === undefined || paint === undefined ? [] : await paintDiff(paint, path, diff);
@@ -273,11 +289,37 @@ export const register: Register = (on, options) => {
     }
 
     const open = new Set(await read($, expandedAtom));
+    const cwd = await $.session.cwd();
+    const { calls } = e.props;
+    const showsRows = calls.length === 1 || open.has(`group:${e.requestId}`);
+    const paint =
+      showsRows && calls.some((call) => call.tool === "Bash" || call.tool === "Grep")
+        ? await painterFor($, config.syntaxTheme)
+        : undefined;
+    const commandRuns = await Promise.all(
+      calls.map((call) => (paint === undefined ? undefined : paintCommand(paint, call))),
+    );
+    const paintedOutput = await Promise.all(
+      calls.map(async (call) => {
+        const lines =
+          paint === undefined || call.isRunning ? null : parseOutput(call.tool, call.output, cwd, call.isErrored);
+        const command = (call.input as { command?: unknown } | null | undefined)?.command;
 
-    return toolGroup($.ui.resolve(e), e.props.calls, e.requestId, await $.session.cwd(), {
-      open,
-      toggle: (id) => flip($, id),
-    });
+        return paint === undefined || lines === null || call.isErrored
+          ? undefined
+          : paintOutput(paint, call.tool, typeof command === "string" ? command : undefined, lines);
+      }),
+    );
+
+    return toolGroup(
+      $.ui.resolve(e),
+      calls,
+      e.requestId,
+      cwd,
+      { open, toggle: (id) => flip($, id) },
+      commandRuns,
+      paintedOutput,
+    );
   });
 
   on("config.set", async ($, e, next) => {

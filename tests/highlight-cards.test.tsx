@@ -5,14 +5,31 @@ const NATIVE: RenderElement = { type: "engine", ref: 0 };
 
 const FILES: Record<string, unknown> = {
   "/grammars/index.json": {
-    languages: { toy: { scopeName: "source.toy", file: "toy.json", aliases: [], extensions: ["toy"] } },
-    scopes: { "source.toy": "toy.json" },
+    languages: {
+      toy: { scopeName: "source.toy", file: "toy.json", aliases: [], extensions: ["toy"] },
+      shellscript: { scopeName: "source.shell", file: "shell.json", aliases: [], extensions: ["sh"] },
+      diff: { scopeName: "source.diff", file: "diff.json", aliases: [], extensions: ["diff"] },
+    },
+    scopes: { "source.toy": "toy.json", "source.shell": "shell.json", "source.diff": "diff.json" },
+  },
+  "/grammars/diff.json": {
+    scopeName: "source.diff",
+    patterns: [{ match: "/^\\+.*/u", name: "markup.inserted.diff" }],
+  },
+  "/grammars/shell.json": {
+    scopeName: "source.shell",
+    patterns: [{ match: "/\\blet\\b/u", name: "keyword.shell" }],
   },
   "/grammars/toy.json": {
     scopeName: "source.toy",
     patterns: [{ match: "/\\blet\\b/u", name: "keyword.toy" }],
   },
-  "/themes/default.json": { tokenColors: [{ scope: "keyword", settings: { foreground: "#ff0000" } }] },
+  "/themes/default.json": {
+    tokenColors: [
+      { scope: "keyword", settings: { foreground: "#ff0000" } },
+      { scope: "markup.inserted", settings: { foreground: "#00ff00" } },
+    ],
+  },
 };
 
 function stub(on: On, files = true) {
@@ -114,4 +131,273 @@ test("a command's output is never highlighted", async ($, on) => {
 
   expect(await ui.find({ type: "Text", text: "let a" })).toBeDefined();
   expect(await keywords(ui)).toBe(0);
+});
+
+const toolRowOf = (command: string, id: string) =>
+  ({
+    plugin: "veneer",
+    viewport: { columns: 100, rows: 30 },
+    surface: "terminal",
+    component: "ToolUse",
+    requestId: id,
+    props: {
+      tool_use_id: id,
+      tool: "Bash",
+      input: { command },
+      isRunning: false,
+      isErrored: false,
+      isInterrupted: false,
+    },
+  }) as never;
+
+const groupOf = (commands: string[], id: string) =>
+  ({
+    plugin: "veneer",
+    viewport: { columns: 100, rows: 30 },
+    surface: "terminal",
+    component: "ToolGroup",
+    requestId: id,
+    props: {
+      isActive: false,
+      isExpanded: false,
+      calls: commands.map((command, i) => ({
+        tool: "Bash",
+        input: { command },
+        output: { stdout: "", stderr: "" },
+        isRunning: false,
+        isErrored: false,
+        tool_use_id: `${id}-${i}`,
+      })),
+    },
+  }) as never;
+
+test("the command of a Command row is highlighted as shell, first line only", async ($, on) => {
+  stub(on);
+
+  const ui = await $.ui.mount(toolRowOf("let x\nlet y", "h7"));
+
+  expect(await keywords(ui)).toBe(1);
+});
+
+test("a Command row draws plain when the grammar files cannot be read", async ($, on) => {
+  stub(on, false);
+
+  const ui = await $.ui.mount(toolRowOf("let x", "h8"));
+
+  expect(await ui.find({ type: "Text", text: "let x" })).toBeDefined();
+  expect(await keywords(ui)).toBe(0);
+});
+
+test("the commands of an opened group are highlighted", async ($, on) => {
+  stub(on);
+
+  const ui = await $.ui.mount(groupOf(["let a", "let b"], "h9"));
+
+  await ui.press({ key: "group:h9" });
+  expect(await keywords(ui)).toBe(2);
+});
+
+const bashResult = (stdout: string, id: string) => result("Bash", { stdout, stderr: "" }, id);
+
+test("the output of cat is highlighted by the file's extension", async ($, on) => {
+  stub(on);
+
+  await $.ui.mount(toolRowOf("cat src/a.toy", "h10"));
+  const ui = await $.ui.mount(bashResult("let a\nb", "h10"));
+
+  expect(await keywords(ui)).toBe(1);
+});
+
+test("the output of a command that does not say what it prints stays plain", async ($, on) => {
+  stub(on);
+
+  await $.ui.mount(toolRowOf("cat src/a.toy | sort", "h11"));
+  const ui = await $.ui.mount(bashResult("let a", "h11"));
+
+  expect(await keywords(ui)).toBe(0);
+});
+
+test("a result whose command was never seen stays plain", async ($, on) => {
+  stub(on);
+
+  const ui = await $.ui.mount(bashResult("let a", "h12"));
+
+  expect(await keywords(ui)).toBe(0);
+});
+
+test("stderr lines of a command stay plain", async ($, on) => {
+  stub(on);
+
+  await $.ui.mount(toolRowOf("cat src/a.toy", "h13"));
+
+  const ui = await $.ui.mount(result("Bash", { stdout: "let a", stderr: "let oops" }, "h13"));
+
+  expect(await keywords(ui)).toBe(1);
+});
+
+test("two commands that print the same language are highlighted together", async ($, on) => {
+  stub(on);
+
+  await $.ui.mount(toolRowOf("tail -2 src/a.toy; sed -n 1,2p src/a.toy", "h21"));
+
+  const ui = await $.ui.mount(bashResult("let a\nlet b\nlet c", "h21"));
+
+  expect(await keywords(ui)).toBe(3);
+});
+
+test("cat -n leaves the number column plain and highlights the code", async ($, on) => {
+  stub(on);
+
+  await $.ui.mount(toolRowOf("cat -n src/a.toy", "h22"));
+
+  const ui = await $.ui.mount(bashResult("     1\tlet a\n     2\tb", "h22"));
+
+  expect(await keywords(ui)).toBe(1);
+  expect(await ui.find({ type: "Text", text: "     1    " })).toBeDefined();
+});
+
+test("cat -n output with a line that has no number stays plain", async ($, on) => {
+  stub(on);
+
+  await $.ui.mount(toolRowOf("cat -n src/a.toy", "h23"));
+
+  const ui = await $.ui.mount(bashResult("     1\tlet a\nlet b", "h23"));
+
+  expect(await keywords(ui)).toBe(0);
+});
+
+test("the matches printed by rg are highlighted by their own file", async ($, on) => {
+  stub(on);
+
+  await $.ui.mount(toolRowOf("rg -n let src", "h24"));
+
+  const ui = await $.ui.mount(bashResult("src/a.toy:1:let a\nsrc/b.toy:4:let b", "h24"));
+
+  expect(await keywords(ui)).toBe(2);
+});
+
+test("a search of one file is highlighted from its numbered lines", async ($, on) => {
+  stub(on);
+
+  await $.ui.mount(toolRowOf("grep -n let -B1 src/a.toy | head -9; grep -n let src/a.toy", "h26"));
+
+  const ui = await $.ui.mount(bashResult("3-let a\n4:let b\n--\n9:let c", "h26"));
+
+  expect(await keywords(ui)).toBe(3);
+  expect(await ui.find({ type: "Text", text: "4:" })).toBeDefined();
+});
+
+test("a search of one file stays plain when its lines have no numbers", async ($, on) => {
+  stub(on);
+
+  await $.ui.mount(toolRowOf("grep let src/a.toy", "h27"));
+
+  const ui = await $.ui.mount(bashResult("let a\nlet b", "h27"));
+
+  expect(await keywords(ui)).toBe(0);
+});
+
+test("a search of a directory named like a file is read by the paths it prints", async ($, on) => {
+  stub(on);
+
+  await $.ui.mount(toolRowOf("grep -n let v1.2", "h28"));
+
+  const ui = await $.ui.mount(bashResult("v1.2/a.toy:3:let a", "h28"));
+
+  expect(await keywords(ui)).toBe(1);
+});
+
+test("rg output without line numbers stays plain", async ($, on) => {
+  stub(on);
+
+  await $.ui.mount(toolRowOf("rg let src", "h25"));
+
+  const ui = await $.ui.mount(bashResult("src/a.toy:let a", "h25"));
+
+  expect(await keywords(ui)).toBe(0);
+});
+
+test("a diff command is highlighted as a diff only when it printed one", async ($, on) => {
+  stub(on);
+
+  const painted = async (stdout: string, id: string) => {
+    await $.ui.mount(toolRowOf("git diff", id));
+
+    const ui = await $.ui.mount(bashResult(stdout, id));
+
+    return (await ui.findAll({ type: "Text" })).filter(
+      (node) => (node as { props?: { color?: string } }).props?.color === "#00ff00",
+    ).length;
+  };
+
+  expect(await painted("@@ -1 +1 @@\n-a\n+b", "h14")).toBe(1);
+  expect(await painted(" a.ts | 2 +-\n+not a diff", "h15")).toBe(0);
+});
+
+test("grep matches and context lines are highlighted by their own file's extension", async ($, on) => {
+  stub(on);
+
+  const content = "src/a.toy:1:let a\nsrc/a.toy-2-let b\n--\nsrc/b-1-x.toy:7:let c\nsrc/b-1-x.toy-8-let d";
+  const ui = await $.ui.mount(result("Grep", { content, filenames: [] }, "h16"));
+
+  expect(await keywords(ui)).toBe(4);
+  expect(await ui.find({ type: "Text", text: "src/a.toy:1:" })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "src/b-1-x.toy:7:" })).toBeDefined();
+});
+
+test("grep output without line numbers is left plain", async ($, on) => {
+  stub(on);
+
+  const ui = await $.ui.mount(result("Grep", { content: "src/a.toy:let a\nsrc/b.toy:let b", filenames: [] }, "h17"));
+
+  expect(await keywords(ui)).toBe(0);
+});
+
+test("grep output that is partly unparsed is left plain", async ($, on) => {
+  stub(on);
+
+  const ui = await $.ui.mount(
+    result("Grep", { content: "src/a.toy:1:let a\nsomething else\nsrc/b.toy:2:let b", filenames: [] }, "h18"),
+  );
+
+  expect(await keywords(ui)).toBe(0);
+});
+
+test("a note after the last grep line does not stop the lines being highlighted", async ($, on) => {
+  stub(on);
+
+  const content = "src/a.toy:1:let a\n[Showing results with pagination = limit: 1]";
+  const ui = await $.ui.mount(result("Grep", { content, filenames: [] }, "h19"));
+
+  expect(await keywords(ui)).toBe(1);
+});
+
+test("the output of a call in an opened group is highlighted", async ($, on) => {
+  stub(on);
+
+  const grouped = {
+    plugin: "veneer",
+    viewport: { columns: 100, rows: 30 },
+    surface: "terminal",
+    component: "ToolGroup",
+    requestId: "h20",
+    props: {
+      isActive: false,
+      isExpanded: false,
+      calls: [
+        {
+          tool: "Bash",
+          input: { command: "cat a.toy" },
+          output: { stdout: "let a", stderr: "" },
+          isRunning: false,
+          isErrored: false,
+          tool_use_id: "h20-0",
+        },
+      ],
+    },
+  } as never;
+  const ui = await $.ui.mount(grouped);
+
+  await ui.press({ key: "row:call:h20-0" });
+  expect(await keywords(ui)).toBe(1);
 });

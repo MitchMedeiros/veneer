@@ -1,5 +1,8 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
+import { lineChildren } from "./syntax/runs";
+import type { StyledRun } from "./syntax/types";
+
 type Ui = Pick<ElementTable, "Box" | "Text" | "Link">;
 
 export type ToolCall = {
@@ -76,8 +79,13 @@ export function shortPath(path: string, cwd: string): string {
 }
 
 // The tool row as an icon, a bold name and a dim detail, or null for a tool with no look of its own. A path is a link,
-// so a click opens the file as the native row's does.
-export function toolRow({ Box, Text, Link }: Ui, call: ToolCall, cwd: string): RenderElement | null {
+// so a click opens the file as the native row's does. `detailRuns` colour the detail, as a Command's shell line.
+export function toolRow(
+  { Box, Text, Link }: Ui,
+  call: ToolCall,
+  cwd: string,
+  detailRuns?: StyledRun[],
+): RenderElement | null {
   const look = LOOKS[call.tool];
 
   if (look === undefined) {
@@ -102,7 +110,11 @@ export function toolRow({ Box, Text, Link }: Ui, call: ToolCall, cwd: string): R
       {detail === undefined ? null : (
         <Box flexShrink={1}>
           <Text dimColor wrap="truncate-end" hover={path === undefined ? undefined : pathHover(call.tool_use_id ?? "")}>
-            {path === undefined ? detail : <Link href={`file://${encodeURI(path)}`}>{shortPath(detail, cwd)}</Link>}
+            {path === undefined ? (
+              lineChildren({ Text }, detail, detailRuns)
+            ) : (
+              <Link href={`file://${encodeURI(path)}`}>{shortPath(detail, cwd)}</Link>
+            )}
           </Text>
         </Box>
       )}
