@@ -16,6 +16,18 @@
       "default": "left",
       "options": ["left", "right"]
     },
+    "styleUserMessage": {
+      "type": "boolean",
+      "title": "Style your messages",
+      "description": "Draw your messages as a filled bubble. Turn off to leave them to Claude Code or another mod.",
+      "default": true
+    },
+    "styleSpinner": {
+      "type": "boolean",
+      "title": "Indent the spinner",
+      "description": "Wrap the spinner line in Veneer's left margin. Turn off to leave it to Claude Code or another mod.",
+      "default": true
+    },
     "fontFamily": {
       "type": "string",
       "title": "Picture font",

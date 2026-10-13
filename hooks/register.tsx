@@ -377,11 +377,18 @@ export const register: Register = (on, options) => {
 
     if (
       e.surface !== "terminal" ||
+      !config.styleUserMessage ||
       origin.kind !== "composer" ||
       text.trim() === "" ||
       (await read($, offAtom)) !== null
     ) {
       return next(e);
+    }
+
+    const native = await next(e);
+
+    if (native.type !== "engine") {
+      return native;
     }
 
     return userBubble($.ui.resolve(e), text, e.viewport?.columns ?? 100, config.align);
@@ -523,7 +530,12 @@ export const register: Register = (on, options) => {
   on("ui.render", { component: "Spinner" }, async ($, e, next) => {
     const native = await next(e);
 
-    if (e.surface !== "terminal" || native.type !== "engine" || (await read($, offAtom)) !== null) {
+    if (
+      e.surface !== "terminal" ||
+      !config.styleSpinner ||
+      native.type !== "engine" ||
+      (await read($, offAtom)) !== null
+    ) {
       return native;
     }
 

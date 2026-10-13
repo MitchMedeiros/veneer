@@ -60,8 +60,8 @@ test("a finished edit gets a pill for each count after the native row", async ($
 
   const ui = await $.ui.mount(edit(PATCH));
 
-  expect(await ui.find({ type: "Text", text: " 2 added " })).toBeDefined();
-  expect(await ui.find({ type: "Text", text: " 1 removed " })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: " +2 " })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: " -1 " })).toBeDefined();
 });
 
 test("a running or failed edit is left alone", async ($, on) => {
@@ -71,9 +71,7 @@ test("a running or failed edit is left alone", async ($, on) => {
     ["running", { isRunning: true }],
     ["failed", { isErrored: true }],
   ] as const) {
-    expect(
-      await (await $.ui.mount(edit(PATCH, overrides, id))).find({ type: "Text", text: " 2 added " }),
-    ).toBeUndefined();
+    expect(await (await $.ui.mount(edit(PATCH, overrides, id))).find({ type: "Text", text: " +2 " })).toBeUndefined();
   }
 });
 
@@ -83,5 +81,5 @@ test("a row another mod drew passes through untouched", async ($, on) => {
   const ui = await $.ui.mount(edit(PATCH));
 
   expect(await ui.find({ type: "Text", text: "another mod" })).toBeDefined();
-  expect(await ui.find({ type: "Text", text: " 2 added " })).toBeUndefined();
+  expect(await ui.find({ type: "Text", text: " +2 " })).toBeUndefined();
 });

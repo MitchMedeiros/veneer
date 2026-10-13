@@ -46,8 +46,8 @@ export function withBadges({ Box, Text }: Ui, native: RenderElement, changes: Ch
     <Box flexDirection="row">
       <Box flexShrink={1}>{native}</Box>
       <Box flexShrink={0} marginTop={1} marginLeft={1} marginRight={1} gap={1}>
-        {changes.added > 0 ? pill(`${changes.added} added`, "diffAdded", plain ?? "success") : null}
-        {changes.removed > 0 ? pill(`${changes.removed} removed`, "diffRemoved", plain ?? "error") : null}
+        {changes.added > 0 ? pill(`+${changes.added}`, "diffAdded", plain ?? "success") : null}
+        {changes.removed > 0 ? pill(`-${changes.removed}`, "diffRemoved", plain ?? "error") : null}
       </Box>
     </Box>
   );

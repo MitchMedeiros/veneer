@@ -70,6 +70,14 @@ test("every card takes the syntax theme background unless its switch is false", 
   });
 });
 
+test("the message bubble and spinner margin are on unless their switch is false", () => {
+  expect(configOf({})).toMatchObject({ styleUserMessage: true, styleSpinner: true });
+  expect(configOf({ styleUserMessage: false, styleSpinner: "false" })).toMatchObject({
+    styleUserMessage: false,
+    styleSpinner: false,
+  });
+});
+
 test("picture options fall back to their defaults when blank or out of range", () => {
   expect(configOf({})).toMatchObject({ fontFamily: "Helvetica Neue", cellRatio: 2.9 });
   expect(configOf({ fontFamily: " Inter ", cellRatio: "2.4" })).toMatchObject({ fontFamily: "Inter", cellRatio: 2.4 });
