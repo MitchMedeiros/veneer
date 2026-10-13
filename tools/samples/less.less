@@ -1,0 +1,18 @@
+// less sample
+@primary: #3498db;
+@pad: 8px;
+
+.rounded(@radius: 4px) {
+  border-radius: @radius;
+}
+
+.card {
+  .rounded(6px);
+  padding: @pad * 2;
+  color: darken(@primary, 10%);
+  &:hover { background: lighten(@primary, 40%); }
+  .title when (@pad > 4px) {
+    font: bold 1.2em/1.4 "Helvetica", sans-serif;
+  }
+}
+@media (min-width: 768px) { .card { width: ~"calc(100% - @{pad})"; } }

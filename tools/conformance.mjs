@@ -69,11 +69,15 @@ const sampleFor = (name) => {
   return read(`tools/samples/${file}`).replace(/\n$/, "");
 };
 
-// The scope stack of each character of each line, as the tokenizer here produces it.
+// The scope stack of each character of each line, as the tokenizer here produces it. Shiki never gives an empty line to
+// the grammar, while vscode-textmate does, so an empty line is skipped here too: a rule that ends on a blank line would
+// differ from Shiki and the comparison would say nothing else.
 function ours(scopeName, code) {
   let state = registry.initialState(scopeName);
 
   return code.split("\n").map((line, row) => {
+    if (line === "") return [];
+
     const result = tokenizeLine(line, state, row === 0);
     const scopes = [];
 

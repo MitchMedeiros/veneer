@@ -54,6 +54,7 @@ export type ThemeRule = {
 
 export type ThemeFile = {
   name?: string;
+  type?: string;
   include?: string;
   colors?: Record<string, string>;
   tokenColors?: ThemeRule[];

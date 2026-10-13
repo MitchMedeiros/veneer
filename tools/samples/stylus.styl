@@ -1,0 +1,15 @@
+// stylus sample
+primary = #3498db
+pad = 8px
+
+rounded(radius = 4px)
+  border-radius radius
+
+.card
+  rounded(6px)
+  padding pad * 2
+  color darken(primary, 10%)
+  &:hover
+    background lighten(primary, 40%)
+  .title
+    font bold 1.2em/1.4 "Helvetica", sans-serif

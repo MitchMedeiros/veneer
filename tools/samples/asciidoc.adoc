@@ -1,0 +1,29 @@
+= Document Title
+Author Name <author@example.com>
+:toc:
+:icons: font
+
+== Section
+
+A paragraph with *strong*, _emphasis_ and `monospace` text.
+
+[source,python]
+----
+print("hello")
+----
+
+* bullet one
+* bullet two
+
+. numbered
+. list
+
+NOTE: This is an admonition.
+
+link:https://example.com[A link]
+
+// line comment
+|===
+|Name |Value
+|a |1
+|===

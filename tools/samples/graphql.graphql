@@ -1,0 +1,28 @@
+# a schema and a query
+type Query {
+  user(id: ID!): User
+  users(first: Int = 10, after: String): [User!]!
+}
+
+"""
+A user.
+"""
+type User implements Node {
+  id: ID!
+  name: String
+  friends: [User!]
+}
+
+enum Role { ADMIN USER }
+
+input NewUser { name: String!, role: Role = USER }
+
+query GetUser($id: ID!, $withFriends: Boolean = false) {
+  user(id: $id) {
+    name
+    friends @include(if: $withFriends) { id }
+    ...UserFields
+  }
+}
+
+fragment UserFields on User { id name }

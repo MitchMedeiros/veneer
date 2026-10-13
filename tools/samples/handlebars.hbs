@@ -1,0 +1,13 @@
+{{!-- a template --}}
+<div class="entry {{kind}}">
+  <h1>{{title}}</h1>
+  {{#if author}}
+    <h2>{{author.firstName}} {{author.lastName}}</h2>
+  {{else}}
+    <h2>Unknown</h2>
+  {{/if}}
+  {{#each comments as |comment|}}
+    <p>{{{comment.body}}}</p>
+  {{/each}}
+  {{> footer name="x"}}
+</div>

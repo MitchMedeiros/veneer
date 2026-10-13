@@ -1,0 +1,16 @@
+{# a template #}
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ title|upper }}</h1>
+<ul>
+{% for item in items if item.visible %}
+  <li class="{{ loop.cycle('odd', 'even') }}">{{ item.name }}</li>
+{% else %}
+  <li>none</li>
+{% endfor %}
+</ul>
+{% set total = items|length %}
+{% if total > 3 and user is defined %}
+  <p>{{ "many" ~ " items" }}</p>
+{% endif %}
+{% endblock %}

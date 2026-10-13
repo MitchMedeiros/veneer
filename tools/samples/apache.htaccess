@@ -1,0 +1,18 @@
+# a small config
+ServerName example.com
+Listen 80
+
+<VirtualHost *:80>
+    DocumentRoot "/var/www/html"
+    ErrorLog ${APACHE_LOG_DIR}/error.log
+
+    <Directory "/var/www/html">
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    RewriteEngine On
+    RewriteCond %{HTTPS} off
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}$1 [R=301,L]
+</VirtualHost>

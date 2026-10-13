@@ -43,9 +43,19 @@ export function parseJsonc(text: string): unknown {
   return JSON.parse(clean.replace(/,(\s*[}\]])/g, "$1"));
 }
 
-// A VS Code theme colour as `#rrggbb`, or undefined for anything else. A transparency suffix is dropped. Claude Code's
-// own theme colours take other forms and are read in `palette.ts`.
+// A theme colour as `#rrggbb`, or as a bare terminal colour name for `ansi:<name>` (the terminal's own palette), or
+// undefined for anything else. A transparency suffix is dropped. Claude Code's own theme colours take other forms and
+// are read in `palette.ts`.
 export function colorOf(value: unknown): string | undefined {
+  const named =
+    typeof value === "string"
+      ? /^ansi:((?:black|red|green|yellow|blue|magenta|cyan|white)(?:Bright)?|gray)$/.exec(value)
+      : null;
+
+  if (named !== null) {
+    return named[1];
+  }
+
   const found = typeof value === "string" ? /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(value) : null;
   const digits = found?.[1]?.toLowerCase();
 
@@ -198,7 +208,35 @@ export function resolvePath(directory: string, relative: string): string {
   return `/${settled.join("/")}`;
 }
 
-export type Parsed = { rules: ThemeRule[]; foreground: string | undefined; background: string | undefined };
+export type Kind = "dark" | "light";
+
+export type Parsed = {
+  rules: ThemeRule[];
+  foreground: string | undefined;
+  background: string | undefined;
+  kind: Kind | undefined;
+};
+
+const kindOf = (type: string | undefined): Kind | undefined => {
+  if (type === "light" || type === "hc-light") {
+    return "light";
+  }
+
+  return type === "dark" || type === "hc" || type === "hc-black" ? "dark" : undefined;
+};
+
+// Whether a theme is light: by its own `type`, else by how bright its background is, else dark.
+const kindFor = (parsed: Parsed): Kind => {
+  const hex = parsed.background?.startsWith("#") ? parsed.background.slice(1) : undefined;
+
+  if (parsed.kind !== undefined || hex === undefined || hex.length !== 6) {
+    return parsed.kind ?? "dark";
+  }
+
+  const [red, green, blue] = [0, 2, 4].map((at) => parseInt(hex.slice(at, at + 2), 16));
+
+  return 0.299 * (red as number) + 0.587 * (green as number) + 0.114 * (blue as number) > 128 ? "light" : "dark";
+};
 
 // A theme file and the files it includes. Rules of an included theme come first, so the including theme overrides them.
 export async function parseThemeFile(
@@ -215,7 +253,7 @@ export async function parseThemeFile(
     return null;
   }
 
-  let inherited: Parsed = { rules: [], foreground: undefined, background: undefined };
+  let inherited: Parsed = { rules: [], foreground: undefined, background: undefined, kind: undefined };
 
   if (file.include !== undefined && depth < MAX_INCLUDES) {
     const path = resolvePath(directory, file.include);
@@ -231,12 +269,27 @@ export async function parseThemeFile(
     rules: [...inherited.rules, ...(file.tokenColors ?? [])],
     foreground: colorOf(file.colors?.["editor.foreground"]) ?? inherited.foreground,
     background: colorOf(file.colors?.["editor.background"]) ?? inherited.background,
+    kind: kindOf(file.type) ?? inherited.kind,
   };
 }
 
-// Builds a theme from VS Code theme text. Relative `include` paths are read from `directory`.
-export async function loadTheme(text: string, directory: string, read: ReadText): Promise<Theme | null> {
+// Builds a theme from VS Code theme text. Relative `include` paths are read from `directory`. Where `fallbacks` name a
+// dark and a light theme file, its rules sit under the theme's own, so a scope the theme leaves out takes the colour
+// VS Code would give it.
+export async function loadTheme(
+  text: string,
+  directory: string,
+  read: ReadText,
+  fallbacks?: Record<Kind, string>,
+): Promise<Theme | null> {
   const parsed = await parseThemeFile(text, directory, read, 0);
 
-  return parsed === null ? null : new Theme(parsed.rules, { color: parsed.foreground }, parsed.background);
+  if (parsed === null) {
+    return null;
+  }
+
+  const fallback = fallbacks === undefined ? undefined : await read(fallbacks[kindFor(parsed)]);
+  const under = fallback === undefined ? [] : ((parseJsonc(fallback) as ThemeFile).tokenColors ?? []);
+
+  return new Theme([...under, ...parsed.rules], { color: parsed.foreground }, parsed.background);
 }

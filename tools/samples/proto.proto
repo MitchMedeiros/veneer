@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package demo.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// A user.
+message User {
+  int64 id = 1;
+  string name = 2;
+  repeated string tags = 3;
+  map<string, int32> scores = 4;
+  Role role = 5 [deprecated = true];
+  google.protobuf.Timestamp created = 6;
+
+  enum Role {
+    ROLE_UNSPECIFIED = 0;
+    ADMIN = 1;
+  }
+
+  oneof contact {
+    string email = 7;
+    string phone = 8;
+  }
+}
+
+/* block comment */
+service Users {
+  rpc Get(GetRequest) returns (User);
+  rpc Watch(GetRequest) returns (stream User);
+}

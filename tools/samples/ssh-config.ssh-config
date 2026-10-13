@@ -1,0 +1,14 @@
+# client config
+Host *
+    ServerAliveInterval 60
+    AddKeysToAgent yes
+
+Host dev
+    HostName 10.0.0.5
+    User ubuntu
+    Port 2222
+    IdentityFile ~/.ssh/id_ed25519
+    ProxyJump bastion
+
+Match host *.internal user admin
+    ForwardAgent yes

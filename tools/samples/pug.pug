@@ -1,0 +1,17 @@
+//- a template
+doctype html
+html(lang="en")
+  head
+    title= pageTitle
+    script.
+      if (foo) bar(1 + 5)
+  body
+    h1.title Hello, #{name}
+    #container.col
+      if youAreUsingPug
+        p You are amazing
+      else
+        p Get on it!
+      each item in items
+        li(class="item", data-id=item.id)= item.name
+    a(href="https://example.com") link

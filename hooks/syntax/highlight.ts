@@ -1,5 +1,6 @@
 import { Registry, tokenizeLine } from "./engine";
 import { loadTheme, Theme } from "./theme";
+import type { Kind } from "./theme";
 import type { ReadText } from "./theme";
 import type { Grammar, GrammarIndex, LanguageEntry, StyledRun, TokenStyle } from "./types";
 
@@ -9,6 +10,7 @@ const MAX_LINE_LENGTH = 1000;
 const MEMORY_BLOCKS = 200;
 
 const DEFAULT_THEME = "themes/default.json";
+const FALLBACK_THEMES = { dark: "themes/fallback-dark.json", light: "themes/fallback-light.json" };
 
 // What highlighting needs from the engine, so it stays free of `$`.
 export type SyntaxIo = {
@@ -131,14 +133,15 @@ class Library {
     let theme = this.themes.get(path);
 
     if (theme === undefined) {
-      const fromFile = async (file: string): Promise<Theme | null> => {
+      const fromFile = async (file: string, fallbacks?: Record<Kind, string>): Promise<Theme | null> => {
         const text = await io.read(file);
 
-        return text === undefined ? null : loadTheme(text, file.slice(0, file.lastIndexOf("/")), io.read);
+        return text === undefined ? null : loadTheme(text, file.slice(0, file.lastIndexOf("/")), io.read, fallbacks);
       };
+      const fallbacks = { dark: `${io.root}/${FALLBACK_THEMES.dark}`, light: `${io.root}/${FALLBACK_THEMES.light}` };
 
       theme = (async () =>
-        (path === "" ? null : await fromFile(path)) ??
+        (path === "" ? null : await fromFile(path, fallbacks)) ??
         (await fromFile(`${io.root}/${DEFAULT_THEME}`)) ??
         new Theme([]))();
       this.themes.set(path, theme);

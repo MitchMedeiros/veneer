@@ -1,0 +1,16 @@
+# a unit file
+[Unit]
+Description=Demo service
+After=network.target
+Requires=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/demo --port 8080
+Restart=on-failure
+RestartSec=5
+Environment="MODE=prod" LOG=info
+User=demo
+
+[Install]
+WantedBy=multi-user.target

@@ -74,6 +74,7 @@ export async function flattenTheme(text: string, themePath: string, read: ReadTe
   return parsed === null
     ? undefined
     : JSON.stringify({
+        type: parsed.kind,
         colors: { "editor.background": parsed.background, "editor.foreground": parsed.foreground },
         tokenColors: parsed.rules,
       });

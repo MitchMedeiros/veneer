@@ -415,9 +415,20 @@ class Emitter {
 
     this.last = end;
   }
+
+  // A view that cuts every position at `limit`. A capture tokenized again runs on the text up to its end and a little
+  // past it, which must not paint the characters after the capture.
+  within(limit: number): Sink {
+    return {
+      to: (position, scope) => this.to(Math.min(position, limit), scope),
+      within: (inner) => this.within(Math.min(inner, limit)),
+    };
+  }
 }
 
-type Line = { text: string; first: boolean; cache: Map<Re, Found | null>; out: Emitter };
+type Sink = Pick<Emitter, "to" | "within">;
+
+type Line = { text: string; first: boolean; cache: Map<Re, Found | null>; out: Sink };
 
 // The first match of a stack's candidates at or after `from`: the lowest index wins, then the earlier rule.
 function scan(line: Line, stack: StateStack, from: number, anchor: number): Hit | null {
@@ -509,6 +520,7 @@ function emitMatch(
         text: line.text.slice(0, range[1]),
         first: line.first && range[0] === 0,
         cache: new Map<Re, Found | null>(),
+        out: line.out.within(range[1]),
       };
       const root = rule.grammar.groupOf(capture.patterns);
 
@@ -613,7 +625,11 @@ function run(
       stack = popped.parent;
       anchor = popped.anchorPos;
 
-      if (end === index && popped.enterPos === index) {
+      // Loop guards as in vscode-textmate: a rule that ends where it began, a rule that begins again where it began, and
+      // a match that does not advance, each end the line. The last one also closes the rule around the match.
+      if (end <= pos && popped.enterPos === pos) {
+        stack = popped;
+
         break;
       }
     } else if (!rule.isPush) {
@@ -621,25 +637,24 @@ function run(
 
       emitMatch(line, scope, match, rule.json.captures, rule);
 
-      if (end === index) {
-        line.out.to(index + 1, scope);
-        pos = index + 1;
+      if (end <= pos) {
+        stack = stack.parent ?? stack;
 
-        continue;
+        break;
       }
     } else {
       const name = stack.content.push(rule.json.name, match);
 
       emitMatch(line, name, match, rule.json.beginCaptures ?? rule.json.captures, rule);
 
-      if (end === index && repeats(stack, rule, index)) {
+      if (end <= pos && repeats(stack, rule, pos)) {
         break;
       }
 
       stack = new StateStack({
         parent: stack,
         rule,
-        enterPos: index,
+        enterPos: pos,
         anchorPos: anchor,
         name,
         content: name.push(rule.json.contentName, match),
@@ -661,11 +676,12 @@ function run(
 // Tokenizes one line (without its line break) from the state the line before it left. The tokens cover the line.
 // `first` is true for the first line of a file, which is where `\A` holds.
 export function tokenizeLine(text: string, state: StateStack, first = false): { tokens: Token[]; state: StateStack } {
-  const line: Line = { text: `${text}\n`, first, cache: new Map(), out: new Emitter(text.length) };
+  const out = new Emitter(text.length);
+  const line: Line = { text: `${text}\n`, first, cache: new Map(), out };
   state.startLine();
 
   const entered = checkWhile(line, state);
   const next = run(line, entered.stack, entered.pos, entered.anchor);
 
-  return { tokens: line.out.tokens, state: next };
+  return { tokens: out.tokens, state: next };
 }

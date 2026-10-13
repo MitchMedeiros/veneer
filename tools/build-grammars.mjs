@@ -56,6 +56,31 @@ function hexDigits(pattern) {
 const fasterClasses = (pattern) =>
   hexDigits(FASTER_CLASSES.reduce((out, [slow, fast]) => out.replaceAll(slow, fast), pattern));
 
+// A class intersection (`&&`) needs ES2024, and so does a nested class. The forms the grammars use are rewritten before
+// translation. `[[base]&&[^without]]` becomes a look ahead and the base class; inside a look behind, which cannot hold
+// a look ahead, it becomes two look behinds. Digits without the dot is the digits, and Racket's `[[^\w\s]\d]` and
+// `[^\W\d]` are written out as alternatives.
+const INTERSECTION = String.raw`\[\[([^\]]*)\]&&\[\^(\]?[^\]]*)\]\]`;
+const NOT_BEHIND = new RegExp(String.raw`\(\?<!${INTERSECTION}\)`, "g");
+const BEHIND = new RegExp(String.raw`\(\?<=${INTERSECTION}\)`, "g");
+const AHEAD = new RegExp(INTERSECTION, "g");
+const DIGITS_WITHOUT_DOT = /\[0-9&&\[\^\.\]\]/g;
+const NOT_WORD_OR_SPACE_OR_DIGIT = String.raw`[[^\w\s]\d]`;
+const WORD_WITHOUT_DIGIT = String.raw`[^\W\d]`;
+
+const escaped = (chars) => chars.replace(/^\]/, String.raw`\]`);
+
+const withoutIntersections = (pattern) =>
+  pattern
+    .replace(NOT_BEHIND, (_, base, without) => String.raw`(?:(?<![${base}])|(?<=[${escaped(without)}]))`)
+    .replace(BEHIND, (_, base, without) => String.raw`(?<=[${base}])(?<![${escaped(without)}])`)
+    .replace(AHEAD, (_, base, without) => String.raw`(?:(?![${escaped(without)}])[${base}])`)
+    .replace(DIGITS_WITHOUT_DOT, "[0-9]")
+    .replaceAll(NOT_WORD_OR_SPACE_OR_DIGIT, String.raw`(?:[^\w\s]|\d)`)
+    .replaceAll(WORD_WITHOUT_DIGIT, String.raw`(?:(?!\d)\w)`);
+
+const NEVER = String.fromCharCode(0xffff);
+
 const failures = [];
 
 // A regex as `/source/flags`, and `groups`: the group number in the JavaScript regex of each group the grammar wrote,
@@ -63,7 +88,7 @@ const failures = [];
 // turns `\N` into marks the tokenizer fills in once the begin has matched, numbered through `beginGroups`.
 function translate(pattern, { indices, backReferences, beginGroups }, where) {
   // The translator cannot say `\G` or a back reference to another regex, so both become marks the tokenizer fills in.
-  const source = pattern.replace(/(\\\\)|\\G|\\A|\\([1-9])/g, (all, pair, n) => {
+  const source = withoutIntersections(pattern).replace(/(\\\\)|\\G|\\A|\\([1-9])/g, (all, pair, n) => {
     if (pair) return all;
     if (all === "\\G") return ANCHOR_MARK;
     if (all === "\\A") return FIRST_LINE_MARK;
@@ -200,10 +225,11 @@ function compileRuleBody(rule, where) {
   } else if (rule.begin !== undefined) {
     // A rule closes with `end` or, for a block that continues while each line matches, with `while`.
     const closer = rule.while === undefined ? "end" : "while";
-    const closing = rule[closer];
+    // A missing or empty `end` never closes the rule, as in vscode-textmate, which gives it a character that cannot occur.
+    const closing = rule[closer] || NEVER;
     const begin = compileRegex(rule.begin, rule.beginCaptures ?? rule.captures, {}, `${where}/begin`);
     const close =
-      begin === null || closing === undefined
+      begin === null
         ? null
         : compileRegex(
             closing,
@@ -310,6 +336,17 @@ const scopes = Object.fromEntries(entries.map((entry) => [entry.scopeName, `${en
 
 writeFileSync(new URL("index.json", OUT), JSON.stringify({ languages, scopes }));
 copyFileSync(new URL("../node_modules/tm-grammars/NOTICE", import.meta.url), new URL("NOTICE", OUT));
+
+// The rules a theme falls back on for scopes it does not colour, as VS Code does with the Dark+ and Light+ tokenColors.
+// Only the rules are kept, so a fallback never sets a theme's background or foreground.
+for (const kind of ["dark", "light"]) {
+  const { default: theme } = await import(`@shikijs/themes/${kind}-plus`);
+
+  writeFileSync(
+    new URL(`../themes/fallback-${kind}.json`, import.meta.url),
+    `${JSON.stringify({ name: `${kind} fallback`, tokenColors: theme.tokenColors })}\n`,
+  );
+}
 
 console.log(`${entries.length} grammars written, ${failures.length} rules dropped`);
 

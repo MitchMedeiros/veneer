@@ -1,0 +1,12 @@
+// json5 allows comments
+{
+  unquoted: 'single quoted',
+  "double": "text with \"escape\"",
+  number: 0xFF,
+  float: .5,
+  inf: Infinity,
+  list: [1, 2, 3,],
+  nested: { yes: true, no: false, nothing: null },
+  /* block */
+  trailing: 'comma',
+}

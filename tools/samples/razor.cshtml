@@ -1,0 +1,19 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home";
+    var items = new List<string> { "a", "b" };
+}
+
+@* a comment *@
+<h1>@Model.Title</h1>
+<ul>
+@foreach (var item in items)
+{
+    <li class="item">@item.ToUpper()</li>
+}
+</ul>
+@if (items.Count > 1)
+{
+    <p>Many: @(items.Count * 2)</p>
+}

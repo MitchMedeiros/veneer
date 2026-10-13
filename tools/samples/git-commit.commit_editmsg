@@ -1,0 +1,15 @@
+Add syntax highlighting fallback
+
+Themes that colour few scopes now fall back to the Dark+ or Light+
+rules, as VS Code does.
+
+Fixes #12
+Co-authored-by: Ann <ann@example.com>
+
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored.
+#
+# On branch main
+# Changes to be committed:
+#	modified:   hooks/syntax/theme.ts
+#

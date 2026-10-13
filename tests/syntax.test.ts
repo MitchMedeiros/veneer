@@ -173,6 +173,37 @@ test("a theme includes another by path and overrides it", async () => {
   expect(await loadTheme("not json", "/", async () => undefined)).toBeNull();
 });
 
+test("a terminal colour name is read as ansi:<name> and nothing else", () => {
+  expect(colorOf("ansi:blue")).toBe("blue");
+  expect(colorOf("ansi:redBright")).toBe("redBright");
+  expect(colorOf("ansi:gray")).toBe("gray");
+  expect(colorOf("ansi:orange")).toBeUndefined();
+  expect(colorOf("blue")).toBeUndefined();
+});
+
+test("a theme takes the fallback of its kind for scopes it leaves out", async () => {
+  const files: Record<string, string> = {
+    "/fallback-dark.json": '{"tokenColors":[{"scope":["string","comment"],"settings":{"foreground":"#d1d1d1"}}]}',
+    "/fallback-light.json": '{"tokenColors":[{"scope":["string","comment"],"settings":{"foreground":"#b1b1b1"}}]}',
+  };
+  const read = async (path: string) => files[path];
+  const fallbacks = { dark: "/fallback-dark.json", light: "/fallback-light.json" };
+  const own = '{"scope":"comment","settings":{"foreground":"#020202"}}';
+  const dark = await loadTheme(`{"type":"dark","tokenColors":[${own}]}`, "/", read, fallbacks);
+  const light = await loadTheme(
+    `{"colors":{"editor.background":"#ffffff"},"tokenColors":[${own}]}`,
+    "/",
+    read,
+    fallbacks,
+  );
+  const unlabelled = await loadTheme(`{"tokenColors":[${own}]}`, "/", read, fallbacks);
+
+  expect(dark?.styleOf(scope("string")).color).toBe("#d1d1d1");
+  expect(dark?.styleOf(scope("comment")).color).toBe("#020202");
+  expect(light?.styleOf(scope("string")).color).toBe("#b1b1b1");
+  expect(unlabelled?.styleOf(scope("string")).color).toBe("#d1d1d1");
+});
+
 const INDEX: GrammarIndex = {
   languages: { toy: { scopeName: "source.toy", file: "toy.json", aliases: ["tiny"], extensions: ["toy"] } },
   scopes: { "source.toy": "toy.json" },

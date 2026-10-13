@@ -1,0 +1,16 @@
+### get users
+GET https://api.example.com/users?limit=10 HTTP/1.1
+Accept: application/json
+Authorization: Bearer abc123
+
+### create a user
+POST https://api.example.com/users
+Content-Type: application/json
+
+{
+  "name": "Ann",
+  "age": 30
+}
+
+HTTP/1.1 201 Created
+Content-Type: application/json

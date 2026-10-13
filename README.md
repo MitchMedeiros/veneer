@@ -32,7 +32,23 @@ Colors come from your Claude Code theme. Edit a theme in `~/.claude/themes/`.
 
 Set options through `/config` or under `pluginConfigs` in `settings.json`.
 
-Code in fences, edits and file reads is highlighted for the languages in `grammars/`. Any other language draws plain.
+### Syntax highlighting
+
+Code in fences, edits and file reads is highlighted. A language is picked by the fence name, an alias, or the file
+extension or name. Any other language draws plain. Veneer highlights these 106 languages and file types:
+
+- Web: TypeScript, TSX, JavaScript, JSX, JSON, JSONC, JSON5, JSON Lines, HTML, CSS, SCSS, Sass, Less, Stylus, Vue, Pug,
+  Handlebars, Jinja, Twig, Razor, GraphQL
+- Scripting and shells: Python, Shell, Shell Session, Fish, PowerShell, Batch, AWK, Ruby, PHP, Perl, Lua, R, Julia,
+  MATLAB, Tcl, Vim script
+- Systems and general purpose: C, C++, Objective-C, Objective-C++, C#, F#, Visual Basic, Java, Kotlin, Scala, Groovy,
+  Swift, Dart, Go, Rust, Zig, D, Nim, Crystal, Pascal, Fortran, COBOL, Solidity, GDScript
+- Functional and Lisp: Haskell, OCaml, Elm, PureScript, Elixir, Erlang, Clojure, Racket, Scheme, Common Lisp, Emacs Lisp
+- Data and config: YAML, TOML, INI, dotenv, XML, Protocol Buffers, Prisma, Terraform, HCL, Nix, Bicep, Dockerfile,
+  Makefile, CMake, Nginx, Apache, systemd, SSH config, HTTP, Git commit messages
+- Documents: Markdown, MDX, LaTeX, BibTeX, reStructuredText, AsciiDoc, diff
+- Shaders and hardware: GLSL, HLSL, WGSL, Verilog, SystemVerilog, VHDL
+- SQL
 
 ### Syntax themes
 

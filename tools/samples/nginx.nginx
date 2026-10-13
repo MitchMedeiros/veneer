@@ -1,0 +1,30 @@
+# a small config
+worker_processes auto;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include mime.types;
+    upstream app {
+        server 127.0.0.1:3000 weight=2;
+    }
+
+    server {
+        listen 80;
+        server_name example.com www.example.com;
+
+        location / {
+            proxy_pass http://app;
+            proxy_set_header Host $host;
+        }
+
+        location ~* \.(png|jpg)$ {
+            expires 30d;
+            access_log off;
+        }
+
+        return 301 https://$host$request_uri;
+    }
+}
