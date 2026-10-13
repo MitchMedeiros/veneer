@@ -13,6 +13,7 @@ const NONE = {
   kittyWindow: undefined,
   weztermExecutable: undefined,
   konsoleVersion: undefined,
+  ghosttyResources: undefined,
 };
 
 test("terminals with the kitty graphics protocol draw pictures; other terminals and tmux do not", () => {

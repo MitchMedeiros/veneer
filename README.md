@@ -32,7 +32,18 @@ Veneer works in any terminal. What differs is how tables and headings are drawn 
 
 Pictures need a terminal that supports the kitty graphics protocol and `resvg`. Inside tmux, or where `resvg` is
 missing, Veneer draws tables and headings as text and shows a notice when the session starts. A terminal not listed that
-supports the protocol can set `CLAUDE_CODE_FORCE_TERMINAL_IMAGES=1` to turn pictures on.
+supports the protocol can set `CLAUDE_CODE_FORCE_TERMINAL_IMAGES=1` to turn pictures on. iTerm2 speaks the protocol but
+not the Unicode placeholders Claude Code draws pictures with, so it stays on text unless forced.
+
+### tmux
+
+Veneer turns pictures off inside tmux, because tmux does not pass the kitty graphics protocol through by default. Icons
+are not affected. tmux replaces `TERM_PROGRAM` and `TERM`, so Veneer recognizes Ghostty, kitty and WezTerm by the
+variables they set that tmux keeps (`GHOSTTY_RESOURCES_DIR`, `KITTY_WINDOW_ID` and `WEZTERM_EXECUTABLE`) and still draws
+Nerd Font icons there. Other terminals get Unicode symbols.
+
+To try pictures in tmux, run `tmux set -g allow-passthrough on` (tmux 3.3a or later) and start Claude Code with
+`CLAUDE_CODE_FORCE_TERMINAL_IMAGES=1`. This only works in a terminal that supports the protocol, and it is untested.
 
 ### Fonts
 

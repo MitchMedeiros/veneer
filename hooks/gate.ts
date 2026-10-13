@@ -9,6 +9,7 @@ export type TerminalEnv = {
   kittyWindow: string | undefined;
   weztermExecutable: string | undefined;
   konsoleVersion: string | undefined;
+  ghosttyResources: string | undefined;
 };
 
 export const OFF_TEXT: Record<Off, string> = {
@@ -38,12 +39,14 @@ export function terminalOff(env: TerminalEnv): Off | null {
 }
 
 // Terminals that carry their own symbol font, so the Nerd Font icons draw with nothing installed. Warp and Konsole draw
-// pictures but use the fonts installed on the machine.
+// pictures but use the fonts installed on the machine. Ghostty's resources folder variable, like the kitty and WezTerm
+// ones, outlives a multiplexer that rewrites `TERM_PROGRAM` and `TERM`.
 export const hasSymbolFont = (env: TerminalEnv): boolean =>
   SYMBOL_PROGRAMS.has(env.program ?? "") ||
   SYMBOL_TERMS.has(env.term ?? "") ||
   env.kittyWindow !== undefined ||
-  env.weztermExecutable !== undefined;
+  env.weztermExecutable !== undefined ||
+  env.ghosttyResources !== undefined;
 
 // Terminals where a file path is shown in full as plain text and not as a link. Claude Code prints the address beside the
 // text of a link in a terminal it does not know to open links. Rio finds the path in the text and opens it itself, and

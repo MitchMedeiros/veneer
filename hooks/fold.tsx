@@ -22,7 +22,9 @@ export function foldButton(
   return (
     <Box paddingLeft={1}>
       <Button key={`fold:${id}`} plain onPress={toggle}>
-        <Text color="claude">{expanded ? "Show fewer lines" : `Show ${total - MAX_LINES} more lines`}</Text>
+        <Text color="claude">
+          {expanded ? "Show fewer lines" : `Show ${total - MAX_LINES} more line${total - MAX_LINES === 1 ? "" : "s"}`}
+        </Text>
       </Button>
     </Box>
   ) as RenderElement;

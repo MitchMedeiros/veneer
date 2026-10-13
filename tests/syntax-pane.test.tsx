@@ -28,12 +28,15 @@ const THEME = (color: string) =>
 let store = new Map<string, unknown>();
 // How many times the pane was closed in it.
 let closed = 0;
+// How many scrolls reached the engine in it.
+let scrolled = 0;
 
 // A world with a Claude folder in memory. `files` holds themes by absolute path and is written to by the plugin.
 function world(on: On, files: Map<string, string>, env: Record<string, string> = { HOME: "/home/a" }) {
   mock.clock(on, { now: 10_000 });
   store = new Map<string, unknown>();
   closed = 0;
+  scrolled = 0;
 
   on("store.get", (_$, e) => ({ value: store.get((e as unknown as { key: string }).key) }));
   on("store.set", (_$, e) => {
@@ -59,6 +62,11 @@ function world(on: On, files: Map<string, string>, env: Record<string, string> =
     return { value: undefined };
   });
   on("ui.focus", () => ({}));
+  on("ui.scroll", () => {
+    scrolled += 1;
+
+    return {};
+  });
   on("session.cwd", () => ({ value: "/work" }));
   on("fs.read", (_$, e) => {
     const path = (e as unknown as { path: string }).path;
@@ -409,4 +417,59 @@ test("an extension Open VSX does not have is refused and nothing is written", as
 
   expect([...files.keys()]).toEqual([]);
   expect(store.get("syntaxTheme")).toBeUndefined();
+});
+
+const scroll = (by: number, extra: object = {}) =>
+  ({
+    component: "Pane",
+    requestId: "syntax",
+    offset: 0,
+    by,
+    bodyRows: 10,
+    contentRows: 40,
+    origin: { kind: "person" },
+    ...extra,
+  }) as never;
+
+test("a single arrow step walks the focus down the pane instead of scrolling it", async ($, on) => {
+  world(on, new Map([[`${FOLDER}/xenon.json`, THEME("#00ff00")]]));
+
+  const focus = (element: string) =>
+    $.ui.focus({ component: "Pane", requestId: "syntax", plugin: "veneer", element, origin: { kind: "person" } });
+
+  await $.ui.mount(pane);
+  await $.ui.scroll(scroll(1));
+  await focus("theme:xenon");
+  await $.ui.scroll(scroll(1));
+  await $.ui.scroll(scroll(-1));
+
+  expect(scrolled).toBe(0);
+
+  await focus(`theme:${DEFAULT_THEME}`);
+  await $.ui.scroll(scroll(-1));
+
+  expect(scrolled).toBe(1);
+
+  await focus(`theme:${NEW_THEME}`);
+  await $.ui.scroll(scroll(1));
+
+  expect(scrolled).toBe(2);
+});
+
+test("the wheel, the page keys and a step past either end scroll the pane as the engine does", async ($, on) => {
+  world(on, new Map());
+  await $.ui.mount(pane);
+  await $.ui.scroll(scroll(1, { pointer: { column: 3, row: 2 } }));
+  await $.ui.scroll(scroll(10));
+  await $.ui.scroll(scroll(-1));
+
+  expect(scrolled).toBe(3);
+});
+
+test("a scroll another plugin asks for is left to the engine", async ($, on) => {
+  world(on, new Map());
+  await $.ui.mount(pane);
+  await $.ui.scroll(scroll(1, { origin: { kind: "plugin", name: "other" } }));
+
+  expect(scrolled).toBe(1);
 });

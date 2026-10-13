@@ -101,3 +101,44 @@ test("a reply another mod drew passes through untouched", async ($, on) => {
   expect(await ui.find({ type: "Text", text: "another mod" })).toBeDefined();
   expect(await ui.find({ type: "Markdown" })).toBeUndefined();
 });
+
+function copying(on: On, isCopied: boolean) {
+  const seen = { copied: [] as string[], toasts: [] as string[] };
+
+  mock.clock(on, { now: 10_000 });
+  on("env.get", () => ({ value: undefined }));
+  on("ui.log", () => ({ value: undefined }));
+  on("ui.render", () => NATIVE);
+  on("ui.toast", (_$, e) => {
+    seen.toasts.push((e as unknown as { text: string }).text);
+
+    return { value: undefined };
+  });
+  on("ui.copy", (_$, e) => {
+    seen.copied.push((e as unknown as { text: string }).text);
+
+    return { value: isCopied ? { isCopied: true } : { isCopied: false, reason: "no clipboard" } } as never;
+  });
+
+  return seen;
+}
+
+test("pressing a code block's copy button copies its code and says so", async ($, on) => {
+  const seen = copying(on, true);
+  const ui = await $.ui.mount(reply("before\n\n```ts\nconst a = 1;\n```\n\nafter", "k1"));
+
+  await $.ui.press({ plugin: "veneer", key: (await ui.find({ type: "Button" }))!.key! });
+
+  expect(seen.copied).toEqual(["const a = 1;"]);
+  expect(seen.toasts).toEqual(["Code copied"]);
+});
+
+test("pressing a table's copy button copies its markdown, and a failed copy says so", async ($, on) => {
+  const seen = copying(on, false);
+  const ui = await $.ui.mount(reply("| Name | Role |\n| --- | --- |\n| Ada | Engineer |\n\nafter", "k2"));
+
+  await $.ui.press({ plugin: "veneer", key: (await ui.find({ type: "Button" }))!.key! });
+
+  expect(seen.copied).toEqual(["| Name | Role |\n| --- | --- |\n| Ada | Engineer |"]);
+  expect(seen.toasts).toEqual(["Copy failed"]);
+});
