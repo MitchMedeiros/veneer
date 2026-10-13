@@ -133,6 +133,16 @@ test("the most specific rule wins, a scope inherits from the scopes around it, a
   expect(theme.styleOf(scope("meta.block", "variable")).bold).toBe(true);
 });
 
+test("a theme's swatch lists the colours of a keyword, function, string, number and comment that it sets", () => {
+  const theme = new Theme([
+    { scope: "keyword", settings: { foreground: "#111111" } },
+    { scope: "string", settings: { foreground: "#222222" } },
+    { scope: "comment", settings: { foreground: "#333333" } },
+  ]);
+
+  expect(theme.swatch()).toEqual(["#111111", "#222222", "#333333"]);
+});
+
 test("a selector skips the scope paths it excludes with a minus", () => {
   const theme = new Theme([
     { scope: "variable - meta.block, constant - string - comment", settings: { foreground: "#555555" } },

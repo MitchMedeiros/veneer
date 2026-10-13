@@ -33,6 +33,8 @@ declare module "claude-code" {
       // The file name, without `.json`, of the chosen syntax theme; empty for the shipped default.
       syntax: string;
       syntaxPane: SyntaxPane;
+      // The theme the picker's focus is on, shown live in place of the chosen one; null when none.
+      syntaxPreview: string | null;
     };
   }
 }

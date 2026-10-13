@@ -151,6 +151,10 @@ class Library {
     return (await this.theme(io, themePath)).background;
   }
 
+  async swatch(io: SyntaxIo, themePath: string): Promise<string[]> {
+    return (await this.theme(io, themePath)).swatch();
+  }
+
   private tokenize(scopeName: string, lines: string[], theme: Theme): StyledRun[][] | null {
     let state = this.registry.initialState(scopeName);
 
@@ -193,6 +197,15 @@ const libraryOf = (io: SyntaxIo): Library => {
 
   return library;
 };
+
+// The colours a theme gives a few common kinds of code, or none when it cannot be read.
+export async function themeSwatch(io: SyntaxIo, themePath: string): Promise<string[]> {
+  try {
+    return await libraryOf(io).swatch(io, themePath);
+  } catch {
+    return [];
+  }
+}
 
 // The fill a theme sets behind code, or undefined when it sets none or cannot be read.
 export async function themeBackground(io: SyntaxIo, themePath: string): Promise<string | undefined> {

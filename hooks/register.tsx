@@ -19,9 +19,9 @@ import { BULLET, GUTTER, MARGIN, replyTree } from "./reply";
 import { commandOfCall, rememberInput } from "./calls";
 import { filePathOf, outputFill, paintCommand, paintDiff, paintFences, paintLines, paintOutput } from "./paint";
 import type { Painter } from "./paint";
-import { highlight, themeBackground } from "./syntax/highlight";
+import { highlight, themeBackground, themeSwatch } from "./syntax/highlight";
 import type { SyntaxIo } from "./syntax/highlight";
-import { DEFAULT_THEME, NEW_THEME, SAMPLES, syntaxPane } from "./syntax-pane";
+import { DEFAULT_THEME, NEW_THEME, SAMPLES, syntaxPane, THEME_KEY } from "./syntax-pane";
 import {
   baseNameOf,
   configDirOf,
@@ -49,6 +49,9 @@ const paletteAtom = atom({ plugin: "veneer", key: "palette" } as const, baseOf("
 const syntaxAtom = atom({ plugin: "veneer", key: "syntax" } as const, "");
 const LIST_PANE: SyntaxPane = { step: "list", path: "", content: "", message: undefined };
 const syntaxPaneAtom = atom({ plugin: "veneer", key: "syntaxPane" } as const, LIST_PANE);
+// The theme the picker's focus is on. It shows in place of the chosen one until the pane closes, as Claude's own theme
+// picker does; null when nothing is previewed.
+const syntaxPreviewAtom = atom({ plugin: "veneer", key: "syntaxPreview" } as const, null as string | null);
 
 const SYNTAX_PANE = "syntax";
 // What the pane asks for, as a request: rows when seated above the prompt, columns when docked beside the transcript.
@@ -92,7 +95,7 @@ async function themesFolder($: EngineInterface): Promise<string | undefined> {
 
 // The chosen syntax theme as a file path, empty for the shipped one, with what reads files.
 async function syntaxOf($: EngineInterface): Promise<{ io: SyntaxIo; themePath: string }> {
-  const name = await read($, syntaxAtom);
+  const name = (await read($, syntaxPreviewAtom)) ?? (await read($, syntaxAtom));
   const folder = name === "" ? undefined : await themesFolder($);
   const io: SyntaxIo = { root: $.plugin.root, read: (path) => $.fs.read(path).catch(() => undefined) };
 
@@ -127,6 +130,12 @@ async function chooseTheme($: EngineInterface, name: string): Promise<void> {
   await update($, syntaxAtom, () => name);
 }
 
+// Chooses a theme and closes the picker, which ends the preview.
+async function chooseAndClose($: EngineInterface, name: string): Promise<void> {
+  await chooseTheme($, name);
+  await $.ui.close({ id: SYNTAX_PANE });
+}
+
 // First step of adding a theme: the file the person named, kept if it reads as a theme.
 async function readThemeFile($: EngineInterface, input: string): Promise<void> {
   const path = expandHome(input.trim(), await $.env.get("HOME"));
@@ -157,9 +166,9 @@ async function importTheme($: EngineInterface, requested: string): Promise<void>
     return showPane($, { message: `Could not write ${name}${THEME_EXTENSION} to ${folder}.` });
   }
 
-  await chooseTheme($, name);
-
-  return showPane($, { step: "list", path: "", content: "", message: `Added ${name} from ${baseNameOf(path)}.` });
+  await showPane($, { step: "list", path: "", content: "", message: undefined });
+  await chooseAndClose($, name);
+  $.ui.toast(`Added ${name} from ${baseNameOf(path)}.`);
 }
 
 async function pictureDir($: EngineInterface): Promise<string> {
@@ -444,6 +453,26 @@ export const register: Register = (on, options) => {
     return opened.isPlaced ? {} : { text: "The syntax theme pane could not be shown: " + opened.reason };
   });
 
+  // The picker previews the theme its focus is on; the preview ends with the pane, however it closes.
+  on("ui.focus", { component: "Pane", requestId: SYNTAX_PANE }, async ($, e, next) => {
+    const result = await next(e);
+    const value = e.element?.startsWith(THEME_KEY) ? e.element.slice(THEME_KEY.length) : undefined;
+
+    if (result.deny === undefined) {
+      await update($, syntaxPreviewAtom, () =>
+        value === undefined || value === NEW_THEME ? null : value === DEFAULT_THEME ? "" : value,
+      );
+    }
+
+    return result;
+  });
+
+  on("ui.close", { id: SYNTAX_PANE }, async ($, e, next) => {
+    await update($, syntaxPreviewAtom, () => null);
+
+    return next(e);
+  });
+
   on("ui.render", { component: "Pane", requestId: SYNTAX_PANE }, async ($, e, next) => {
     if (e.surface !== "terminal") {
       return next(e);
@@ -454,11 +483,26 @@ export const register: Register = (on, options) => {
     const active = await read($, syntaxAtom);
     const paint = await painterFor($);
 
+    const names = folder === undefined ? [] : themeNames(await $.fs.list(folder).catch(() => []));
+    const { io } = await syntaxOf($);
+    const swatches = Object.fromEntries(
+      await Promise.all(
+        [DEFAULT_THEME, ...names].map(async (value) => [
+          value,
+          await themeSwatch(
+            io,
+            value === DEFAULT_THEME || folder === undefined ? "" : `${folder}/${value}${THEME_EXTENSION}`,
+          ),
+        ]),
+      ),
+    );
+
     return syntaxPane(
       ui,
       {
         pane: await read($, syntaxPaneAtom),
-        names: folder === undefined ? [] : themeNames(await $.fs.list(folder).catch(() => [])),
+        names,
+        swatches,
         active,
         folder,
         samples: await Promise.all(SAMPLES.map(async ({ hint, code }) => (await paint(hint, code)) ?? undefined)),
@@ -469,7 +513,7 @@ export const register: Register = (on, options) => {
           if (value === NEW_THEME) {
             void showPane($, { step: "path", message: undefined });
           } else {
-            void chooseTheme($, value === DEFAULT_THEME ? "" : value);
+            void chooseAndClose($, value === DEFAULT_THEME ? "" : value);
           }
         },
         submitPath: (path) => void readThemeFile($, path),

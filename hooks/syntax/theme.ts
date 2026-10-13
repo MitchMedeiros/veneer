@@ -1,3 +1,4 @@
+import { ROOT_SCOPE } from "./engine";
 import type { ScopeNode } from "./engine";
 import type { ThemeFile, ThemeRule, TokenStyle } from "./types";
 
@@ -5,6 +6,8 @@ export type ReadText = (path: string) => Promise<string | undefined>;
 
 // How far `include` may chain before a theme is taken as a loop.
 const MAX_INCLUDES = 8;
+
+const SWATCH_SCOPES = ["keyword.control", "entity.name.function", "string.quoted", "constant.numeric", "comment.line"];
 
 type Path = { parents: string[]; leaf: string };
 
@@ -137,6 +140,15 @@ export class Theme {
     this.selectors = rules.flatMap(selectorsOf);
     this.base = base;
     this.background = background;
+  }
+
+  // The colours the theme gives a keyword, a string, a function, a number and a comment: a glance at the theme.
+  swatch(): string[] {
+    return SWATCH_SCOPES.flatMap((name) => {
+      const color = this.styleOf(ROOT_SCOPE.push(name)).color;
+
+      return color === undefined ? [] : [color];
+    });
   }
 
   styleOf(scope: ScopeNode): TokenStyle {

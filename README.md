@@ -39,7 +39,8 @@ Code in fences, edits and file reads is highlighted for the languages in `gramma
 Run `/syntax` to pick the colors for code. The list holds `Default` and every VS Code color theme file in
 `veneer/themes/` inside your Claude folder (`~/.claude`, or `CLAUDE_CONFIG_DIR` when set). Choose `New custom theme...`
 to add one: give the path of a theme file and a name, and Veneer copies it into that folder and selects it. A name that
-is taken gets a number added. The choice is kept between sessions.
+is taken gets a number added. Moving through the list previews each theme on the code in the chat. Enter chooses one and
+closes the list; Escape closes it and keeps the theme you had. The choice is kept between sessions.
 
 ## Develop
 
