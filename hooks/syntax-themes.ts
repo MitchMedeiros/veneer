@@ -1,4 +1,4 @@
-import { parseJsonc } from "./syntax/theme";
+import { parseJsonc } from "./syntax/theme.ts";
 
 export const THEME_EXTENSION = ".json";
 

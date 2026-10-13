@@ -10,6 +10,7 @@
     "benchmark": "node tools/benchmark.mjs",
     "benchmark:host": "node tools/host-bench.mjs",
     "build:grammars": "node tools/build-grammars.mjs",
+    "check:themes": "node tools/check-themes.mjs",
     "conformance": "node tools/conformance.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

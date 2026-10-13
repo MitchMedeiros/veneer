@@ -42,24 +42,30 @@ to add one: give the path of a theme file and a name, and Veneer copies it into 
 is taken gets a number added. Moving through the list previews each theme on the code in the chat. Enter chooses one and
 closes the list; Escape closes it and keeps the theme you had. The choice is kept between sessions.
 
+`New custom theme...` also takes a VS Code extension on [Open VSX](https://open-vsx.org), as `publisher.name` or the
+address of its page, and fetches its theme without installing it. An extension with several themes asks which one.
+`Browse popular themes...` lists 50 popular theme extensions, ten to a page, most downloaded first as of October 2026.
+Fetching a theme is the only time Veneer uses the network.
+
 ## Develop
 
 Needs Node 24 or later (`nvm use` reads `.nvmrc`) and the Claude Code CLI. Install the tooling once with `npm install`,
 which also sets up the pre-commit hook.
 
-| Command                  | Does                                                     |
-| ------------------------ | -------------------------------------------------------- |
-| `npm run format`         | Format every file with Prettier                          |
-| `npm run format:check`   | Check formatting without changing files                  |
-| `npm run lint`           | Lint with ESLint (`npm run lint:fix` fixes what it can)  |
-| `npm run typecheck`      | Type-check with `tsc`                                    |
-| `npm run validate`       | Run `claude plugin validate` on the repo                 |
-| `npm test`               | Run `claude plugin test` on the repo                     |
-| `npm run build:grammars` | Rebuild `grammars/` from `tools/languages.json`          |
-| `npm run conformance`    | Compare the tokenizer with Shiki on `tools/samples/`     |
-| `npm run benchmark`      | Time the tokenizer per language in Node (not in CI)      |
-| `npm run benchmark:host` | Time the highlighter in the plugin test host (not in CI) |
-| `npm run check`          | Run the checks above, as CI does                         |
+| Command                  | Does                                                                                    |
+| ------------------------ | --------------------------------------------------------------------------------------- |
+| `npm run format`         | Format every file with Prettier                                                         |
+| `npm run format:check`   | Check formatting without changing files                                                 |
+| `npm run lint`           | Lint with ESLint (`npm run lint:fix` fixes what it can)                                 |
+| `npm run typecheck`      | Type-check with `tsc`                                                                   |
+| `npm run validate`       | Run `claude plugin validate` on the repo                                                |
+| `npm test`               | Run `claude plugin test` on the repo                                                    |
+| `npm run build:grammars` | Rebuild `grammars/` from `tools/languages.json`                                         |
+| `npm run conformance`    | Compare the tokenizer with Shiki on `tools/samples/`                                    |
+| `npm run check:themes`   | Fetch the popular themes from Open VSX (network, not in CI; `-- --all` for every theme) |
+| `npm run benchmark`      | Time the tokenizer per language in Node (not in CI)                                     |
+| `npm run benchmark:host` | Time the highlighter in the plugin test host (not in CI)                                |
+| `npm run check`          | Run the checks above, as CI does                                                        |
 
 `validate` and `test` run from outside the repo, because Claude Code needs that. The pre-commit hook formats and lints
 the staged files and type-checks the project. CI runs `npm run check` on every push to `main` and every pull request.

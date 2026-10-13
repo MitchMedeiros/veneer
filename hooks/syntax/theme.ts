@@ -1,4 +1,4 @@
-import { ROOT_SCOPE } from "./engine";
+import { ROOT_SCOPE } from "./engine.ts";
 import type { ScopeNode } from "./engine";
 import type { ThemeFile, ThemeRule, TokenStyle } from "./types";
 
@@ -183,7 +183,7 @@ export class Theme {
 }
 
 // A path from a theme's `include`, made absolute against the theme's folder with `.` and `..` settled.
-function resolvePath(directory: string, relative: string): string {
+export function resolvePath(directory: string, relative: string): string {
   const parts = (relative.startsWith("/") ? relative : `${directory}/${relative}`).split("/");
   const settled: string[] = [];
 
@@ -198,10 +198,15 @@ function resolvePath(directory: string, relative: string): string {
   return `/${settled.join("/")}`;
 }
 
-type Parsed = { rules: ThemeRule[]; foreground: string | undefined; background: string | undefined };
+export type Parsed = { rules: ThemeRule[]; foreground: string | undefined; background: string | undefined };
 
 // A theme file and the files it includes. Rules of an included theme come first, so the including theme overrides them.
-async function parseThemeFile(text: string, directory: string, read: ReadText, depth: number): Promise<Parsed | null> {
+export async function parseThemeFile(
+  text: string,
+  directory: string,
+  read: ReadText,
+  depth: number,
+): Promise<Parsed | null> {
   let file: ThemeFile;
 
   try {

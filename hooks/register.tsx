@@ -21,7 +21,19 @@ import { filePathOf, outputFill, paintCommand, paintDiff, paintFences, paintLine
 import type { Painter } from "./paint";
 import { highlight, themeBackground, themeSwatch } from "./syntax/highlight";
 import type { SyntaxIo } from "./syntax/highlight";
-import { DEFAULT_THEME, NEW_THEME, SAMPLES, syntaxPane, THEME_KEY } from "./syntax-pane";
+import {
+  DEFAULT_THEME,
+  NEW_THEME,
+  paneKeys,
+  PATH_KEY,
+  POPULAR_THEME,
+  SAMPLES,
+  syntaxPane,
+  THEME_KEY,
+} from "./syntax-pane";
+import { POPULAR_THEMES } from "./syntax-popular";
+import { fileUrl, flattenTheme, needsStrings, OPEN_VSX_ORIGIN, parseExtensionId, themesOf } from "./syntax-remote";
+import type { ExtensionId, ThemeChoice } from "./syntax-remote";
 import {
   baseNameOf,
   configDirOf,
@@ -47,17 +59,28 @@ const expandedAtom = atom({ plugin: "veneer", key: "expanded" } as const, [] as 
 const paletteAtom = atom({ plugin: "veneer", key: "palette" } as const, baseOf("dark") as Palette);
 // The syntax theme chosen with /syntax, by file name without `.json`; empty is the shipped default. Kept in the store.
 const syntaxAtom = atom({ plugin: "veneer", key: "syntax" } as const, "");
-const LIST_PANE: SyntaxPane = { step: "list", path: "", content: "", message: undefined };
+const LIST_PANE: SyntaxPane = {
+  step: "list",
+  path: "",
+  content: "",
+  message: undefined,
+  page: 0,
+  extension: "",
+  variants: [],
+};
 const syntaxPaneAtom = atom({ plugin: "veneer", key: "syntaxPane" } as const, LIST_PANE);
 // The theme the picker's focus is on. It shows in place of the chosen one until the pane closes, as Claude's own theme
 // picker does; null when nothing is previewed.
 const syntaxPreviewAtom = atom({ plugin: "veneer", key: "syntaxPreview" } as const, null as string | null);
+// The element the picker's focus ring is on, which the arrow keys move from when the pane would scroll.
+const syntaxFocusAtom = atom({ plugin: "veneer", key: "syntaxFocus" } as const, null as string | null);
 
 const SYNTAX_PANE = "syntax";
 // What the pane asks for, as a request: rows when seated above the prompt, columns when docked beside the transcript.
 const PANE_ROWS = 22;
 const PANE_COLUMNS = 72;
 const SYNTAX_KEY = "syntaxTheme";
+const MAX_REDIRECTS = 3;
 
 // Opens a folded entry, or folds an open one again.
 function flip($: EngineInterface, id: string): void {
@@ -91,6 +114,13 @@ async function themesFolder($: EngineInterface): Promise<string | undefined> {
   const root = configDirOf(await $.env.get("CLAUDE_CONFIG_DIR"), await $.env.get("HOME"));
 
   return root === undefined ? undefined : themesDirOf(root);
+}
+
+// The folder the saved themes are kept in and their names.
+async function savedThemes($: EngineInterface): Promise<{ folder: string | undefined; names: string[] }> {
+  const folder = await themesFolder($);
+
+  return { folder, names: folder === undefined ? [] : themeNames(await $.fs.list(folder).catch(() => [])) };
 }
 
 // The chosen syntax theme as a file path, empty for the shipped one, with what reads files.
@@ -136,7 +166,118 @@ async function chooseAndClose($: EngineInterface, name: string): Promise<void> {
   await $.ui.close({ id: SYNTAX_PANE });
 }
 
-// First step of adding a theme: the file the person named, kept if it reads as a theme.
+type Fetched = { ok: boolean; status: number; text: string };
+
+// A text file from the network, with the redirects Open VSX answers file addresses with followed by hand in case the
+// host does not follow them. Undefined when the network cannot be reached.
+async function fetchText($: EngineInterface, url: string): Promise<Fetched | undefined> {
+  let target = url;
+
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const response = await $.http.fetch(target).catch(() => undefined);
+    const location = response?.headers.location;
+
+    if (response === undefined || response.status < 300 || response.status >= 400 || location === undefined) {
+      return response;
+    }
+
+    target = location.startsWith("/") ? `${OPEN_VSX_ORIGIN}${location}` : location;
+
+    if (!target.startsWith("https://")) {
+      return undefined;
+    }
+  }
+
+  return undefined;
+}
+
+// The text of a file inside an extension on Open VSX, or undefined when there is none.
+async function extensionFile($: EngineInterface, extension: ExtensionId, path: string): Promise<string | undefined> {
+  const file = await fetchText($, fileUrl(extension, path));
+
+  return file?.ok ? file.text : undefined;
+}
+
+// Reads the themes an extension on Open VSX holds. One theme is fetched at once; several are offered to choose from.
+async function loadExtension($: EngineInterface, extension: ExtensionId): Promise<void> {
+  const label = `${extension.publisher}.${extension.name}`;
+
+  await showPane($, { message: `Fetching ${label} from Open VSX...` });
+
+  const manifest = await fetchText($, fileUrl(extension, "package.json"));
+
+  if (manifest === undefined) {
+    return showPane($, { message: "Could not reach Open VSX." });
+  }
+
+  if (!manifest.ok) {
+    return showPane($, {
+      message:
+        manifest.status === 404 ? `Open VSX has no extension ${label}.` : `Open VSX answered ${manifest.status}.`,
+    });
+  }
+
+  let themes = themesOf(manifest.text);
+
+  if (needsStrings(themes)) {
+    const strings = await extensionFile($, extension, "package.nls.json");
+
+    themes = themesOf(manifest.text, strings);
+  }
+
+  const [only, ...others] = themes;
+
+  if (only === undefined) {
+    return showPane($, { message: `${label} has no color themes.` });
+  }
+
+  await (others.length === 0
+    ? loadVariant($, extension, only)
+    : showPane($, { step: "variant", extension: label, variants: themes, page: 0, message: undefined }));
+}
+
+// Fetches one theme of an extension on Open VSX, folds in the files it includes, and asks what to call it.
+async function loadVariant($: EngineInterface, extension: ExtensionId, theme: ThemeChoice): Promise<void> {
+  await showPane($, { message: `Fetching ${theme.label}...` });
+
+  const text = await extensionFile($, extension, theme.path);
+
+  if (text === undefined) {
+    return showPane($, { message: `Could not fetch ${theme.label} from Open VSX.` });
+  }
+
+  const content = await flattenTheme(text, theme.path, (path) => extensionFile($, extension, path.slice(1)));
+  const problem = content === undefined ? "That file is not valid JSON." : themeProblem(content);
+
+  await (problem === undefined
+    ? showPane($, { step: "name", path: theme.label, content: content ?? "", message: undefined })
+    : showPane($, { message: problem }));
+}
+
+// First step of adding a theme: an extension on Open VSX, or the file the person named.
+async function readThemeSource($: EngineInterface, input: string): Promise<void> {
+  const extension = parseExtensionId(input);
+
+  await (extension === undefined ? readThemeFile($, input) : loadExtension($, extension));
+}
+
+// The row of a paged list that was chosen: an extension from the popular list, or one theme of an extension.
+async function chooseRow($: EngineInterface, index: number): Promise<void> {
+  const pane = await read($, syntaxPaneAtom);
+
+  if (pane.step === "popular") {
+    const extension = parseExtensionId(POPULAR_THEMES[index]?.id ?? "");
+
+    return extension === undefined ? undefined : loadExtension($, extension);
+  }
+
+  const extension = parseExtensionId(pane.extension);
+  const theme = pane.variants[index];
+
+  return extension === undefined || theme === undefined ? undefined : loadVariant($, extension, theme);
+}
+
+// First step of adding a theme from a file: the file the person named, kept if it reads as a theme.
 async function readThemeFile($: EngineInterface, input: string): Promise<void> {
   const path = expandHome(input.trim(), await $.env.get("HOME"));
   const text = path === "" ? undefined : await $.fs.read(path).catch(() => undefined);
@@ -166,7 +307,7 @@ async function importTheme($: EngineInterface, requested: string): Promise<void>
     return showPane($, { message: `Could not write ${name}${THEME_EXTENSION} to ${folder}.` });
   }
 
-  await showPane($, { step: "list", path: "", content: "", message: undefined });
+  await showPane($, LIST_PANE);
   await chooseAndClose($, name);
   $.ui.toast(`Added ${name} from ${baseNameOf(path)}.`);
 }
@@ -439,7 +580,7 @@ export const register: Register = (on, options) => {
   });
 
   on("command.run", { command: SYNTAX_PANE }, async ($) => {
-    await showPane($, { step: "list", path: "", content: "", message: undefined });
+    await showPane($, LIST_PANE);
 
     const opened = await $.ui.open({
       id: SYNTAX_PANE,
@@ -459,8 +600,18 @@ export const register: Register = (on, options) => {
     const value = e.element?.startsWith(THEME_KEY) ? e.element.slice(THEME_KEY.length) : undefined;
 
     if (result.deny === undefined) {
+      await update($, syntaxFocusAtom, () => e.element ?? null);
+
+      if (e.element !== undefined && e.element !== PATH_KEY && (await read($, syntaxPaneAtom)).step === "path") {
+        await showPane($, LIST_PANE);
+      }
+
       await update($, syntaxPreviewAtom, () =>
-        value === undefined || value === NEW_THEME ? null : value === DEFAULT_THEME ? "" : value,
+        value === undefined || value === NEW_THEME || value === POPULAR_THEME
+          ? null
+          : value === DEFAULT_THEME
+            ? ""
+            : value,
       );
     }
 
@@ -469,8 +620,31 @@ export const register: Register = (on, options) => {
 
   on("ui.close", { id: SYNTAX_PANE }, async ($, e, next) => {
     await update($, syntaxPreviewAtom, () => null);
+    await update($, syntaxFocusAtom, () => null);
 
     return next(e);
+  });
+
+  // Where the pane is taller than its room the engine scrolls it on an arrow key and the focus stays put. A single-row
+  // move by the keys walks the focus instead, which brings its element into view; past either end, and for the wheel and
+  // the page keys, the pane scrolls as before.
+  on("ui.scroll", { requestId: SYNTAX_PANE }, async ($, e, next) => {
+    if (e.origin.kind !== "person" || e.pointer !== undefined || Math.abs(e.by) !== 1) {
+      return next(e);
+    }
+
+    const { names } = await savedThemes($);
+    const keys = paneKeys(await read($, syntaxPaneAtom), names, (await themesFolder($)) !== undefined);
+    const focused = await read($, syntaxFocusAtom);
+    const target = keys[(focused === null ? -1 : keys.indexOf(focused)) + e.by];
+
+    if (target === undefined) {
+      return next(e);
+    }
+
+    await $.ui.focus({ requestId: SYNTAX_PANE, key: target }).catch(() => null);
+
+    return {};
   });
 
   on("ui.render", { component: "Pane", requestId: SYNTAX_PANE }, async ($, e, next) => {
@@ -479,11 +653,9 @@ export const register: Register = (on, options) => {
     }
 
     const ui = $.ui.resolve(e);
-    const folder = await themesFolder($);
+    const { folder, names } = await savedThemes($);
     const active = await read($, syntaxAtom);
     const paint = await painterFor($);
-
-    const names = folder === undefined ? [] : themeNames(await $.fs.list(folder).catch(() => []));
     const { io } = await syntaxOf($);
     const swatches = Object.fromEntries(
       await Promise.all(
@@ -512,12 +684,17 @@ export const register: Register = (on, options) => {
         pick: (value) => {
           if (value === NEW_THEME) {
             void showPane($, { step: "path", message: undefined });
+          } else if (value === POPULAR_THEME) {
+            void showPane($, { step: "popular", page: 0, message: undefined });
           } else {
             void chooseAndClose($, value === DEFAULT_THEME ? "" : value);
           }
         },
-        submitPath: (path) => void readThemeFile($, path),
+        submitPath: (path) => void readThemeSource($, path),
         submitName: (name) => void importTheme($, name),
+        choose: (index) => void chooseRow($, index),
+        turnPage: (by) => void update($, syntaxPaneAtom, (current) => ({ ...current, page: current.page + by })),
+        back: () => void showPane($, LIST_PANE),
       },
     );
   });

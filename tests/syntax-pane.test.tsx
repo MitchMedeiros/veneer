@@ -1,7 +1,11 @@
 import type { On, RenderElement } from "claude-code";
 import { expect, mock, test } from "claude-code/testing";
 
-import { NEW_THEME } from "../hooks/syntax-pane";
+import type { SyntaxPane } from "../types";
+import { DEFAULT_THEME, NEW_THEME, paneKeys, POPULAR_THEME } from "../hooks/syntax-pane";
+import { POPULAR_THEMES } from "../hooks/syntax-popular";
+import { fileUrl, PAGE_SIZE, parseExtensionId } from "../hooks/syntax-remote";
+import type { ExtensionId } from "../hooks/syntax-remote";
 
 const NATIVE: RenderElement = { type: "engine", ref: 0 };
 
@@ -237,5 +241,172 @@ test("a path that is not a theme is refused and nothing is copied", async ($, on
   await $.ui.input({ plugin: "veneer", key: "syntax-path", text: "/elsewhere/missing.json" });
 
   expect([...files.keys()]).toEqual(["/elsewhere/notes.json"]);
+  expect(store.get("syntaxTheme")).toBeUndefined();
+});
+
+// Open VSX in memory: `pages` holds file contents by address, and any other address answers 404.
+function openVsx(on: On, pages: Map<string, string>): string[] {
+  const asked: string[] = [];
+
+  on("http.fetch", (_$, e) => {
+    const url = (e as unknown as { url: string }).url;
+    const text = pages.get(url);
+
+    asked.push(url);
+
+    return { value: { status: text === undefined ? 404 : 200, ok: text !== undefined, headers: {}, text: text ?? "" } };
+  });
+
+  return asked;
+}
+
+const manifest = (themes: { label: string; path: string }[]) => JSON.stringify({ contributes: { themes } });
+
+const xenon = { publisher: "MitchellMedeiros", name: "midnight-xenon" };
+
+test("a theme is added from an extension on Open VSX by its id, with its includes folded in", async ($, on) => {
+  const files = new Map<string, string>();
+
+  openVsx(
+    on,
+    new Map([
+      [fileUrl(xenon, "package.json"), manifest([{ label: "Midnight Xenon", path: "./themes/main.json" }])],
+      [fileUrl(xenon, "themes/main.json"), JSON.stringify({ include: "./base.json", tokenColors: [] })],
+      [
+        fileUrl(xenon, "themes/base.json"),
+        JSON.stringify({ tokenColors: [{ scope: "keyword", settings: { foreground: "#00ff00" } }] }),
+      ],
+    ]),
+  );
+  world(on, files);
+  await $.ui.mount(pane);
+  await $.ui.press({ plugin: "veneer", key: `theme:${NEW_THEME}` });
+  await $.ui.input({ plugin: "veneer", key: "syntax-path", text: "MitchellMedeiros.midnight-xenon" });
+  await $.ui.input({ plugin: "veneer", key: "syntax-name", text: "" });
+
+  expect(JSON.parse(files.get(`${FOLDER}/Midnight Xenon.json`) ?? "{}").tokenColors).toEqual([
+    { scope: "keyword", settings: { foreground: "#00ff00" } },
+  ]);
+  expect(store.get("syntaxTheme")).toBe("Midnight Xenon");
+});
+
+test("an extension with several themes asks which one before naming it", async ($, on) => {
+  const files = new Map<string, string>();
+
+  openVsx(
+    on,
+    new Map([
+      [
+        fileUrl(xenon, "package.json"),
+        manifest([
+          { label: "Dark", path: "./dark.json" },
+          { label: "Light", path: "./light.json" },
+        ]),
+      ],
+      [fileUrl(xenon, "dark.json"), THEME("#111111")],
+      [fileUrl(xenon, "light.json"), THEME("#eeeeee")],
+    ]),
+  );
+  world(on, files);
+  await $.ui.mount(pane);
+  await $.ui.press({ plugin: "veneer", key: `theme:${NEW_THEME}` });
+  await $.ui.input({
+    plugin: "veneer",
+    key: "syntax-path",
+    text: "https://open-vsx.org/extension/MitchellMedeiros/midnight-xenon",
+  });
+
+  expect([...files.keys()]).toEqual([]);
+
+  await $.ui.press({ plugin: "veneer", key: "choice:1" });
+  await $.ui.input({ plugin: "veneer", key: "syntax-name", text: "" });
+
+  expect(JSON.parse(files.get(`${FOLDER}/Light.json`) ?? "{}").tokenColors[0].settings.foreground).toBe("#eeeeee");
+});
+
+test("the popular list is paged and a row fetches its extension", async ($, on) => {
+  const files = new Map<string, string>();
+  const tenth = parseExtensionId(POPULAR_THEMES[PAGE_SIZE]?.id ?? "") as ExtensionId;
+  const asked = openVsx(
+    on,
+    new Map([
+      [fileUrl(tenth, "package.json"), manifest([{ label: "Tenth", path: "t.json" }])],
+      [fileUrl(tenth, "t.json"), THEME("#abcdef")],
+    ]),
+  );
+
+  world(on, files);
+
+  const ui = await $.ui.mount(pane);
+
+  await $.ui.press({ plugin: "veneer", key: `theme:${POPULAR_THEME}` });
+
+  expect(await ui.find({ key: `choice:${PAGE_SIZE}` })).toBeUndefined();
+
+  await $.ui.press({ plugin: "veneer", key: "page:next" });
+
+  expect(await ui.find({ key: `choice:${PAGE_SIZE}` })).toBeDefined();
+  expect(asked).toEqual([]);
+
+  await $.ui.press({ plugin: "veneer", key: `choice:${PAGE_SIZE}` });
+  await $.ui.input({ plugin: "veneer", key: "syntax-name", text: "" });
+
+  expect(files.has(`${FOLDER}/Tenth.json`)).toBe(true);
+});
+
+test("moving the focus off the field for a path puts the add row back", async ($, on) => {
+  world(on, new Map([[`${FOLDER}/xenon.json`, THEME("#00ff00")]]));
+
+  const ui = await $.ui.mount(pane);
+
+  await $.ui.press({ plugin: "veneer", key: `theme:${NEW_THEME}` });
+
+  expect(await ui.find({ key: "syntax-path" })).toBeDefined();
+
+  await $.ui.focus({
+    component: "Pane",
+    requestId: "syntax",
+    plugin: "veneer",
+    element: "theme:xenon",
+    origin: { kind: "person" },
+  });
+
+  expect(await ui.find({ key: "syntax-path" })).toBeUndefined();
+  expect(await ui.find({ key: `theme:${NEW_THEME}` })).toBeDefined();
+});
+
+test("the arrow keys walk the focusable elements in the order they are drawn", () => {
+  const list = { step: "list", page: 0, variants: [] } as unknown as SyntaxPane;
+  const themes = [`theme:${DEFAULT_THEME}`, "theme:xenon"];
+
+  expect(paneKeys(list, ["xenon"], true)).toEqual([...themes, `theme:${POPULAR_THEME}`, `theme:${NEW_THEME}`]);
+  expect(paneKeys(list, ["xenon"], false)).toEqual(themes);
+  expect(paneKeys({ ...list, step: "path" }, ["xenon"], true)).toEqual([
+    ...themes,
+    `theme:${POPULAR_THEME}`,
+    "syntax-path",
+  ]);
+  expect(paneKeys({ ...list, step: "name" }, [], true)).toEqual(["syntax-name"]);
+
+  const popular = { ...list, step: "popular" } as SyntaxPane;
+
+  expect(paneKeys(popular, [], true)).toEqual([
+    ...Array.from({ length: PAGE_SIZE }, (_, i) => `choice:${i}`),
+    "page:next",
+    "page:back",
+  ]);
+  expect(paneKeys({ ...popular, page: 1 }, [], true).slice(-3)).toEqual(["page:next", "page:previous", "page:back"]);
+});
+
+test("an extension Open VSX does not have is refused and nothing is written", async ($, on) => {
+  const files = new Map<string, string>();
+
+  openVsx(on, new Map());
+  world(on, files);
+  await $.ui.mount(pane);
+  await $.ui.press({ plugin: "veneer", key: `theme:${NEW_THEME}` });
+  await $.ui.input({ plugin: "veneer", key: "syntax-path", text: "nobody.nothing" });
+
+  expect([...files.keys()]).toEqual([]);
   expect(store.get("syntaxTheme")).toBeUndefined();
 });

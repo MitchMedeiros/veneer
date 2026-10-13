@@ -15,13 +15,19 @@ export type Palette = {
   isAnsi: boolean;
 };
 
-// Where the `/syntax` pane is: the list of themes, or one of the two steps of importing a theme file.
+// Where the `/syntax` pane is: the list of themes, the steps of importing a theme from a file or from Open VSX, or a
+// paged list of the popular extensions or of the themes in one extension.
 export type SyntaxPane = {
-  step: "list" | "path" | "name";
-  // The theme file being imported and its text, from the step that asks for its path on.
+  step: "list" | "path" | "name" | "popular" | "variant";
+  // The theme being imported and its text, from the step that asks for its name on.
   path: string;
   content: string;
   message: string | undefined;
+  // The page of a paged list, counting from zero.
+  page: number;
+  // The extension on Open VSX the variants belong to, as `publisher.name`, and its themes.
+  extension: string;
+  variants: { label: string; path: string }[];
 };
 
 declare module "claude-code" {
@@ -35,6 +41,8 @@ declare module "claude-code" {
       syntaxPane: SyntaxPane;
       // The theme the picker's focus is on, shown live in place of the chosen one; null when none.
       syntaxPreview: string | null;
+      // The key of the element the picker's focus ring is on; null when none.
+      syntaxFocus: string | null;
     };
   }
 }
