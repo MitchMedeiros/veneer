@@ -1,4 +1,4 @@
-// Why Veneer draws nothing this session; null when it draws.
+// Why Veneer draws no pictures this session; null when it draws them.
 export type Off = "tmux" | "terminal" | "resvg";
 
 // The colours pictures need as hex. Native rows use theme keys and need none of this.

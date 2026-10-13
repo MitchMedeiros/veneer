@@ -1,6 +1,9 @@
 import type { On, RenderElement } from "claude-code";
 import { expect, mock, test } from "claude-code/testing";
 
+import type { Table } from "../hooks/markdown";
+import { columnWidths } from "../hooks/table-card";
+
 const NATIVE: RenderElement = { type: "engine", ref: 0 };
 const OTHER_MOD: RenderElement = { type: "Text", props: {}, children: ["another mod"] };
 
@@ -46,6 +49,40 @@ test("a code block gets a copy button", async ($, on) => {
   const ui = await $.ui.mount(reply("before\n\n```ts\nconst a = 1;\n```\n\nafter", "m4"));
 
   expect(await ui.find({ type: "Button" })).toBeDefined();
+});
+
+test("a table with no picture is a native card with a copy button", async ($, on) => {
+  stub(on, NATIVE);
+
+  const ui = await $.ui.mount(reply("| Name | Role |\n| --- | --- |\n| Ada | Engineer |\n\nafter", "m6"));
+
+  expect(await ui.find({ type: "Text", text: "Name" })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "Engineer" })).toBeDefined();
+  expect(await ui.find({ type: "Button" })).toBeDefined();
+});
+
+test("a heading with no picture is bold text with a rule under the first two levels", async ($, on) => {
+  stub(on, NATIVE);
+
+  const ui = await $.ui.mount(reply("# Title\n\nbody\n\n### Small\n\nmore", "m7"));
+
+  expect(await ui.find({ type: "Text", text: "Title" })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "━━━━━" })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "Small" })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "─────" })).toBeUndefined();
+});
+
+test("columns are as wide as their longest cell until the table is too wide, then the widest are cut back", () => {
+  const table: Table = {
+    kind: "table",
+    header: ["A", "Notes"],
+    align: ["left", "left"],
+    rows: [["one", "a very long note that will not fit"]],
+    raw: "",
+  };
+
+  expect(columnWidths(table, 80)).toEqual([3, 34]);
+  expect(columnWidths(table, 20)).toEqual([3, 11]);
 });
 
 test("a reply with no code block or table has no copy button", async ($, on) => {

@@ -3,9 +3,11 @@ import type { ElementTable, RenderElement } from "claude-code";
 import { codeCard } from "./code";
 import { copyRow } from "./copy-button";
 import type { CopyAction } from "./copy-button";
+import { headingCard } from "./heading-card";
 import type { Segment } from "./markdown";
 import type { Picture } from "./picture";
 import type { StyledRun } from "./syntax/types";
+import { tableCard } from "./table-card";
 
 type Ui = Pick<ElementTable, "Box" | "Text" | "Markdown" | "Button"> &
   Partial<Pick<Extract<ElementTable, { Image: unknown }>, "Image">>;
@@ -31,12 +33,12 @@ export function replyTree(
   fences: ReadonlyMap<Segment, StyledRun[][]> = new Map(),
   fenceBackground: string | undefined,
   copyFor: (index: number, text: string, noun: string) => CopyAction,
+  available: number,
 ): RenderElement {
-  // A code block or table: a copy row above it and a blank row below it, unless a block follows, whose own copy row is
-  // the gap.
-  const framed = (i: number, text: string, noun: string, child: RenderElement, alignSelf?: "flex-start") => {
+  // A code block or table: a blank row above it, holding its copy button, and a blank row below it, unless a block
+  // follows, whose own blank row above is the gap.
+  const framed = (i: number, copy: CopyAction, child: RenderElement, alignSelf?: "flex-start") => {
     const next = segments[i + 1];
-    const copy = copyFor(i, text, noun);
 
     return (
       <Box
@@ -62,16 +64,21 @@ export function replyTree(
     if (segment.kind === "code") {
       return framed(
         i,
-        segment.code,
-        "Code",
+        copyFor(i, segment.code, "Code"),
         codeCard({ Box, Text }, segment.lang, segment.code, fences.get(segment), fenceBackground),
       );
     }
 
     if (drawn === undefined || Image === undefined) {
-      const markdown = <Markdown key={`text-${i}`} text={segment.raw} />;
+      if (segment.kind === "table") {
+        return framed(i, copyFor(i, segment.raw, "Table"), tableCard({ Box, Text }, segment, available), "flex-start");
+      }
 
-      return segment.kind === "table" ? framed(i, segment.raw, "Table", markdown) : markdown;
+      return (
+        <Box key={`heading-${i}`} marginTop={i > 0 ? 1 : 0}>
+          {headingCard({ Box, Text }, segment, available)}
+        </Box>
+      );
     }
 
     const picture = (
@@ -91,7 +98,7 @@ export function replyTree(
       </Box>
     );
 
-    return segment.kind === "table" ? framed(i, segment.raw, "Table", picture, "flex-start") : picture;
+    return segment.kind === "table" ? framed(i, copyFor(i, segment.raw, "Table"), picture, "flex-start") : picture;
   });
 
   return (

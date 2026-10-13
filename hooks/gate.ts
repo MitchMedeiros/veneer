@@ -10,9 +10,9 @@ export type TerminalEnv = {
 };
 
 export const OFF_TEXT: Record<Off, string> = {
-  tmux: "Veneer is off: tmux does not pass pictures through.",
-  terminal: "Veneer is off: this terminal does not draw pictures. Ghostty and kitty do.",
-  resvg: "Veneer is off: install resvg (brew install resvg) to draw cards.",
+  tmux: "Veneer draws tables and headings as text: tmux does not pass pictures through.",
+  terminal: "Veneer draws tables and headings as text: this terminal does not draw pictures. Ghostty and kitty do.",
+  resvg: "Veneer draws tables and headings as text: install resvg (brew install resvg) to draw pictures.",
 };
 
 // Claude Code draws pictures only for kitty and Ghostty, and not inside a multiplexer unless forced.

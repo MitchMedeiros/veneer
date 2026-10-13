@@ -340,12 +340,13 @@ async function settle($: EngineInterface): Promise<Off | null> {
 
   await update($, offAtom, () => off);
 
-  if (off === null) {
-    const chosen = await $.store.get(SYNTAX_KEY);
+  const chosen = await $.store.get(SYNTAX_KEY);
 
-    await update($, syntaxAtom, () => (typeof chosen === "string" ? chosen : ""));
-    await $.command.register({ name: SYNTAX_PANE, description: "Choose the syntax theme for code" }).catch(() => null);
-    await refreshPalette($);
+  await update($, syntaxAtom, () => (typeof chosen === "string" ? chosen : ""));
+  await $.command.register({ name: SYNTAX_PANE, description: "Choose the syntax theme for code" }).catch(() => null);
+  await refreshPalette($);
+
+  if (off === null) {
     await prepareFolder($);
   }
 
@@ -375,13 +376,7 @@ export const register: Register = (on, options) => {
   on("ui.render", { component: "UserMessage" }, async ($, e, next) => {
     const { text, origin } = e.props;
 
-    if (
-      e.surface !== "terminal" ||
-      !config.styleUserMessage ||
-      origin.kind !== "composer" ||
-      text.trim() === "" ||
-      (await read($, offAtom)) !== null
-    ) {
+    if (e.surface !== "terminal" || !config.styleUserMessage || origin.kind !== "composer" || text.trim() === "") {
       return next(e);
     }
 
@@ -408,13 +403,7 @@ export const register: Register = (on, options) => {
     const { text, isFirstOfReply, isSummary } = e.props;
 
     // A tree another mod returned is theirs; only core's own drawing is replaced.
-    if (
-      e.surface !== "terminal" ||
-      native.type !== "engine" ||
-      isSummary === true ||
-      text.trim() === "" ||
-      (await read($, offAtom)) !== null
-    ) {
+    if (e.surface !== "terminal" || native.type !== "engine" || isSummary === true || text.trim() === "") {
       return native;
     }
 
@@ -434,20 +423,26 @@ export const register: Register = (on, options) => {
       ? await paintFences(await painterFor($), segments)
       : undefined;
     const fenceBackground = fences === undefined ? undefined : await backgroundFor($, config, "fences");
+    const width = (e.viewport?.columns ?? 100) - GUTTER - 2 * MARGIN;
 
-    if (!("Image" in ui) || !hasDrawn(segments)) {
-      return replyTree(ui, segments, drawn, bullet, fences, fenceBackground, copyFor);
+    if (!("Image" in ui) || !hasDrawn(segments) || (await read($, offAtom)) !== null) {
+      return replyTree(ui, segments, drawn, bullet, fences, fenceBackground, copyFor, width);
     }
 
     const palette = await read($, paletteAtom);
     const font = { family: config.fontFamily, cellHeight: cellHeightOf(config.cellRatio) };
-    const available = Math.min(MAX_COLUMNS, (e.viewport?.columns ?? 100) - GUTTER - 2 * MARGIN);
+    const available = Math.min(MAX_COLUMNS, width);
     const dir = await pictureDir($);
     const io = pictureIo($);
 
     await Promise.all(
       segments.map(async (segment) => {
-        if (segment.kind === "text" || segment.kind === "code") {
+        if (
+          segment.kind === "text" ||
+          segment.kind === "code" ||
+          (segment.kind === "table" && config.nativeTables) ||
+          (segment.kind === "heading" && config.nativeHeadings)
+        ) {
           return;
         }
 
@@ -463,7 +458,7 @@ export const register: Register = (on, options) => {
       }),
     );
 
-    return replyTree(ui, segments, drawn, bullet, fences, fenceBackground, copyFor);
+    return replyTree(ui, segments, drawn, bullet, fences, fenceBackground, copyFor, width);
   });
 
   on("ui.render", { component: "ToolUse" }, async ($, e, next) => {
@@ -474,7 +469,7 @@ export const register: Register = (on, options) => {
     const native = await next(e);
     const { isRunning, isErrored, output } = e.props;
 
-    if (e.surface !== "terminal" || native.type !== "engine" || (await read($, offAtom)) !== null) {
+    if (e.surface !== "terminal" || native.type !== "engine") {
       return native;
     }
 
@@ -489,12 +484,7 @@ export const register: Register = (on, options) => {
   on("ui.render", { component: "ToolResult" }, async ($, e, next) => {
     const native = await next(e);
 
-    if (
-      e.surface !== "terminal" ||
-      native.type !== "engine" ||
-      e.props.isErrored ||
-      (await read($, offAtom)) !== null
-    ) {
+    if (e.surface !== "terminal" || native.type !== "engine" || e.props.isErrored) {
       return native;
     }
 
@@ -547,12 +537,7 @@ export const register: Register = (on, options) => {
   on("ui.render", { component: "Spinner" }, async ($, e, next) => {
     const native = await next(e);
 
-    if (
-      e.surface !== "terminal" ||
-      !config.styleSpinner ||
-      native.type !== "engine" ||
-      (await read($, offAtom)) !== null
-    ) {
+    if (e.surface !== "terminal" || !config.styleSpinner || native.type !== "engine") {
       return native;
     }
 
@@ -568,12 +553,7 @@ export const register: Register = (on, options) => {
   on("ui.render", { component: "ToolGroup" }, async ($, e, next) => {
     const native = await next(e);
 
-    if (
-      e.surface !== "terminal" ||
-      native.type !== "engine" ||
-      e.props.isExpanded ||
-      (await read($, offAtom)) !== null
-    ) {
+    if (e.surface !== "terminal" || native.type !== "engine" || e.props.isExpanded) {
       return native;
     }
 
@@ -735,7 +715,7 @@ export const register: Register = (on, options) => {
   on("config.set", async ($, e, next) => {
     const result = await next(e);
 
-    if (e.key === "theme" && result.deny === undefined && (await read($, offAtom)) === null) {
+    if (e.key === "theme" && result.deny === undefined) {
       await refreshPalette($, result.value);
     }
 

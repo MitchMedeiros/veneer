@@ -5,6 +5,8 @@ export type Config = {
   fontFamily: string;
   cellRatio: number;
   backgrounds: Record<Backdrop, boolean>;
+  nativeTables: boolean;
+  nativeHeadings: boolean;
   styleUserMessage: boolean;
   styleSpinner: boolean;
 };
@@ -42,6 +44,8 @@ export const configOf = (options: PluginOptions): Config => ({
   backgrounds: Object.fromEntries(
     Object.entries(BACKDROP_OPTIONS).map(([card, option]) => [card, onUnlessFalse(options[option])]),
   ) as Record<Backdrop, boolean>,
+  nativeTables: options.nativeTables === true || options.nativeTables === "true",
+  nativeHeadings: options.nativeHeadings === true || options.nativeHeadings === "true",
   styleUserMessage: onUnlessFalse(options.styleUserMessage),
   styleSpinner: onUnlessFalse(options.styleSpinner),
 });

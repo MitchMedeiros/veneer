@@ -22,6 +22,18 @@
       "description": "Draw your messages as a filled bubble. Turn off to leave them to Claude Code or another mod.",
       "default": true
     },
+    "nativeTables": {
+      "type": "boolean",
+      "title": "Draw tables as text",
+      "description": "Draw tables as a text card instead of a picture. Tables always use the card where pictures are unavailable.",
+      "default": false
+    },
+    "nativeHeadings": {
+      "type": "boolean",
+      "title": "Draw headings as text",
+      "description": "Draw headings as styled text instead of a picture. Headings always use text where pictures are unavailable.",
+      "default": false
+    },
     "styleSpinner": {
       "type": "boolean",
       "title": "Indent the spinner",

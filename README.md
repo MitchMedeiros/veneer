@@ -5,8 +5,9 @@ its own rows.
 
 ## Install
 
-Needs Claude Code 2.1.287 or later. Pictures need a terminal that draws them (Ghostty or kitty) and
-[resvg](https://github.com/linebender/resvg) on the path (`brew install resvg` on macOS).
+Needs Claude Code 2.1.287 or later. Table and heading pictures need a terminal that draws them (Ghostty or kitty) and
+[resvg](https://github.com/linebender/resvg) on the path (`brew install resvg` on macOS). Without them, tables and
+headings are drawn as text.
 
 ```
 /plugin marketplace add mitchmedeiros/veneer
@@ -24,6 +25,8 @@ Colors come from your Claude Code theme. Edit a theme in `~/.claude/themes/`.
 | ------------------ | ---------------- | -------------------------------------------------------------------------- |
 | `messageAlign`     | `left`           | `left` or `right`                                                          |
 | `styleUserMessage` | `true`           | Draw your messages as a bubble. Turn off to leave them to another mod.     |
+| `nativeTables`     | `false`          | Draw tables as a text card, not a picture.                                 |
+| `nativeHeadings`   | `false`          | Draw headings as styled text, not a picture.                               |
 | `styleSpinner`     | `true`           | Indent the spinner line. Turn off to leave it to another mod.              |
 | `fontFamily`       | `Helvetica Neue` | Font for tables and headings. It must be installed on this machine.        |
 | `cellRatio`        | `2.9`            | Height of a terminal cell over its width. Change it if pictures letterbox. |
