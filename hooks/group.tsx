@@ -6,8 +6,8 @@ import { outputFill } from "./paint";
 import { MARGIN } from "./reply";
 import { lineChildren } from "./syntax/runs";
 import type { StyledRun } from "./syntax/types";
-import type { Look, ToolCall } from "./tool-row";
-import { inputOf, lookFor, pathHover, pathOf, shortPath, toneOf } from "./tool-row";
+import type { Look, Plain, ToolCall } from "./tool-row";
+import { inputOf, lookFor, NOT_PLAIN, pathHover, pathOf, shortPath, toneOf } from "./tool-row";
 
 type Ui = Pick<ElementTable, "Box" | "Button" | "Link" | "Text">;
 
@@ -53,7 +53,7 @@ export function toolGroup(
   detailRuns: readonly (StyledRun[] | undefined)[] = [],
   paintedOutput: readonly (OutputLine[] | undefined)[] = [],
   fills: { reads?: string; output?: string } = {},
-  isPlain = false,
+  plain: Plain = NOT_PLAIN,
 ): RenderElement {
   const fillOf = (tool: string, lines: readonly OutputLine[]) =>
     tool === "Read"
@@ -61,7 +61,7 @@ export function toolGroup(
       : tool === "Bash" || tool === "Grep"
         ? outputFill(fills.output, false, lines)
         : undefined;
-  const iconGap = isPlain ? " " : "  ";
+  const iconGap = plain.icons ? " " : "  ";
   const groupId = `group:${id}`;
   const groupOpen = open.has(groupId);
   const single = calls.length === 1;
@@ -71,7 +71,7 @@ export function toolGroup(
   const summary = (
     <Box flexDirection="row" marginTop={1} marginLeft={MARGIN} marginRight={MARGIN}>
       <Button key={groupId} plain hover={summaryLit} onPress={() => toggle(groupId)}>
-        {segmentsOf(calls, isPlain).flatMap((segment, i) => {
+        {segmentsOf(calls, plain.icons).flatMap((segment, i) => {
           const { tone } = segment;
 
           return [
@@ -90,7 +90,7 @@ export function toolGroup(
 
   const rows = calls.map((call, i) => {
     const callId = `call:${call.tool_use_id ?? `${id}:${i}`}`;
-    const look = lookFor(call.tool, isPlain);
+    const look = lookFor(call.tool, plain.icons);
     const input = inputOf(call.input);
     const detail = look.detail(input);
     const path = pathOf(look, input);
@@ -123,12 +123,8 @@ export function toolGroup(
             )}
           </Button>
           {detail === undefined || path === undefined ? null : (
-            <Text dimColor wrap="truncate-end" hover={isPlain ? undefined : pathHover(callId)}>
-              {isPlain ? (
-                shortPath(detail, cwd)
-              ) : (
-                <Link href={`file://${encodeURI(path)}`}>{shortPath(detail, cwd)}</Link>
-              )}
+            <Text dimColor wrap="truncate-end" hover={plain.links ? undefined : pathHover(callId)}>
+              {plain.links ? detail : <Link href={`file://${encodeURI(path)}`}>{shortPath(detail, cwd)}</Link>}
             </Text>
           )}
         </Box>

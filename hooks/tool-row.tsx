@@ -102,22 +102,25 @@ export function shortPath(path: string, cwd: string): string {
   return path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path;
 }
 
+// What a terminal cannot draw: Nerd Font icons, which become Unicode symbols, and links, which become plain text.
+export type Plain = { icons: boolean; links: boolean };
+
+export const NOT_PLAIN: Plain = { icons: false, links: false };
+
 // The tool row as an icon, a bold name and a dim detail, or null for a tool with no look of its own. A path is a link,
-// so a click opens the file as the native row's does. `detailRuns` colour the detail, as a Command's shell line. In
-// plain mode, for terminals that draw neither Nerd Font icons nor links, the icon is a Unicode symbol and a path is plain
-// text.
+// so a click opens the file as the native row's does. `detailRuns` colour the detail, as a Command's shell line.
 export function toolRow(
   { Box, Text, Link }: Ui,
   call: ToolCall,
   cwd: string,
   detailRuns?: StyledRun[],
-  isPlain = false,
+  plain: Plain = NOT_PLAIN,
 ): RenderElement | null {
   if (LOOKS[call.tool] === undefined) {
     return null;
   }
 
-  const look = lookFor(call.tool, isPlain);
+  const look = lookFor(call.tool, plain.icons);
 
   const input = inputOf(call.input);
   const detail = look.detail(input);
@@ -126,7 +129,7 @@ export function toolRow(
 
   return (
     <Box flexDirection="row" marginTop={1} marginLeft={MARGIN} marginRight={MARGIN} gap={2}>
-      <Box flexShrink={0} gap={isPlain ? 1 : 2}>
+      <Box flexShrink={0} gap={plain.icons ? 1 : 2}>
         <Text color={tone} dimColor={call.isRunning}>
           {look.icon}
         </Text>
@@ -139,12 +142,12 @@ export function toolRow(
           <Text
             dimColor
             wrap="truncate-end"
-            hover={path === undefined || isPlain ? undefined : pathHover(call.tool_use_id ?? "")}
+            hover={path === undefined || plain.links ? undefined : pathHover(call.tool_use_id ?? "")}
           >
             {path === undefined ? (
               lineChildren({ Text }, detail, detailRuns)
-            ) : isPlain ? (
-              shortPath(detail, cwd)
+            ) : plain.links ? (
+              detail
             ) : (
               <Link href={`file://${encodeURI(path)}`}>{shortPath(detail, cwd)}</Link>
             )}

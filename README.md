@@ -5,9 +5,8 @@ its own rows.
 
 ## Install
 
-Needs Claude Code 2.1.287 or later. Table and heading pictures need a terminal that draws them (Ghostty or kitty) and
-[resvg](https://github.com/linebender/resvg) on the path (`brew install resvg` on macOS). Without them, tables and
-headings are drawn as text.
+Needs Claude Code 2.1.287 or later. Table and heading pictures also need [resvg](https://github.com/linebender/resvg) on
+the path (`brew install resvg` on macOS).
 
 ```
 /plugin marketplace add mitchmedeiros/veneer
@@ -17,6 +16,37 @@ headings are drawn as text.
 /plugin install veneer@veneer
 ```
 
+## Terminals
+
+Veneer works in any terminal. What differs is how tables and headings are drawn and which icons are used.
+
+| Terminal | Table and heading pictures | Icons with `icons` on `auto`                    |
+| -------- | -------------------------- | ----------------------------------------------- |
+| Ghostty  | Yes                        | Nerd Font, from the terminal's built-in symbols |
+| kitty    | Yes                        | Nerd Font, from the terminal's built-in symbols |
+| WezTerm  | Yes                        | Nerd Font, from the terminal's built-in symbols |
+| Rio      | Yes                        | Nerd Font, from the terminal's built-in symbols |
+| Warp     | Yes                        | Unicode symbols                                 |
+| Konsole  | Yes, untested              | Unicode symbols                                 |
+| Others   | No, drawn as text          | Unicode symbols                                 |
+
+Pictures need a terminal that supports the kitty graphics protocol and `resvg`. Inside tmux, or where `resvg` is
+missing, Veneer draws tables and headings as text and shows a notice when the session starts. A terminal not listed that
+supports the protocol can set `CLAUDE_CODE_FORCE_TERMINAL_IMAGES=1` to turn pictures on.
+
+### Fonts
+
+- **Icons:** Ghostty, kitty, WezTerm and Rio carry their own symbol font, so Nerd Font icons draw with nothing
+  installed. Warp, Konsole and other terminals use the fonts installed on your machine, so `auto` draws plain Unicode
+  symbols instead. If you have a Nerd Font installed and set as the terminal font, set `icons` to `nerd` to use the Nerd
+  Font icons there. Set it to `plain` to use Unicode symbols everywhere.
+- **Pictures:** tables and headings are drawn in `fontFamily`, which defaults to `Helvetica Neue`. It must be installed
+  on the machine running Claude Code, so on Linux and Windows set `fontFamily` to a font you have.
+- **Links:** file paths on tool rows are links that open the file, usually with Cmd+click (Shift+click in WezTerm). In a
+  terminal Claude Code does not know to open links, it prints the address beside the name. Rio and Terminal.app show the
+  full path as plain text instead. Rio finds the path and opens it with Cmd+click. Terminal.app opens neither. Set
+  `links` to `link` or `text` to override this for your terminal.
+
 ## Configure
 
 Colors come from your Claude Code theme. Edit a theme in `~/.claude/themes/`.
@@ -25,6 +55,8 @@ Colors come from your Claude Code theme. Edit a theme in `~/.claude/themes/`.
 | ------------------ | ---------------- | -------------------------------------------------------------------------- |
 | `messageAlign`     | `left`           | `left` or `right`                                                          |
 | `styleUserMessage` | `true`           | Draw your messages as a bubble. Turn off to leave them to another mod.     |
+| `icons`            | `auto`           | `auto`, `nerd` or `plain`. Nerd Font icons or Unicode symbols.             |
+| `links`            | `auto`           | `auto`, `link` or `text`. How a file path on a tool row is drawn.          |
 | `nativeTables`     | `false`          | Draw tables as a text card, not a picture.                                 |
 | `nativeHeadings`   | `false`          | Draw headings as styled text, not a picture.                               |
 | `styleSpinner`     | `true`           | Indent the spinner line. Turn off to leave it to another mod.              |

@@ -22,6 +22,20 @@
       "description": "Draw your messages as a filled bubble. Turn off to leave them to Claude Code or another mod.",
       "default": true
     },
+    "icons": {
+      "type": "string",
+      "title": "Icons",
+      "description": "auto uses Nerd Font icons in terminals that carry their own symbol font and Unicode symbols elsewhere. nerd always uses Nerd Font icons and needs a Nerd Font installed. plain always uses Unicode symbols.",
+      "default": "auto",
+      "options": ["auto", "nerd", "plain"]
+    },
+    "links": {
+      "type": "string",
+      "title": "File path links",
+      "description": "How a file path on a tool row is drawn. auto draws a link, and the full path as plain text in Rio and Terminal.app. link always draws a link, which Claude Code shows with its address beside it in a terminal it does not know to open links. text always draws the full path as plain text.",
+      "default": "auto",
+      "options": ["auto", "link", "text"]
+    },
     "nativeTables": {
       "type": "boolean",
       "title": "Draw tables as text",

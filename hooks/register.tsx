@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from "claude-code";
 import type { Off, Palette, SyntaxPane } from "../types";
 import { configOf } from "./config";
 import type { Backdrop, Config } from "./config";
-import { OFF_TEXT, terminalOff } from "./gate";
+import { iconsArePlain, linksArePlain, OFF_TEXT, terminalOff } from "./gate";
 import { changeCounts, withBadges } from "./badge";
 import { diffCard, parseDiff } from "./diff";
 import { toolGroup } from "./group";
@@ -47,6 +47,7 @@ import {
 } from "./syntax-themes";
 import { tableSketch } from "./table";
 import { toolRow } from "./tool-row";
+import type { Plain } from "./tool-row";
 import { loadPalette } from "./theme";
 import { userBubble } from "./user-message";
 
@@ -54,6 +55,10 @@ const NOTICE_MS = 6000;
 
 // Why Veneer is off this session; null when it draws.
 const offAtom = atom({ plugin: "veneer", key: "off" } as const, null as Off | null);
+// Whether the icons are Unicode symbols, because the terminal has no Nerd Font to draw them or the setting says so.
+const plainIconsAtom = atom({ plugin: "veneer", key: "plainIcons" } as const, false);
+// Whether a file path is plain text, because Claude Code would print its address beside a link in this terminal.
+const plainLinksAtom = atom({ plugin: "veneer", key: "plainLinks" } as const, false);
 // The tool calls whose diff card shows every line.
 const expandedAtom = atom({ plugin: "veneer", key: "expanded" } as const, [] as string[]);
 const paletteAtom = atom({ plugin: "veneer", key: "palette" } as const, baseOf("dark") as Palette);
@@ -326,19 +331,29 @@ async function prepareFolder($: EngineInterface): Promise<void> {
     .catch(() => null);
 }
 
-async function settle($: EngineInterface): Promise<Off | null> {
-  const terminal = terminalOff({
+// What this terminal cannot draw: icons by the setting and the terminal, links wherever pictures are off.
+async function plainOf($: EngineInterface): Promise<Plain> {
+  return { icons: await read($, plainIconsAtom), links: await read($, plainLinksAtom) };
+}
+
+async function settle($: EngineInterface, { icons, links }: Pick<Config, "icons" | "links">): Promise<Off | null> {
+  const env = {
     force: await $.env.get("CLAUDE_CODE_FORCE_TERMINAL_IMAGES"),
     tmux: await $.env.get("TMUX"),
     program: await $.env.get("TERM_PROGRAM"),
     term: await $.env.get("TERM"),
     kittyWindow: await $.env.get("KITTY_WINDOW_ID"),
-  });
+    weztermExecutable: await $.env.get("WEZTERM_EXECUTABLE"),
+    konsoleVersion: await $.env.get("KONSOLE_VERSION"),
+  };
+  const terminal = terminalOff(env);
   const probe =
     terminal === null ? await $.process.run(["resvg", "--version"], { timeoutMs: 2000 }).catch(() => null) : null;
   const off = terminal ?? (probe?.exitCode === 0 ? null : "resvg");
 
   await update($, offAtom, () => off);
+  await update($, plainIconsAtom, () => iconsArePlain(icons, env));
+  await update($, plainLinksAtom, () => linksArePlain(links, env));
 
   const chosen = await $.store.get(SYNTAX_KEY);
 
@@ -357,7 +372,7 @@ export const register: Register = (on, options) => {
   const config = configOf(options);
 
   on("session.start", async ($, e, next) => {
-    const off = await settle($);
+    const off = await settle($, config);
 
     if (off !== null) {
       $.ui.toast(OFF_TEXT[off], { timeoutMs: NOTICE_MS });
@@ -368,7 +383,7 @@ export const register: Register = (on, options) => {
 
   // /clear, /resume and /branch reset the session's state and skip session.start.
   on("classic.SessionStart", { source: ["clear", "resume", "fork"] }, async ($, e, next) => {
-    await settle($);
+    await settle($, config);
 
     return next(e);
   });
@@ -388,7 +403,7 @@ export const register: Register = (on, options) => {
 
     const copy = {
       scope: `bubble:${e.requestId}`,
-      isPlain: (await read($, offAtom)) !== null,
+      isPlain: await read($, plainIconsAtom),
       onCopy: async () => {
         const { isCopied } = await $.ui.copy({ text, surface: e.surface });
 
@@ -411,7 +426,7 @@ export const register: Register = (on, options) => {
     const ui = $.ui.resolve(e);
     const segments = splitReply(text);
     const bullet = isFirstOfReply ? BULLET : null;
-    const isPlain = (await read($, offAtom)) !== null;
+    const isPlain = await read($, plainIconsAtom);
     const copyFor = (index: number, source: string, noun: string) => ({
       scope: `copy:${e.requestId}:${index}`,
       isPlain,
@@ -428,7 +443,7 @@ export const register: Register = (on, options) => {
     const fenceBackground = fences === undefined ? undefined : await backgroundFor($, config, "fences");
     const width = (e.viewport?.columns ?? 100) - GUTTER - 2 * MARGIN;
 
-    if (!("Image" in ui) || !hasDrawn(segments) || isPlain) {
+    if (!("Image" in ui) || !hasDrawn(segments) || (await read($, offAtom)) !== null) {
       return replyTree(ui, segments, drawn, bullet, fences, fenceBackground, copyFor, width);
     }
 
@@ -478,11 +493,11 @@ export const register: Register = (on, options) => {
 
     const ui = $.ui.resolve(e);
     const commandRuns = e.props.tool === "Bash" ? await paintCommand(await painterFor($), e.props) : undefined;
-    const isPlain = (await read($, offAtom)) !== null;
-    const row = toolRow(ui, e.props, await $.session.cwd(), commandRuns, isPlain) ?? native;
+    const plain = await plainOf($);
+    const row = toolRow(ui, e.props, await $.session.cwd(), commandRuns, plain) ?? native;
     const changes = !isRunning && !isErrored ? changeCounts(output) : null;
 
-    return changes === null ? row : withBadges(ui, row, changes, (await read($, paletteAtom)).isAnsi, isPlain);
+    return changes === null ? row : withBadges(ui, row, changes, (await read($, paletteAtom)).isAnsi, plain.icons);
   });
 
   on("ui.render", { component: "ToolResult" }, async ($, e, next) => {
@@ -593,7 +608,7 @@ export const register: Register = (on, options) => {
       paint === undefined
         ? {}
         : { reads: await backgroundFor($, config, "reads"), output: await backgroundFor($, config, "output") },
-      (await read($, offAtom)) !== null,
+      await plainOf($),
     );
   });
 

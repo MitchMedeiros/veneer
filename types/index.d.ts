@@ -34,6 +34,10 @@ declare module "claude-code" {
   interface PluginState {
     veneer: {
       off: Off | null;
+      // Whether the icons are Unicode symbols and not Nerd Font glyphs.
+      plainIcons: boolean;
+      // Whether file paths are plain text and not links.
+      plainLinks: boolean;
       palette: Palette;
       expanded: string[];
       // The file name, without `.json`, of the chosen syntax theme; empty for the shipped default.
