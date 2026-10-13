@@ -1,12 +1,20 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
-type Ui = Pick<ElementTable, "Box" | "Text">;
+type Ui = Pick<ElementTable, "Box" | "Text" | "Button">;
+
+export type BubbleCopy = { scope: string; onCopy: () => void };
 
 // A bubble is at most this share of the window wide, as the desktop's is.
 const MAX_SHARE = 0.75;
 const MARGIN = 1;
 const PADDING_X = 1;
 const FILL = "userMessageBackground";
+const ACCENT = "claude";
+const MENTION = "suggestion";
+const COPY_ICON = "";
+
+// An @file mention: an @ at the start of a word followed by a path. Splitting on it leaves the mentions at odd indices.
+const FILE_MENTION = /((?<!\S)@[\w./~-]*[\w/~-])/;
 
 // Half blocks that make the padding in halves: half a row above and below, and half a column more at each side.
 // The corners are quarter blocks, so the half rows start and end exactly where the half-column caps do.
@@ -33,17 +41,74 @@ function wrapLine(line: string, width: number): string[] {
   return [...rows, chars.slice(start).join("")];
 }
 
-// The user's message as a block filled with the theme's `userMessageBackground`, as wide as its longest line.
-export function userBubble({ Box, Text }: Ui, text: string, columns: number, align: "left" | "right"): RenderElement {
+// The user's message as a block filled with the theme's `userMessageBackground`, as wide as its longest line. A copy
+// button waits beside it and shows while the pointer is over the bubble or the button.
+export function userBubble(
+  { Box, Text, Button }: Ui,
+  text: string,
+  columns: number,
+  align: "left" | "right",
+  copy: BubbleCopy,
+): RenderElement {
+  const isLeft = align === "left";
   const inner = Math.max(10, Math.floor(columns * MAX_SHARE) - 2 * PADDING_X - 2);
   const rows = text
     .replace(/\s+$/, "")
     .split("\n")
     .flatMap((line) => wrapLine(line, inner));
   const content = Math.min(inner, Math.max(...rows.map((row) => [...row].length)));
-  const isLeft = align === "left";
-  const edge = (glyphs: typeof TOP) => (
-    <Text color={FILL}>{`${glyphs.left}${glyphs.middle.repeat(content + 2 * PADDING_X)}${glyphs.right}`}</Text>
+  const leftColor = isLeft ? ACCENT : FILL;
+  const rightColor = isLeft ? FILL : ACCENT;
+  const body = (row: string) =>
+    row.split(FILE_MENTION).map((part, i) =>
+      i % 2 === 1 ? (
+        <Text key={`mention-${i}`} color={MENTION} backgroundColor={FILL} bold>
+          {part}
+        </Text>
+      ) : (
+        part
+      ),
+    );
+  const side = (glyphs: typeof TOP) => (
+    <Text>
+      <Text color={leftColor}>{glyphs.left}</Text>
+      <Text color={FILL}>{glyphs.middle.repeat(content + 2 * PADDING_X)}</Text>
+      <Text color={rightColor}>{glyphs.right}</Text>
+    </Text>
+  );
+
+  const bubble = (
+    <Box key="bubble" flexDirection="column" hover={{ scope: copy.scope }}>
+      {side(TOP)}
+      {rows.map((row, i) => (
+        <Text key={`line-${i}`}>
+          <Text color={leftColor}>{LEFT_CAP}</Text>
+          <Text color="text" backgroundColor={FILL}>
+            {" ".repeat(PADDING_X)}
+            {body(row)}
+            {" ".repeat(Math.max(0, content - [...row].length) + PADDING_X)}
+          </Text>
+          <Text color={rightColor}>{RIGHT_CAP}</Text>
+        </Text>
+      ))}
+      {side(BOTTOM)}
+    </Box>
+  );
+
+  const button = (
+    <Box key="copy" display="none" hover={{ scope: copy.scope, display: "flex" }}>
+      <Button key={`${copy.scope}:copy`} plain onPress={copy.onCopy}>
+        <Text color="text" backgroundColor={FILL}>{` ${COPY_ICON}  Copy `}</Text>
+      </Button>
+    </Box>
+  );
+
+  // The row above the bubble is always there, so showing the button moves nothing, and it shares the hover group, so
+  // the pointer can travel from the bubble up to the button without the button hiding.
+  const buttonRow = (
+    <Box key="copy-row" height={1} justifyContent="flex-end" hover={{ scope: copy.scope }}>
+      {button}
+    </Box>
   );
 
   return (
@@ -53,17 +118,8 @@ export function userBubble({ Box, Text }: Ui, text: string, columns: number, ali
       marginRight={isLeft ? 0 : MARGIN}
       flexDirection="column"
     >
-      {edge(TOP)}
-      {rows.map((row, i) => (
-        <Text key={`line-${i}`}>
-          <Text color={FILL}>{LEFT_CAP}</Text>
-          <Text color="text" backgroundColor={FILL}>
-            {`${" ".repeat(PADDING_X)}${row.padEnd(content)}${" ".repeat(PADDING_X)}`}
-          </Text>
-          <Text color={FILL}>{RIGHT_CAP}</Text>
-        </Text>
-      ))}
-      {edge(BOTTOM)}
+      {buttonRow}
+      {bubble}
     </Box>
   );
 }

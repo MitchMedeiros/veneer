@@ -43,6 +43,14 @@ test("every line of a multi-line message is kept, blank lines included", async (
   expect(await ui.find({ type: "Text", text: "third" })).toBeDefined();
 });
 
+test("an @file mention is its own piece of text", async ($, on) => {
+  stub(on);
+
+  const ui = await $.ui.mount(message("look in @.husky/ please"));
+
+  expect(await ui.find({ type: "Text", text: "@.husky/" })).toBeDefined();
+});
+
 test("other surfaces and other senders keep Claude Code’s own row", async ($, on) => {
   stub(on, STOCK);
 

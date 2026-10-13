@@ -391,7 +391,16 @@ export const register: Register = (on, options) => {
       return native;
     }
 
-    return userBubble($.ui.resolve(e), text, e.viewport?.columns ?? 100, config.align);
+    const copy = {
+      scope: `bubble:${e.requestId}`,
+      onCopy: async () => {
+        const { isCopied } = await $.ui.copy({ text, surface: e.surface });
+
+        $.ui.toast(isCopied ? "Message copied" : "Copy failed");
+      },
+    };
+
+    return userBubble($.ui.resolve(e), text, e.viewport?.columns ?? 100, config.align, copy);
   });
 
   on("ui.render", { component: "AssistantMessage" }, async ($, e, next) => {
