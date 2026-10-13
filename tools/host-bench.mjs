@@ -10,7 +10,7 @@ import { tmpdir } from "node:os";
 const ROOT = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, ROOT), "utf8");
 const DEFAULT_LANGUAGES = ["typescript", "python", "cpp"];
-const COPIED = [".claude", ".claude-plugin", "hooks", "themes", "types"];
+const COPIED = [".claude", ".claude-plugin", "hooks", "syntax-themes", "types"];
 
 const index = JSON.parse(read("grammars/index.json"));
 const requested = process.argv.slice(2);
@@ -60,7 +60,7 @@ function run(name) {
     const files = {
       ...grammarFiles(language.scopeName),
       "/grammars/index.json": read("grammars/index.json"),
-      "/themes/default.json": read("themes/default.json"),
+      "/syntax-themes/default.json": read("syntax-themes/default.json"),
     };
 
     mkdirSync(`${scratch}/tests`);

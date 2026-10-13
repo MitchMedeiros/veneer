@@ -9,13 +9,14 @@ const MAX_LINES = 1500;
 const MAX_LINE_LENGTH = 1000;
 const MEMORY_BLOCKS = 200;
 
-const DEFAULT_THEME = "themes/default.json";
-const FALLBACK_THEMES = { dark: "themes/fallback-dark.json", light: "themes/fallback-light.json" };
+// Not `themes/`: Claude Code lists the files of that folder in `/theme` as themes of the plugin.
+const DEFAULT_THEME = "syntax-themes/default.json";
+const FALLBACK_THEMES = { dark: "syntax-themes/fallback-dark.json", light: "syntax-themes/fallback-light.json" };
 
 // What highlighting needs from the engine, so it stays free of `$`.
 export type SyntaxIo = {
   read: ReadText;
-  // The plugin's folder, where `grammars/` and `themes/` live.
+  // The plugin's folder, where `grammars/` and `syntax-themes/` live.
   root: string;
 };
 

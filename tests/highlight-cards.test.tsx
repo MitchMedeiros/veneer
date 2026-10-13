@@ -24,7 +24,7 @@ const FILES: Record<string, unknown> = {
     scopeName: "source.toy",
     patterns: [{ match: "/\\blet\\b/u", name: "keyword.toy" }],
   },
-  "/themes/default.json": {
+  "/syntax-themes/default.json": {
     colors: { "editor.background": "#101010" },
     tokenColors: [
       { scope: "keyword", settings: { foreground: "#ff0000" } },

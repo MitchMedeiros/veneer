@@ -13,7 +13,7 @@ Needs Claude Code 2.1.287 or later. Pictures need a terminal that draws them (Gh
 ```
 
 ```
-/plugin install veneer@veneer-mods
+/plugin install veneer@veneer
 ```
 
 ## Configure

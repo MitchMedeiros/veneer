@@ -343,7 +343,7 @@ for (const kind of ["dark", "light"]) {
   const { default: theme } = await import(`@shikijs/themes/${kind}-plus`);
 
   writeFileSync(
-    new URL(`../themes/fallback-${kind}.json`, import.meta.url),
+    new URL(`../syntax-themes/fallback-${kind}.json`, import.meta.url),
     `${JSON.stringify({ name: `${kind} fallback`, tokenColors: theme.tokenColors })}\n`,
   );
 }

@@ -15,7 +15,7 @@ const GRAMMARS: Record<string, unknown> = {
     scopes: { "source.toy": "toy.json" },
   },
   "/grammars/toy.json": { scopeName: "source.toy", patterns: [{ match: "/\\blet\\b/u", name: "keyword.toy" }] },
-  "/themes/default.json": { tokenColors: [{ scope: "keyword", settings: { foreground: "#ff0000" } }] },
+  "/syntax-themes/default.json": { tokenColors: [{ scope: "keyword", settings: { foreground: "#ff0000" } }] },
 };
 
 const THEME = (color: string) =>

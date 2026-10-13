@@ -212,7 +212,7 @@ const INDEX: GrammarIndex = {
 const FILES: Record<string, string> = {
   "/root/grammars/index.json": JSON.stringify(INDEX),
   "/root/grammars/toy.json": JSON.stringify(TOY),
-  "/root/themes/default.json": JSON.stringify({
+  "/root/syntax-themes/default.json": JSON.stringify({
     tokenColors: [{ scope: "keyword", settings: { foreground: "#ff0000" } }],
   }),
   "/user/theme.json": JSON.stringify({ tokenColors: [{ scope: "keyword", settings: { foreground: "#00ff00" } }] }),
