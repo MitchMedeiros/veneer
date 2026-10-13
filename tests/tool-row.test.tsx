@@ -1,17 +1,6 @@
-import type { On, RenderElement } from "claude-code";
-import { expect, mock, test } from "claude-code/testing";
+import { expect, test } from "claude-code/testing";
 
-const NATIVE: RenderElement = { type: "engine", ref: 0 };
-const OTHER_MOD: RenderElement = { type: "Text", props: {}, children: ["another mod"] };
-
-function stub(on: On, row: RenderElement) {
-  mock.clock(on, { now: 10_000 });
-  on("env.get", () => ({ value: undefined }));
-  on("session.cwd", () => ({ value: "/work" }));
-  on("ui.toast", () => ({ value: undefined }));
-  on("ui.log", () => ({ value: undefined }));
-  on("ui.render", () => row);
-}
+import { NATIVE, OTHER_MOD, stub } from "./helpers";
 
 const row = (tool: string, input: unknown, id: string, overrides: Record<string, unknown> = {}) =>
   ({

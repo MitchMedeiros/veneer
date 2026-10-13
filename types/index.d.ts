@@ -30,9 +30,25 @@ export type SyntaxPane = {
   variants: { label: string; path: string }[];
 };
 
+// Where the `/veneer` pane is: the setting being typed, if any, and a message from the last change.
+export type SettingsPane = {
+  editing: string | null;
+  message: string | undefined;
+};
+
+// The tabs of the `/veneer` pane.
+export type Tab = "settings" | "syntax";
+
 declare module "claude-code" {
   interface PluginState {
     veneer: {
+      // The plugin's settings as they stand, by field name, kept current as they change.
+      options: Record<string, string | number | boolean | readonly string[]>;
+      settingsPane: SettingsPane;
+      // The tab of the pane that is open.
+      tab: Tab;
+      // The key of the element the pane's focus ring is on; null when none.
+      focus: string | null;
       off: Off | null;
       // Whether the icons are Unicode symbols and not Nerd Font glyphs.
       plainIcons: boolean;
@@ -45,8 +61,6 @@ declare module "claude-code" {
       syntaxPane: SyntaxPane;
       // The theme the picker's focus is on, shown live in place of the chosen one; null when none.
       syntaxPreview: string | null;
-      // The key of the element the picker's focus ring is on; null when none.
-      syntaxFocus: string | null;
     };
   }
 }

@@ -1,4 +1,4 @@
-import type { On, RenderElement } from "claude-code";
+import type { On } from "claude-code";
 import { expect, mock, test } from "claude-code/testing";
 
 import type { SyntaxPane } from "../types";
@@ -6,8 +6,7 @@ import { DEFAULT_THEME, NEW_THEME, paneKeys, POPULAR_THEME } from "../hooks/synt
 import { POPULAR_THEMES } from "../hooks/syntax-popular";
 import { fileUrl, PAGE_SIZE, parseExtensionId } from "../hooks/syntax-remote";
 import type { ExtensionId } from "../hooks/syntax-remote";
-
-const NATIVE: RenderElement = { type: "engine", ref: 0 };
+import { NATIVE } from "./helpers";
 
 const GRAMMARS: Record<string, unknown> = {
   "/grammars/index.json": {
@@ -113,9 +112,23 @@ const pane = {
   viewport: { columns: 100, rows: 30 },
   surface: "terminal",
   component: "Pane",
-  requestId: "syntax",
-  props: { title: "Syntax theme", isFocused: true, bodyColumns: 80, placement: "dock" },
+  requestId: "veneer",
+  props: { title: "Veneer", isFocused: true, bodyColumns: 80, placement: "dock" },
 } as never;
+
+type World = Parameters<Extract<Parameters<typeof test>[1], (...args: never[]) => unknown>>[0];
+
+// The pane as `/syntax` leaves it, on the Syntax theme tab.
+async function mountSyntax($: World) {
+  await $.command.run({
+    command: "syntax",
+    args: "",
+    origin: { kind: "composer" },
+    presentation: { isFullscreen: true, columns: 100 },
+  });
+
+  return $.ui.mount(pane);
+}
 
 const reply = (id: string) =>
   ({
@@ -153,7 +166,7 @@ test("picking a theme from the Claude folder colours code with it and is remembe
 
   world(on, files);
 
-  const ui = await $.ui.mount(pane);
+  const ui = await mountSyntax($);
 
   expect(await ui.find({ key: "theme:xenon" })).toBeDefined();
 
@@ -165,10 +178,10 @@ test("picking a theme from the Claude folder colours code with it and is remembe
 
 test("moving the focus previews a theme without choosing it, and the add row ends the preview", async ($, on) => {
   world(on, new Map([[`${FOLDER}/xenon.json`, THEME("#00ff00")]]));
-  await $.ui.mount(pane);
+  await mountSyntax($);
 
   const focus = (element: string) =>
-    $.ui.focus({ component: "Pane", requestId: "syntax", plugin: "veneer", element, origin: { kind: "person" } });
+    $.ui.focus({ component: "Pane", requestId: "veneer", plugin: "veneer", element, origin: { kind: "person" } });
 
   await focus("theme:xenon");
 
@@ -183,7 +196,7 @@ test("moving the focus previews a theme without choosing it, and the add row end
 test("pressing a theme chooses it and closes the pane", async ($, on) => {
   world(on, new Map([[`${FOLDER}/xenon.json`, THEME("#00ff00")]]));
 
-  await $.ui.mount(pane);
+  await mountSyntax($);
   await $.ui.press({ plugin: "veneer", key: "theme:xenon" });
 
   expect(closed).toBe(1);
@@ -193,7 +206,7 @@ test("a folder named by CLAUDE_CONFIG_DIR is used in place of the home folder", 
   const files = new Map([["/cfg/veneer/themes/blue.json", THEME("#0000ff")]]);
 
   world(on, files, { HOME: "/home/a", CLAUDE_CONFIG_DIR: "/cfg" });
-  await $.ui.mount(pane);
+  await mountSyntax($);
   await $.ui.press({ plugin: "veneer", key: "theme:blue" });
 
   expect(await keywordColors(await $.ui.mount(reply("p2")))).toEqual(["#0000ff"]);
@@ -201,7 +214,7 @@ test("a folder named by CLAUDE_CONFIG_DIR is used in place of the home folder", 
 
 test("choosing the default again clears the choice", async ($, on) => {
   world(on, new Map([[`${FOLDER}/xenon.json`, THEME("#00ff00")]]));
-  await $.ui.mount(pane);
+  await mountSyntax($);
   await $.ui.press({ plugin: "veneer", key: "theme:xenon" });
   await $.ui.press({ plugin: "veneer", key: "theme:::default" });
 
@@ -213,7 +226,7 @@ test("a theme file is added by path and name, copied into the folder and chosen"
   const files = new Map([["/elsewhere/midnight.json", THEME("#123456")]]);
 
   world(on, files);
-  await $.ui.mount(pane);
+  await mountSyntax($);
   await $.ui.press({ plugin: "veneer", key: `theme:${NEW_THEME}` });
   await $.ui.input({ plugin: "veneer", key: "syntax-path", text: "/elsewhere/midnight.json" });
   await $.ui.input({ plugin: "veneer", key: "syntax-name", text: "My Theme" });
@@ -229,7 +242,7 @@ test("a blank name keeps the file's own name and a taken name gets a number", as
   ]);
 
   world(on, files);
-  await $.ui.mount(pane);
+  await mountSyntax($);
   await $.ui.press({ plugin: "veneer", key: `theme:${NEW_THEME}` });
   await $.ui.input({ plugin: "veneer", key: "syntax-path", text: "/elsewhere/midnight.json" });
   await $.ui.input({ plugin: "veneer", key: "syntax-name", text: "" });
@@ -243,7 +256,7 @@ test("a path that is not a theme is refused and nothing is copied", async ($, on
   const files = new Map([["/elsewhere/notes.json", '{"hello":1}']]);
 
   world(on, files);
-  await $.ui.mount(pane);
+  await mountSyntax($);
   await $.ui.press({ plugin: "veneer", key: `theme:${NEW_THEME}` });
   await $.ui.input({ plugin: "veneer", key: "syntax-path", text: "/elsewhere/notes.json" });
   await $.ui.input({ plugin: "veneer", key: "syntax-path", text: "/elsewhere/missing.json" });
@@ -287,7 +300,7 @@ test("a theme is added from an extension on Open VSX by its id, with its include
     ]),
   );
   world(on, files);
-  await $.ui.mount(pane);
+  await mountSyntax($);
   await $.ui.press({ plugin: "veneer", key: `theme:${NEW_THEME}` });
   await $.ui.input({ plugin: "veneer", key: "syntax-path", text: "MitchellMedeiros.midnight-xenon" });
   await $.ui.input({ plugin: "veneer", key: "syntax-name", text: "" });
@@ -316,7 +329,7 @@ test("an extension with several themes asks which one before naming it", async (
     ]),
   );
   world(on, files);
-  await $.ui.mount(pane);
+  await mountSyntax($);
   await $.ui.press({ plugin: "veneer", key: `theme:${NEW_THEME}` });
   await $.ui.input({
     plugin: "veneer",
@@ -345,7 +358,7 @@ test("the popular list is paged and a row fetches its extension", async ($, on) 
 
   world(on, files);
 
-  const ui = await $.ui.mount(pane);
+  const ui = await mountSyntax($);
 
   await $.ui.press({ plugin: "veneer", key: `theme:${POPULAR_THEME}` });
 
@@ -365,7 +378,7 @@ test("the popular list is paged and a row fetches its extension", async ($, on) 
 test("moving the focus off the field for a path puts the add row back", async ($, on) => {
   world(on, new Map([[`${FOLDER}/xenon.json`, THEME("#00ff00")]]));
 
-  const ui = await $.ui.mount(pane);
+  const ui = await mountSyntax($);
 
   await $.ui.press({ plugin: "veneer", key: `theme:${NEW_THEME}` });
 
@@ -373,7 +386,7 @@ test("moving the focus off the field for a path puts the add row back", async ($
 
   await $.ui.focus({
     component: "Pane",
-    requestId: "syntax",
+    requestId: "veneer",
     plugin: "veneer",
     element: "theme:xenon",
     origin: { kind: "person" },
@@ -411,7 +424,7 @@ test("an extension Open VSX does not have is refused and nothing is written", as
 
   openVsx(on, new Map());
   world(on, files);
-  await $.ui.mount(pane);
+  await mountSyntax($);
   await $.ui.press({ plugin: "veneer", key: `theme:${NEW_THEME}` });
   await $.ui.input({ plugin: "veneer", key: "syntax-path", text: "nobody.nothing" });
 
@@ -422,7 +435,7 @@ test("an extension Open VSX does not have is refused and nothing is written", as
 const scroll = (by: number, extra: object = {}) =>
   ({
     component: "Pane",
-    requestId: "syntax",
+    requestId: "veneer",
     offset: 0,
     by,
     bodyRows: 10,
@@ -435,9 +448,9 @@ test("a single arrow step walks the focus down the pane instead of scrolling it"
   world(on, new Map([[`${FOLDER}/xenon.json`, THEME("#00ff00")]]));
 
   const focus = (element: string) =>
-    $.ui.focus({ component: "Pane", requestId: "syntax", plugin: "veneer", element, origin: { kind: "person" } });
+    $.ui.focus({ component: "Pane", requestId: "veneer", plugin: "veneer", element, origin: { kind: "person" } });
 
-  await $.ui.mount(pane);
+  await mountSyntax($);
   await $.ui.scroll(scroll(1));
   await focus("theme:xenon");
   await $.ui.scroll(scroll(1));
@@ -445,7 +458,7 @@ test("a single arrow step walks the focus down the pane instead of scrolling it"
 
   expect(scrolled).toBe(0);
 
-  await focus(`theme:${DEFAULT_THEME}`);
+  await focus("tab:settings");
   await $.ui.scroll(scroll(-1));
 
   expect(scrolled).toBe(1);
@@ -458,7 +471,7 @@ test("a single arrow step walks the focus down the pane instead of scrolling it"
 
 test("the wheel, the page keys and a step past either end scroll the pane as the engine does", async ($, on) => {
   world(on, new Map());
-  await $.ui.mount(pane);
+  await mountSyntax($);
   await $.ui.scroll(scroll(1, { pointer: { column: 3, row: 2 } }));
   await $.ui.scroll(scroll(10));
   await $.ui.scroll(scroll(-1));
@@ -468,7 +481,7 @@ test("the wheel, the page keys and a step past either end scroll the pane as the
 
 test("a scroll another plugin asks for is left to the engine", async ($, on) => {
   world(on, new Map());
-  await $.ui.mount(pane);
+  await mountSyntax($);
   await $.ui.scroll(scroll(1, { origin: { kind: "plugin", name: "other" } }));
 
   expect(scrolled).toBe(1);

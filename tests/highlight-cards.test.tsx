@@ -1,7 +1,7 @@
-import type { On, RenderElement } from "claude-code";
-import { expect, mock, test } from "claude-code/testing";
+import type { On } from "claude-code";
+import { expect, test } from "claude-code/testing";
 
-const NATIVE: RenderElement = { type: "engine", ref: 0 };
+import { stub as stubWorld } from "./helpers";
 
 const FILES: Record<string, unknown> = {
   "/grammars/index.json": {
@@ -34,12 +34,7 @@ const FILES: Record<string, unknown> = {
 };
 
 function stub(on: On, files = true) {
-  mock.clock(on, { now: 10_000 });
-  on("env.get", () => ({ value: undefined }));
-  on("ui.toast", () => ({ value: undefined }));
-  on("ui.log", () => ({ value: undefined }));
-  on("ui.render", () => NATIVE);
-  on("session.cwd", () => ({ value: "/work" }));
+  stubWorld(on);
   on("fs.read", (_$, e) => {
     const path = (e as unknown as { path: string }).path;
     const file = Object.entries(FILES).find(([name]) => path.endsWith(name));

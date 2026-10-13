@@ -1,26 +1,14 @@
-import type { On, RenderElement } from "claude-code";
-import { expect, mock, test } from "claude-code/testing";
+import { expect, test } from "claude-code/testing";
 
 import { changeCounts } from "../hooks/badge";
 import { paletteOf } from "../hooks/palette";
+import { NATIVE, OTHER_MOD, stub } from "./helpers";
 
 const PATCH = {
   structuredPatch: [
     { oldStart: 1, oldLines: 3, newStart: 1, newLines: 4, lines: [" keep", "-old", "+new", "+extra", " keep"] },
   ],
 };
-
-const NATIVE: RenderElement = { type: "engine", ref: 0 };
-const OTHER_MOD: RenderElement = { type: "Text", props: {}, children: ["another mod"] };
-
-function stub(on: On, row: RenderElement) {
-  mock.clock(on, { now: 10_000 });
-  on("env.get", () => ({ value: undefined }));
-  on("session.cwd", () => ({ value: "/work" }));
-  on("ui.toast", () => ({ value: undefined }));
-  on("ui.log", () => ({ value: undefined }));
-  on("ui.render", () => row);
-}
 
 const edit = (output: unknown, overrides: Record<string, unknown> = {}, id = "t1") =>
   ({

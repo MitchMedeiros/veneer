@@ -1,19 +1,11 @@
-import type { On, PromptOrigin, RenderElement } from "claude-code";
-import { expect, mock, test } from "claude-code/testing";
+import type { PromptOrigin, RenderElement } from "claude-code";
+import { expect, test } from "claude-code/testing";
+
+import { stub } from "./helpers";
 
 const STOCK: RenderElement = { type: "Text", props: {}, children: ["native row"] };
 const TYPED: PromptOrigin = { kind: "composer" };
 const PLUGIN: PromptOrigin = { kind: "plugin", name: "other" };
-
-const ENGINE: RenderElement = { type: "engine", ref: 0 };
-
-function stub(on: On, native: RenderElement = ENGINE) {
-  mock.clock(on, { now: 10_000 });
-  on("env.get", () => ({ value: undefined }));
-  on("ui.toast", () => ({ value: undefined }));
-  on("ui.log", () => ({ value: undefined }));
-  on("ui.render", () => native);
-}
 
 const message = (text: string, surface: "terminal" | "desktop" = "terminal", origin: PromptOrigin = TYPED) =>
   ({

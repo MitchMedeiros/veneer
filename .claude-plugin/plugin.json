@@ -18,7 +18,7 @@
     },
     "styleUserMessage": {
       "type": "boolean",
-      "title": "Style your messages",
+      "title": "Message styling",
       "description": "Draw your messages as a filled bubble. Turn off to leave them to Claude Code or another mod.",
       "default": true
     },
@@ -31,32 +31,32 @@
     },
     "links": {
       "type": "string",
-      "title": "File path links",
+      "title": "File links",
       "description": "How a file path on a tool row is drawn. auto draws a link, and the full path as plain text in Rio and Terminal.app. link always draws a link, which Claude Code shows with its address beside it in a terminal it does not know to open links. text always draws the full path as plain text.",
       "default": "auto",
       "options": ["auto", "link", "text"]
     },
     "nativeTables": {
       "type": "boolean",
-      "title": "Draw tables as text",
+      "title": "Text-based tables",
       "description": "Draw tables as a text card instead of a picture. Tables always use the card where pictures are unavailable.",
       "default": false
     },
     "nativeHeadings": {
       "type": "boolean",
-      "title": "Draw headings as text",
+      "title": "Text-based headings",
       "description": "Draw headings as styled text instead of a picture. Headings always use text where pictures are unavailable.",
       "default": false
     },
     "styleSpinner": {
       "type": "boolean",
-      "title": "Indent the spinner",
+      "title": "Spinner styling",
       "description": "Wrap the spinner line in Veneer's left margin. Turn off to leave it to Claude Code or another mod.",
       "default": true
     },
     "fontFamily": {
       "type": "string",
-      "title": "Picture font",
+      "title": "Table font",
       "description": "Font family for tables and headings. It must be installed on this machine.",
       "default": "Helvetica Neue"
     },
@@ -68,25 +68,25 @@
     },
     "fenceBackground": {
       "type": "boolean",
-      "title": "Syntax theme background on code blocks",
+      "title": "Code blocks",
       "description": "Fill fenced code blocks with the syntax theme's background, when the theme sets one.",
       "default": true
     },
     "readBackground": {
       "type": "boolean",
-      "title": "Syntax theme background on file reads",
+      "title": "File reads",
       "description": "Fill the card of a file read with the syntax theme's background, when the theme sets one.",
       "default": true
     },
     "outputBackground": {
       "type": "boolean",
-      "title": "Syntax theme background on command and search output",
+      "title": "Command and search output",
       "description": "Fill highlighted Bash and Grep output with the syntax theme's background, when the theme sets one.",
       "default": true
     },
     "diffBackground": {
       "type": "boolean",
-      "title": "Syntax theme background on diffs",
+      "title": "Diffs",
       "description": "Fill diff lines that have no added or removed fill with the syntax theme's background.",
       "default": true
     }

@@ -1,7 +1,7 @@
-import type { On, RenderElement } from "claude-code";
-import { expect, mock, test } from "claude-code/testing";
+import { expect, test } from "claude-code/testing";
 
 import { parseDiff } from "../hooks/diff";
+import { NATIVE, OTHER_MOD, stub } from "./helpers";
 
 const PATCH = {
   structuredPatch: [
@@ -9,17 +9,6 @@ const PATCH = {
     { oldStart: 20, newStart: 20, lines: [" tail", "+\tindented"] },
   ],
 };
-
-const NATIVE: RenderElement = { type: "engine", ref: 0 };
-const OTHER_MOD: RenderElement = { type: "Text", props: {}, children: ["another mod"] };
-
-function stub(on: On, row: RenderElement) {
-  mock.clock(on, { now: 10_000 });
-  on("env.get", () => ({ value: undefined }));
-  on("ui.toast", () => ({ value: undefined }));
-  on("ui.log", () => ({ value: undefined }));
-  on("ui.render", () => row);
-}
 
 const result = (output: unknown, id: string, isErrored = false) =>
   ({

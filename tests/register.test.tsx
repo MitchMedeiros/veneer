@@ -1,20 +1,15 @@
-import type { On, RenderElement } from "claude-code";
-import { expect, mock, test } from "claude-code/testing";
+import type { On } from "claude-code";
+import { expect, test } from "claude-code/testing";
 
-const NATIVE: RenderElement = { type: "engine", ref: 0 };
+import { stub as stubWorld } from "./helpers";
 
 const PATCH = {
   structuredPatch: [{ oldStart: 1, oldLines: 1, newStart: 1, newLines: 2, lines: [" keep", "+new"] }],
 };
 
 function stub(on: On, deny?: string) {
-  mock.clock(on, { now: 10_000 });
-  on("env.get", () => ({ value: undefined }));
-  on("session.cwd", () => ({ value: "/work" }));
+  stubWorld(on);
   on("config.list", () => ({ value: [] }));
-  on("ui.toast", () => ({ value: undefined }));
-  on("ui.log", () => ({ value: undefined }));
-  on("ui.render", () => NATIVE);
   on("config.set", (_$, e) => (deny === undefined ? { value: e.value } : { deny }));
 }
 

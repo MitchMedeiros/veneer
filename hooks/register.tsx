@@ -1,7 +1,7 @@
 import { atom, read, update } from "claude-code";
-import type { EngineInterface, Register } from "claude-code";
+import type { EngineInterface, PluginOptions, Register } from "claude-code";
 
-import type { Off, Palette, SyntaxPane } from "../types";
+import type { Off, Palette, SettingsPane, SyntaxPane, Tab } from "../types";
 import { configOf } from "./config";
 import type { Backdrop, Config } from "./config";
 import { iconsArePlain, linksArePlain, OFF_TEXT, terminalOff } from "./gate";
@@ -45,6 +45,18 @@ import {
   THEME_EXTENSION,
   uniqueName,
 } from "./syntax-themes";
+import {
+  fieldOf,
+  groupSettings,
+  isTyped,
+  nextValue,
+  SETTING_KEY,
+  SETTINGS_PREFIX,
+  settingsKeys,
+  settingsPane,
+} from "./settings-pane";
+import type { Setting } from "./settings-pane";
+import { PANE_ID, tabbed, tabKeys } from "./pane-tabs";
 import { tableSketch } from "./table";
 import { toolRow } from "./tool-row";
 import type { Plain } from "./tool-row";
@@ -77,12 +89,22 @@ const syntaxPaneAtom = atom({ plugin: "veneer", key: "syntaxPane" } as const, LI
 // The theme the picker's focus is on. It shows in place of the chosen one until the pane closes, as Claude's own theme
 // picker does; null when nothing is previewed.
 const syntaxPreviewAtom = atom({ plugin: "veneer", key: "syntaxPreview" } as const, null as string | null);
-// The element the picker's focus ring is on, which the arrow keys move from when the pane would scroll.
-const syntaxFocusAtom = atom({ plugin: "veneer", key: "syntaxFocus" } as const, null as string | null);
+// The tab of the pane that is open.
+const tabAtom = atom({ plugin: "veneer", key: "tab" } as const, "settings" as Tab);
+// The element the pane's focus ring is on, which the arrow keys move from when the pane would scroll.
+const focusAtom = atom({ plugin: "veneer", key: "focus" } as const, null as string | null);
 
-const SYNTAX_PANE = "syntax";
+// The plugin's settings as they stand, by field name. Hooks read them from here so a change made in the `/veneer` pane or
+// in `/config` shows at once.
+const optionsAtom = atom({ plugin: "veneer", key: "options" } as const, {} as PluginOptions);
+const CLOSED_SETTINGS: SettingsPane = { editing: null, message: undefined };
+const settingsPaneAtom = atom({ plugin: "veneer", key: "settingsPane" } as const, CLOSED_SETTINGS);
+
+// The slash commands: each opens the pane, on the tab it names.
+const SYNTAX_COMMAND = "syntax";
+const SETTINGS_COMMAND = "veneer-settings";
 // What the pane asks for, as a request: rows when seated above the prompt, columns when docked beside the transcript.
-const PANE_ROWS = 22;
+const PANE_ROWS = 24;
 const PANE_COLUMNS = 72;
 const SYNTAX_KEY = "syntaxTheme";
 const MAX_REDIRECTS = 3;
@@ -168,7 +190,7 @@ async function chooseTheme($: EngineInterface, name: string): Promise<void> {
 // Chooses a theme and closes the picker, which ends the preview.
 async function chooseAndClose($: EngineInterface, name: string): Promise<void> {
   await chooseTheme($, name);
-  await $.ui.close({ id: SYNTAX_PANE });
+  await $.ui.close({ id: PANE_ID });
 }
 
 type Fetched = { ok: boolean; status: number; text: string };
@@ -359,7 +381,11 @@ async function settle($: EngineInterface, { icons, links }: Pick<Config, "icons"
   const chosen = await $.store.get(SYNTAX_KEY);
 
   await update($, syntaxAtom, () => (typeof chosen === "string" ? chosen : ""));
-  await $.command.register({ name: SYNTAX_PANE, description: "Choose the syntax theme for code" }).catch(() => null);
+  await $.command
+    .register({ name: PANE_ID, description: "Change Veneer's settings and syntax theme" })
+    .catch(() => null);
+  await $.command.register({ name: SETTINGS_COMMAND, description: "Change Veneer's settings" }).catch(() => null);
+  await $.command.register({ name: SYNTAX_COMMAND, description: "Choose the syntax theme for code" }).catch(() => null);
   await refreshPalette($);
 
   if (off === null) {
@@ -369,11 +395,89 @@ async function settle($: EngineInterface, { icons, links }: Pick<Config, "icons"
   return off;
 }
 
-export const register: Register = (on, options) => {
-  const config = configOf(options);
+const configNow = async ($: EngineInterface): Promise<Config> => configOf(await read($, optionsAtom));
 
+// Takes the settings as `/config` holds them, which may be newer than the ones the plugin was registered with.
+async function seedOptions($: EngineInterface, options: PluginOptions): Promise<void> {
+  const rows = await $.config.list().catch(() => []);
+  const current = rows
+    .filter(({ key }) => key.startsWith(SETTINGS_PREFIX))
+    .map(({ key, value }) => [fieldOf(key), value] as const);
+
+  await update($, optionsAtom, () => ({ ...options, ...Object.fromEntries(current) }));
+}
+
+async function settingsOf($: EngineInterface): Promise<Setting[]> {
+  return (await $.config.list()).filter(({ key }) => key.startsWith(SETTINGS_PREFIX));
+}
+
+async function showSettings($: EngineInterface, pane: Partial<SettingsPane>): Promise<void> {
+  await update($, settingsPaneAtom, (current) => ({ ...current, ...pane }));
+}
+
+// Writes one setting the way `/config` does and takes it into effect. The terminal is settled again where the setting
+// decides what it draws with.
+async function applySetting($: EngineInterface, setting: Setting, value: Setting["value"]): Promise<void> {
+  const { deny } = await $.config.set({ key: setting.key, value }).catch((error: unknown) => ({ deny: String(error) }));
+
+  if (deny !== undefined) {
+    return showSettings($, { editing: null, message: `${setting.label} was not changed: ${deny}` });
+  }
+
+  const field = fieldOf(setting.key);
+
+  await update($, optionsAtom, (current) => ({ ...current, [field]: value }));
+
+  if (field === "icons" || field === "links") {
+    await settle($, await configNow($));
+  }
+
+  await showSettings($, { editing: null, message: undefined });
+}
+
+// A press on a setting: a switch or a choice moves on, and a typed setting turns into a field.
+async function changeSetting($: EngineInterface, setting: Setting): Promise<void> {
+  await (isTyped(setting)
+    ? showSettings($, { editing: setting.key, message: undefined })
+    : applySetting($, setting, nextValue(setting)));
+}
+
+async function submitSetting($: EngineInterface, setting: Setting, text: string): Promise<void> {
+  const value = setting.kind === "number" ? Number(text) : text.trim();
+
+  await (Number.isNaN(value)
+    ? showSettings($, { editing: null, message: `${setting.label} takes a number.` })
+    : applySetting($, setting, value));
+}
+
+// Shows a tab from its first step: no field open, no import half done, no theme previewed.
+async function switchTab($: EngineInterface, tab: Tab): Promise<void> {
+  await update($, tabAtom, () => tab);
+  await showPane($, LIST_PANE);
+  await showSettings($, CLOSED_SETTINGS);
+  await update($, syntaxPreviewAtom, () => null);
+}
+
+async function openPane($: EngineInterface, tab: Tab): Promise<{ text?: string }> {
+  await switchTab($, tab);
+
+  const opened = await $.ui.open({
+    id: PANE_ID,
+    title: "Veneer",
+    focus: true,
+    closeOnEscape: true,
+    rows: PANE_ROWS,
+    columns: PANE_COLUMNS,
+  });
+
+  return opened.isPlaced ? {} : { text: "The Veneer pane could not be shown: " + opened.reason };
+}
+
+export const register: Register = (on, options) => {
   on("session.start", async ($, e, next) => {
-    const off = await settle($, config);
+    await seedOptions($, options);
+
+    const off = await settle($, await configNow($));
 
     if (off !== null) {
       $.ui.toast(OFF_TEXT[off], { timeoutMs: NOTICE_MS });
@@ -384,13 +488,15 @@ export const register: Register = (on, options) => {
 
   // /clear, /resume and /branch reset the session's state and skip session.start.
   on("classic.SessionStart", { source: ["clear", "resume", "fork"] }, async ($, e, next) => {
-    await settle($, config);
+    await seedOptions($, options);
+    await settle($, await configNow($));
 
     return next(e);
   });
 
   on("ui.render", { component: "UserMessage" }, async ($, e, next) => {
     const { text, origin } = e.props;
+    const config = await configNow($);
 
     if (e.surface !== "terminal" || !config.styleUserMessage || origin.kind !== "composer" || text.trim() === "") {
       return next(e);
@@ -425,6 +531,7 @@ export const register: Register = (on, options) => {
     }
 
     const ui = $.ui.resolve(e);
+    const config = await configNow($);
     const segments = splitReply(text);
     const bullet = isFirstOfReply ? BULLET : null;
     const isPlain = await read($, plainIconsAtom);
@@ -516,6 +623,7 @@ export const register: Register = (on, options) => {
       return native;
     }
 
+    const config = await configNow($);
     const id = e.props.tool_use_id;
     const expanded = (await read($, expandedAtom)).includes(id);
     const toggle = () => flip($, id);
@@ -557,7 +665,7 @@ export const register: Register = (on, options) => {
   on("ui.render", { component: "Spinner" }, async ($, e, next) => {
     const native = await next(e);
 
-    if (e.surface !== "terminal" || !config.styleSpinner || native.type !== "engine") {
+    if (e.surface !== "terminal" || !(await configNow($)).styleSpinner || native.type !== "engine") {
       return native;
     }
 
@@ -577,6 +685,7 @@ export const register: Register = (on, options) => {
       return native;
     }
 
+    const config = await configNow($);
     const open = new Set(await read($, expandedAtom));
     const cwd = await $.session.cwd();
     const { calls } = e.props;
@@ -613,28 +722,26 @@ export const register: Register = (on, options) => {
     );
   });
 
-  on("command.run", { command: SYNTAX_PANE }, async ($) => {
-    await showPane($, LIST_PANE);
+  on("command.run", { command: PANE_ID }, ($) => openPane($, "settings"));
 
-    const opened = await $.ui.open({
-      id: SYNTAX_PANE,
-      title: "Syntax theme",
-      focus: true,
-      closeOnEscape: true,
-      rows: PANE_ROWS,
-      columns: PANE_COLUMNS,
-    });
+  on("command.run", { command: SETTINGS_COMMAND }, ($) => openPane($, "settings"));
 
-    return opened.isPlaced ? {} : { text: "The syntax theme pane could not be shown: " + opened.reason };
-  });
+  on("command.run", { command: SYNTAX_COMMAND }, ($) => openPane($, "syntax"));
 
-  // The picker previews the theme its focus is on; the preview ends with the pane, however it closes.
-  on("ui.focus", { component: "Pane", requestId: SYNTAX_PANE }, async ($, e, next) => {
+  // The picker previews the theme its focus is on; the preview ends with the pane, however it closes. Moving the focus
+  // off a field puts the row it replaced back.
+  on("ui.focus", { component: "Pane", requestId: PANE_ID }, async ($, e, next) => {
     const result = await next(e);
     const value = e.element?.startsWith(THEME_KEY) ? e.element.slice(THEME_KEY.length) : undefined;
 
     if (result.deny === undefined) {
-      await update($, syntaxFocusAtom, () => e.element ?? null);
+      await update($, focusAtom, () => e.element ?? null);
+
+      const { editing } = await read($, settingsPaneAtom);
+
+      if (e.element !== undefined && editing !== null && e.element !== `${SETTING_KEY}${editing}`) {
+        await showSettings($, { editing: null });
+      }
 
       if (e.element !== undefined && e.element !== PATH_KEY && (await read($, syntaxPaneAtom)).step === "path") {
         await showPane($, LIST_PANE);
@@ -652,9 +759,10 @@ export const register: Register = (on, options) => {
     return result;
   });
 
-  on("ui.close", { id: SYNTAX_PANE }, async ($, e, next) => {
+  on("ui.close", { id: PANE_ID }, async ($, e, next) => {
     await update($, syntaxPreviewAtom, () => null);
-    await update($, syntaxFocusAtom, () => null);
+    await update($, focusAtom, () => null);
+    await showSettings($, CLOSED_SETTINGS);
 
     return next(e);
   });
@@ -662,31 +770,64 @@ export const register: Register = (on, options) => {
   // Where the pane is taller than its room the engine scrolls it on an arrow key and the focus stays put. A single-row
   // move by the keys walks the focus instead, which brings its element into view; past either end, and for the wheel and
   // the page keys, the pane scrolls as before.
-  on("ui.scroll", { requestId: SYNTAX_PANE }, async ($, e, next) => {
+  on("ui.scroll", { requestId: PANE_ID }, async ($, e, next) => {
     if (e.origin.kind !== "person" || e.pointer !== undefined || Math.abs(e.by) !== 1) {
       return next(e);
     }
 
-    const { names } = await savedThemes($);
-    const keys = paneKeys(await read($, syntaxPaneAtom), names, (await themesFolder($)) !== undefined);
-    const focused = await read($, syntaxFocusAtom);
+    const rows =
+      (await read($, tabAtom)) === "settings"
+        ? settingsKeys(groupSettings(await settingsOf($)))
+        : paneKeys(await read($, syntaxPaneAtom), (await savedThemes($)).names, (await themesFolder($)) !== undefined);
+    const keys = [...tabKeys, ...rows];
+    const focused = await read($, focusAtom);
     const target = keys[(focused === null ? -1 : keys.indexOf(focused)) + e.by];
 
     if (target === undefined) {
       return next(e);
     }
 
-    await $.ui.focus({ requestId: SYNTAX_PANE, key: target }).catch(() => null);
+    await $.ui.focus({ requestId: PANE_ID, key: target }).catch(() => null);
 
     return {};
   });
 
-  on("ui.render", { component: "Pane", requestId: SYNTAX_PANE }, async ($, e, next) => {
+  on("ui.render", { component: "Pane", requestId: PANE_ID }, async ($, e, next) => {
     if (e.surface !== "terminal") {
       return next(e);
     }
 
     const ui = $.ui.resolve(e);
+    const tab = await read($, tabAtom);
+    const select = (chosen: Tab) => void switchTab($, chosen);
+
+    if (tab === "settings") {
+      // Read for its dependency: the pane draws again when a setting changes.
+      await read($, optionsAtom);
+
+      const { editing, message } = await read($, settingsPaneAtom);
+
+      return tabbed(
+        ui,
+        tab,
+        select,
+        settingsPane(
+          ui,
+          {
+            groups: groupSettings(await settingsOf($)),
+            editing,
+            focused: (await read($, focusAtom))?.slice(SETTING_KEY.length) ?? null,
+            message,
+          },
+          {
+            change: (setting) => void changeSetting($, setting),
+            submit: (setting, text) => void submitSetting($, setting, text),
+          },
+        ),
+      );
+    }
+
+    const config = await configNow($);
     const { folder, names } = await savedThemes($);
     const active = await read($, syntaxAtom);
     const paint = await painterFor($);
@@ -703,33 +844,38 @@ export const register: Register = (on, options) => {
       ),
     );
 
-    return syntaxPane(
+    return tabbed(
       ui,
-      {
-        pane: await read($, syntaxPaneAtom),
-        names,
-        swatches,
-        active,
-        folder,
-        samples: await Promise.all(SAMPLES.map(async ({ hint, code }) => (await paint(hint, code)) ?? undefined)),
-        background: await backgroundFor($, config, "fences"),
-      },
-      {
-        pick: (value) => {
-          if (value === NEW_THEME) {
-            void showPane($, { step: "path", message: undefined });
-          } else if (value === POPULAR_THEME) {
-            void showPane($, { step: "popular", page: 0, message: undefined });
-          } else {
-            void chooseAndClose($, value === DEFAULT_THEME ? "" : value);
-          }
+      tab,
+      select,
+      syntaxPane(
+        ui,
+        {
+          pane: await read($, syntaxPaneAtom),
+          names,
+          swatches,
+          active,
+          folder,
+          samples: await Promise.all(SAMPLES.map(async ({ hint, code }) => (await paint(hint, code)) ?? undefined)),
+          background: await backgroundFor($, config, "fences"),
         },
-        submitPath: (path) => void readThemeSource($, path),
-        submitName: (name) => void importTheme($, name),
-        choose: (index) => void chooseRow($, index),
-        turnPage: (by) => void update($, syntaxPaneAtom, (current) => ({ ...current, page: current.page + by })),
-        back: () => void showPane($, LIST_PANE),
-      },
+        {
+          pick: (value) => {
+            if (value === NEW_THEME) {
+              void showPane($, { step: "path", message: undefined });
+            } else if (value === POPULAR_THEME) {
+              void showPane($, { step: "popular", page: 0, message: undefined });
+            } else {
+              void chooseAndClose($, value === DEFAULT_THEME ? "" : value);
+            }
+          },
+          submitPath: (path) => void readThemeSource($, path),
+          submitName: (name) => void importTheme($, name),
+          choose: (index) => void chooseRow($, index),
+          turnPage: (by) => void update($, syntaxPaneAtom, (current) => ({ ...current, page: current.page + by })),
+          back: () => void showPane($, LIST_PANE),
+        },
+      ),
     );
   });
 
@@ -738,6 +884,16 @@ export const register: Register = (on, options) => {
 
     if (e.key === "theme" && result.deny === undefined) {
       await refreshPalette($, result.value);
+    }
+
+    if (e.key.startsWith(SETTINGS_PREFIX) && result.deny === undefined) {
+      const field = fieldOf(e.key);
+
+      await update($, optionsAtom, (current) => ({ ...current, [field]: result.value }));
+
+      if (field === "icons" || field === "links") {
+        await settle($, await configNow($));
+      }
     }
 
     return result;

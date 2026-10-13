@@ -1,19 +1,9 @@
-import type { On, RenderElement } from "claude-code";
+import type { On } from "claude-code";
 import { expect, mock, test } from "claude-code/testing";
 
 import type { Table } from "../hooks/markdown";
 import { columnWidths } from "../hooks/table-card";
-
-const NATIVE: RenderElement = { type: "engine", ref: 0 };
-const OTHER_MOD: RenderElement = { type: "Text", props: {}, children: ["another mod"] };
-
-function stub(on: On, row: RenderElement) {
-  mock.clock(on, { now: 10_000 });
-  on("env.get", () => ({ value: undefined }));
-  on("ui.toast", () => ({ value: undefined }));
-  on("ui.log", () => ({ value: undefined }));
-  on("ui.render", () => row);
-}
+import { NATIVE, OTHER_MOD, stub } from "./helpers";
 
 const reply = (text: string, id: string, isFirstOfReply = true) =>
   ({

@@ -62,6 +62,10 @@ To try pictures in tmux, run `tmux set -g allow-passthrough on` (tmux 3.3a or la
 
 Colors come from your Claude Code theme. Edit a theme in `~/.claude/themes/`.
 
+Run `/veneer` to change every option below in one pane. Enter flips a switch, moves a choice to its next option, or
+opens a field for a typed value. Changes apply at once. The pane has a General tab and a Syntax tab. `/veneer` and
+`/veneer-settings` open it on General, and `/syntax` opens it on Syntax.
+
 | Option             | Default          | Use                                                                        |
 | ------------------ | ---------------- | -------------------------------------------------------------------------- |
 | `messageAlign`     | `left`           | `left` or `right`                                                          |

@@ -1,18 +1,7 @@
-import type { On, RenderElement } from "claude-code";
-import { expect, mock, test } from "claude-code/testing";
+import { expect, test } from "claude-code/testing";
 
 import { parseOutput } from "../hooks/output";
-
-const NATIVE: RenderElement = { type: "engine", ref: 0 };
-
-function stub(on: On) {
-  mock.clock(on, { now: 10_000 });
-  on("env.get", () => ({ value: undefined }));
-  on("session.cwd", () => ({ value: "/work" }));
-  on("ui.toast", () => ({ value: undefined }));
-  on("ui.log", () => ({ value: undefined }));
-  on("ui.render", () => NATIVE);
-}
+import { stub } from "./helpers";
 
 const result = (tool: string, output: unknown, id: string, isErrored = false) =>
   ({
