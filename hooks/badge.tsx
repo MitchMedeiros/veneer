@@ -30,15 +30,22 @@ export function changeCounts(output: unknown): Changes | null {
 // The native row with a pill for the lines added and one for the lines removed, on the row's own first line. Fills and
 // text are theme tokens, so a pill matches Claude Code's own diff on every theme, colour-blind ones included. On the
 // ansi themes the success and error colours are the diff fills' own, so the text is a fixed black, which the terminal's
-// own palette cannot wash out as it does white on those fills.
-export function withBadges({ Box, Text }: Ui, native: RenderElement, changes: Changes, isAnsi: boolean): RenderElement {
+// own palette cannot wash out as it does white on those fills. In plain mode, for terminals that do not draw Powerline
+// glyphs, a pill is a filled block with square ends.
+export function withBadges(
+  { Box, Text }: Ui,
+  native: RenderElement,
+  changes: Changes,
+  isAnsi: boolean,
+  isPlain = false,
+): RenderElement {
   const plain = isAnsi ? ANSI_TEXT : null;
 
   const pill = (label: string, fill: string, color: string) => (
     <Text key={label}>
-      <Text color={fill}>{LEFT_CAP}</Text>
+      {isPlain ? null : <Text color={fill}>{LEFT_CAP}</Text>}
       <Text color={color} backgroundColor={fill} bold>{` ${label} `}</Text>
-      <Text color={fill}>{RIGHT_CAP}</Text>
+      {isPlain ? null : <Text color={fill}>{RIGHT_CAP}</Text>}
     </Text>
   );
 

@@ -53,6 +53,29 @@ const LOOKS: Record<string, Look> = {
 // A tool with no look of its own is named as it is, with a gear.
 export const lookOf = (tool: string): Look => LOOKS[tool] ?? { icon: "", label: tool, detail: () => undefined };
 
+// Plain Unicode symbols, by label, for terminals with no Nerd Font to draw the icons above.
+const PLAIN_ICONS: Record<string, string> = {
+  Edit: "✎",
+  Write: "✐",
+  Read: "▤",
+  Command: "❯",
+  Find: "◇",
+  Search: "◎",
+  Agent: "◈",
+  Fetch: "↓",
+  Web: "⊕",
+  Skill: "✧",
+  Todos: "☑",
+};
+const PLAIN_DEFAULT = "◆";
+
+// The look of a tool, with a Unicode symbol for its icon in plain mode.
+export const lookFor = (tool: string, isPlain: boolean): Look => {
+  const look = lookOf(tool);
+
+  return isPlain ? { ...look, icon: PLAIN_ICONS[look.label] ?? PLAIN_DEFAULT } : look;
+};
+
 // A call is the suggestion colour while it runs, then the success colour, or the error colour if it failed.
 export const toneOf = (call: Pick<ToolCall, "isRunning" | "isErrored">): "error" | "suggestion" | "success" =>
   call.isErrored ? "error" : call.isRunning ? "suggestion" : "success";
@@ -80,18 +103,21 @@ export function shortPath(path: string, cwd: string): string {
 }
 
 // The tool row as an icon, a bold name and a dim detail, or null for a tool with no look of its own. A path is a link,
-// so a click opens the file as the native row's does. `detailRuns` colour the detail, as a Command's shell line.
+// so a click opens the file as the native row's does. `detailRuns` colour the detail, as a Command's shell line. In
+// plain mode, for terminals that draw neither Nerd Font icons nor links, the icon is a Unicode symbol and a path is plain
+// text.
 export function toolRow(
   { Box, Text, Link }: Ui,
   call: ToolCall,
   cwd: string,
   detailRuns?: StyledRun[],
+  isPlain = false,
 ): RenderElement | null {
-  const look = LOOKS[call.tool];
-
-  if (look === undefined) {
+  if (LOOKS[call.tool] === undefined) {
     return null;
   }
+
+  const look = lookFor(call.tool, isPlain);
 
   const input = inputOf(call.input);
   const detail = look.detail(input);
@@ -100,7 +126,7 @@ export function toolRow(
 
   return (
     <Box flexDirection="row" marginTop={1} marginLeft={MARGIN} marginRight={MARGIN} gap={2}>
-      <Box flexShrink={0} gap={2}>
+      <Box flexShrink={0} gap={isPlain ? 1 : 2}>
         <Text color={tone} dimColor={call.isRunning}>
           {look.icon}
         </Text>
@@ -110,9 +136,15 @@ export function toolRow(
       </Box>
       {detail === undefined ? null : (
         <Box flexShrink={1}>
-          <Text dimColor wrap="truncate-end" hover={path === undefined ? undefined : pathHover(call.tool_use_id ?? "")}>
+          <Text
+            dimColor
+            wrap="truncate-end"
+            hover={path === undefined || isPlain ? undefined : pathHover(call.tool_use_id ?? "")}
+          >
             {path === undefined ? (
               lineChildren({ Text }, detail, detailRuns)
+            ) : isPlain ? (
+              shortPath(detail, cwd)
             ) : (
               <Link href={`file://${encodeURI(path)}`}>{shortPath(detail, cwd)}</Link>
             )}

@@ -388,6 +388,7 @@ export const register: Register = (on, options) => {
 
     const copy = {
       scope: `bubble:${e.requestId}`,
+      isPlain: (await read($, offAtom)) !== null,
       onCopy: async () => {
         const { isCopied } = await $.ui.copy({ text, surface: e.surface });
 
@@ -410,8 +411,10 @@ export const register: Register = (on, options) => {
     const ui = $.ui.resolve(e);
     const segments = splitReply(text);
     const bullet = isFirstOfReply ? BULLET : null;
+    const isPlain = (await read($, offAtom)) !== null;
     const copyFor = (index: number, source: string, noun: string) => ({
       scope: `copy:${e.requestId}:${index}`,
+      isPlain,
       onCopy: async () => {
         const { isCopied } = await $.ui.copy({ text: source, surface: e.surface });
 
@@ -425,7 +428,7 @@ export const register: Register = (on, options) => {
     const fenceBackground = fences === undefined ? undefined : await backgroundFor($, config, "fences");
     const width = (e.viewport?.columns ?? 100) - GUTTER - 2 * MARGIN;
 
-    if (!("Image" in ui) || !hasDrawn(segments) || (await read($, offAtom)) !== null) {
+    if (!("Image" in ui) || !hasDrawn(segments) || isPlain) {
       return replyTree(ui, segments, drawn, bullet, fences, fenceBackground, copyFor, width);
     }
 
@@ -475,10 +478,11 @@ export const register: Register = (on, options) => {
 
     const ui = $.ui.resolve(e);
     const commandRuns = e.props.tool === "Bash" ? await paintCommand(await painterFor($), e.props) : undefined;
-    const row = toolRow(ui, e.props, await $.session.cwd(), commandRuns) ?? native;
+    const isPlain = (await read($, offAtom)) !== null;
+    const row = toolRow(ui, e.props, await $.session.cwd(), commandRuns, isPlain) ?? native;
     const changes = !isRunning && !isErrored ? changeCounts(output) : null;
 
-    return changes === null ? row : withBadges(ui, row, changes, (await read($, paletteAtom)).isAnsi);
+    return changes === null ? row : withBadges(ui, row, changes, (await read($, paletteAtom)).isAnsi, isPlain);
   });
 
   on("ui.render", { component: "ToolResult" }, async ($, e, next) => {
@@ -589,6 +593,7 @@ export const register: Register = (on, options) => {
       paint === undefined
         ? {}
         : { reads: await backgroundFor($, config, "reads"), output: await backgroundFor($, config, "output") },
+      (await read($, offAtom)) !== null,
     );
   });
 
