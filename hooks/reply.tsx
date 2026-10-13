@@ -1,18 +1,20 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
 import { codeCard } from "./code";
+import { copyRow } from "./copy-button";
+import type { CopyAction } from "./copy-button";
 import type { Segment } from "./markdown";
 import type { Picture } from "./picture";
 import type { StyledRun } from "./syntax/types";
 
-type Ui = Pick<ElementTable, "Box" | "Text" | "Markdown"> &
+type Ui = Pick<ElementTable, "Box" | "Text" | "Markdown" | "Button"> &
   Partial<Pick<Extract<ElementTable, { Image: unknown }>, "Image">>;
 
 // Columns the bullet gutter takes, as Claude Code's own reply rows leave.
 export const GUTTER = 2;
 
 // Columns left of the bullet, so it lines up with the icons of the tool rows and the edge of the cards.
-export const MARGIN = 2;
+export const MARGIN = 1;
 
 // The mark before a reply: a four-point star, which any font draws.
 export const BULLET = "✦";
@@ -22,13 +24,34 @@ export const BULLET = "✦";
 // reply starts with the bullet, in the theme's accent colour. A fence with runs in `fences` is drawn highlighted, on
 // the fence background where there is one.
 export function replyTree(
-  { Box, Text, Markdown, Image }: Ui,
+  { Box, Text, Markdown, Button, Image }: Ui,
   segments: readonly Segment[],
   pictures: ReadonlyMap<Segment, { picture: Picture; alt: string }>,
   bullet: string | null,
   fences: ReadonlyMap<Segment, StyledRun[][]> = new Map(),
-  fenceBackground?: string,
+  fenceBackground: string | undefined,
+  copyFor: (index: number, text: string, noun: string) => CopyAction,
 ): RenderElement {
+  // A code block or table: a copy row above it and a blank row below it, unless a block follows, whose own copy row is
+  // the gap.
+  const framed = (i: number, text: string, noun: string, child: RenderElement, alignSelf?: "flex-start") => {
+    const next = segments[i + 1];
+    const copy = copyFor(i, text, noun);
+
+    return (
+      <Box
+        key={`framed-${i}`}
+        flexDirection="column"
+        alignSelf={alignSelf}
+        marginBottom={next === undefined || next.kind === "text" ? 1 : 0}
+        hover={{ scope: copy.scope }}
+      >
+        {copyRow({ Box, Text, Button }, copy)}
+        {child}
+      </Box>
+    );
+  };
+
   const rows = segments.map((segment, i) => {
     const drawn = pictures.get(segment);
 
@@ -37,18 +60,21 @@ export function replyTree(
     }
 
     if (segment.kind === "code") {
-      return (
-        <Box key={`code-${i}`} flexDirection="column" marginTop={i > 0 ? 1 : 0}>
-          {codeCard({ Box, Text }, segment.lang, segment.code, fences.get(segment), fenceBackground)}
-        </Box>
+      return framed(
+        i,
+        segment.code,
+        "Code",
+        codeCard({ Box, Text }, segment.lang, segment.code, fences.get(segment), fenceBackground),
       );
     }
 
     if (drawn === undefined || Image === undefined) {
-      return <Markdown key={`text-${i}`} text={segment.raw} />;
+      const markdown = <Markdown key={`text-${i}`} text={segment.raw} />;
+
+      return segment.kind === "table" ? framed(i, segment.raw, "Table", markdown) : markdown;
     }
 
-    return (
+    const picture = (
       <Box
         key={`picture-${i}`}
         marginTop={segment.kind === "heading" && i > 0 ? 1 : 0}
@@ -64,10 +90,12 @@ export function replyTree(
         />
       </Box>
     );
+
+    return segment.kind === "table" ? framed(i, segment.raw, "Table", picture, "flex-start") : picture;
   });
 
   return (
-    <Box flexDirection="row" marginLeft={MARGIN} marginTop={bullet === null ? 0 : 1}>
+    <Box flexDirection="row" marginLeft={MARGIN} marginRight={MARGIN} marginTop={bullet === null ? 0 : 1}>
       <Box width={GUTTER} flexShrink={0}>
         <Text color="claude">{bullet ?? " "}</Text>
       </Box>

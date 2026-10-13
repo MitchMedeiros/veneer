@@ -1,6 +1,7 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
 import { foldButton, MAX_LINES, TAB } from "./fold";
+import { MARGIN } from "./reply";
 import { lineChildren } from "./syntax/runs";
 import type { StyledRun } from "./syntax/types";
 import { shortPath } from "./tool-row";
@@ -68,7 +69,14 @@ export function outputCard(
   const digits = Math.max(0, ...shown.map((line) => String(line.number ?? "").length));
 
   return (
-    <Box flexDirection="column" marginLeft={2} borderStyle="round" borderColor="subtle" backgroundColor={background}>
+    <Box
+      flexDirection="column"
+      marginLeft={MARGIN}
+      marginRight={MARGIN}
+      borderStyle="round"
+      borderColor="subtle"
+      backgroundColor={background}
+    >
       {shown.map((line, i) => (
         <Box key={`line-${i}`} flexDirection="row">
           {digits > 0 ? <Text dimColor>{` ${String(line.number ?? "").padStart(digits)} `}</Text> : null}

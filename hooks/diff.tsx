@@ -1,6 +1,7 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
 import { foldButton, MAX_LINES, TAB } from "./fold";
+import { MARGIN } from "./reply";
 import { lineChildren } from "./syntax/runs";
 import type { StyledRun } from "./syntax/types";
 
@@ -99,7 +100,14 @@ export function diffCard(
   const numberTone = (kind: DiffLine["kind"]) => (isAnsi ? tone(kind) : fillOf(kind));
 
   return (
-    <Box flexDirection="column" marginLeft={2} borderStyle="round" borderColor="subtle" backgroundColor={background}>
+    <Box
+      flexDirection="column"
+      marginLeft={MARGIN}
+      marginRight={MARGIN}
+      borderStyle="round"
+      borderColor="subtle"
+      backgroundColor={background}
+    >
       {shown.map((line, i) => (
         <Box key={`line-${i}`} flexDirection="column">
           {diff.breaks.has(i) ? <Text dimColor>{`${" ".repeat(digits + 2)}⋯`}</Text> : null}

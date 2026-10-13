@@ -1,8 +1,9 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
-type Ui = Pick<ElementTable, "Box" | "Text" | "Button">;
+import { copyRow } from "./copy-button";
+import type { CopyAction } from "./copy-button";
 
-export type BubbleCopy = { scope: string; onCopy: () => void };
+type Ui = Pick<ElementTable, "Box" | "Text" | "Button">;
 
 // A bubble is at most this share of the window wide, as the desktop's is.
 const MAX_SHARE = 0.75;
@@ -11,7 +12,6 @@ const PADDING_X = 1;
 const FILL = "userMessageBackground";
 const ACCENT = "claude";
 const MENTION = "suggestion";
-const COPY_ICON = "";
 
 // An @file mention: an @ at the start of a word followed by a path. Splitting on it leaves the mentions at odd indices.
 const FILE_MENTION = /((?<!\S)@[\w./~-]*[\w/~-])/;
@@ -42,13 +42,13 @@ function wrapLine(line: string, width: number): string[] {
 }
 
 // The user's message as a block filled with the theme's `userMessageBackground`, as wide as its longest line. A copy
-// button waits beside it and shows while the pointer is over the bubble or the button.
+// button waits above it and shows while the pointer is over the bubble or the button.
 export function userBubble(
   { Box, Text, Button }: Ui,
   text: string,
   columns: number,
   align: "left" | "right",
-  copy: BubbleCopy,
+  copy: CopyAction,
 ): RenderElement {
   const isLeft = align === "left";
   const inner = Math.max(10, Math.floor(columns * MAX_SHARE) - 2 * PADDING_X - 2);
@@ -95,30 +95,9 @@ export function userBubble(
     </Box>
   );
 
-  const button = (
-    <Box key="copy" display="none" hover={{ scope: copy.scope, display: "flex" }}>
-      <Button key={`${copy.scope}:copy`} plain onPress={copy.onCopy}>
-        <Text color="text" backgroundColor={FILL}>{` ${COPY_ICON}  Copy `}</Text>
-      </Button>
-    </Box>
-  );
-
-  // The row above the bubble is always there, so showing the button moves nothing, and it shares the hover group, so
-  // the pointer can travel from the bubble up to the button without the button hiding.
-  const buttonRow = (
-    <Box key="copy-row" height={1} justifyContent="flex-end" hover={{ scope: copy.scope }}>
-      {button}
-    </Box>
-  );
-
   return (
-    <Box
-      alignSelf={isLeft ? "flex-start" : "flex-end"}
-      marginLeft={isLeft ? MARGIN : 0}
-      marginRight={isLeft ? 0 : MARGIN}
-      flexDirection="column"
-    >
-      {buttonRow}
+    <Box alignSelf={isLeft ? "flex-start" : "flex-end"} marginLeft={MARGIN} marginRight={MARGIN} flexDirection="column">
+      {copyRow({ Box, Text, Button }, copy)}
       {bubble}
     </Box>
   );

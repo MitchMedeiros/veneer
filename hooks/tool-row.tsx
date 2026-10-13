@@ -1,5 +1,6 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
+import { MARGIN } from "./reply";
 import { lineChildren } from "./syntax/runs";
 import type { StyledRun } from "./syntax/types";
 
@@ -98,7 +99,7 @@ export function toolRow(
   const path = pathOf(look, input);
 
   return (
-    <Box flexDirection="row" marginTop={1} marginLeft={2} gap={2}>
+    <Box flexDirection="row" marginTop={1} marginLeft={MARGIN} marginRight={MARGIN} gap={2}>
       <Box flexShrink={0} gap={2}>
         <Text color={tone} dimColor={call.isRunning}>
           {look.icon}

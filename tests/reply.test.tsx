@@ -40,6 +40,22 @@ test("a later block of a reply has no bullet", async ($, on) => {
   expect(await ui.find({ type: "Markdown" })).toBeDefined();
 });
 
+test("a code block gets a copy button", async ($, on) => {
+  stub(on, NATIVE);
+
+  const ui = await $.ui.mount(reply("before\n\n```ts\nconst a = 1;\n```\n\nafter", "m4"));
+
+  expect(await ui.find({ type: "Button" })).toBeDefined();
+});
+
+test("a reply with no code block or table has no copy button", async ($, on) => {
+  stub(on, NATIVE);
+
+  const ui = await $.ui.mount(reply("just words", "m5"));
+
+  expect(await ui.find({ type: "Button" })).toBeUndefined();
+});
+
 test("a reply another mod drew passes through untouched", async ($, on) => {
   stub(on, OTHER_MOD);
 

@@ -27,7 +27,7 @@ test("the native spinner line is kept, with a left margin", async ($, on) => {
 
   const ui = await $.ui.mount(spinner("s1"));
 
-  expect(await ui.drawn()).toMatchObject({ type: "Box", props: { marginLeft: 2 } });
+  expect(await ui.drawn()).toMatchObject({ type: "Box", props: { marginLeft: 1 } });
 });
 
 test("a spinner another mod drew passes through untouched", async ($, on) => {

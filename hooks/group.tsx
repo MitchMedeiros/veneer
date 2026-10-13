@@ -3,6 +3,7 @@ import type { ElementTable, RenderElement } from "claude-code";
 import { outputCard, parseOutput } from "./output";
 import type { OutputLine } from "./output";
 import { outputFill } from "./paint";
+import { MARGIN } from "./reply";
 import { lineChildren } from "./syntax/runs";
 import type { StyledRun } from "./syntax/types";
 import type { Look, ToolCall } from "./tool-row";
@@ -66,7 +67,7 @@ export function toolGroup(
   const summaryLit = lit(groupId);
 
   const summary = (
-    <Box flexDirection="row" marginTop={1} marginLeft={2}>
+    <Box flexDirection="row" marginTop={1} marginLeft={MARGIN} marginRight={MARGIN}>
       <Button key={groupId} plain hover={summaryLit} onPress={() => toggle(groupId)}>
         {segmentsOf(calls).flatMap((segment, i) => {
           const { tone } = segment;

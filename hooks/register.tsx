@@ -421,6 +421,14 @@ export const register: Register = (on, options) => {
     const ui = $.ui.resolve(e);
     const segments = splitReply(text);
     const bullet = isFirstOfReply ? BULLET : null;
+    const copyFor = (index: number, source: string, noun: string) => ({
+      scope: `copy:${e.requestId}:${index}`,
+      onCopy: async () => {
+        const { isCopied } = await $.ui.copy({ text: source, surface: e.surface });
+
+        $.ui.toast(isCopied ? `${noun} copied` : "Copy failed");
+      },
+    });
     const drawn = new Map<Segment, { picture: Picture; alt: string }>();
     const fences = segments.some((segment) => segment.kind === "code")
       ? await paintFences(await painterFor($), segments)
@@ -428,12 +436,12 @@ export const register: Register = (on, options) => {
     const fenceBackground = fences === undefined ? undefined : await backgroundFor($, config, "fences");
 
     if (!("Image" in ui) || !hasDrawn(segments)) {
-      return replyTree(ui, segments, drawn, bullet, fences, fenceBackground);
+      return replyTree(ui, segments, drawn, bullet, fences, fenceBackground, copyFor);
     }
 
     const palette = await read($, paletteAtom);
     const font = { family: config.fontFamily, cellHeight: cellHeightOf(config.cellRatio) };
-    const available = Math.min(MAX_COLUMNS, (e.viewport?.columns ?? 100) - GUTTER - MARGIN);
+    const available = Math.min(MAX_COLUMNS, (e.viewport?.columns ?? 100) - GUTTER - 2 * MARGIN);
     const dir = await pictureDir($);
     const io = pictureIo($);
 
@@ -455,7 +463,7 @@ export const register: Register = (on, options) => {
       }),
     );
 
-    return replyTree(ui, segments, drawn, bullet, fences, fenceBackground);
+    return replyTree(ui, segments, drawn, bullet, fences, fenceBackground, copyFor);
   });
 
   on("ui.render", { component: "ToolUse" }, async ($, e, next) => {
@@ -550,7 +558,11 @@ export const register: Register = (on, options) => {
 
     const { Box } = $.ui.resolve(e);
 
-    return <Box marginLeft={MARGIN}>{native}</Box>;
+    return (
+      <Box marginLeft={MARGIN} marginRight={MARGIN}>
+        {native}
+      </Box>
+    );
   });
 
   on("ui.render", { component: "ToolGroup" }, async ($, e, next) => {
