@@ -16,4 +16,4 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm install --global @anthropic-ai/claude-code
-      - run: npm run check
+      - run: npm run check:ci
