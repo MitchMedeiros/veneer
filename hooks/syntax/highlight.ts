@@ -147,6 +147,10 @@ class Library {
     return theme;
   }
 
+  async background(io: SyntaxIo, themePath: string): Promise<string | undefined> {
+    return (await this.theme(io, themePath)).background;
+  }
+
   private tokenize(scopeName: string, lines: string[], theme: Theme): StyledRun[][] | null {
     let state = this.registry.initialState(scopeName);
 
@@ -179,6 +183,26 @@ class Library {
 
 const libraries = new Map<string, Library>();
 
+const libraryOf = (io: SyntaxIo): Library => {
+  let library = libraries.get(io.root);
+
+  if (library === undefined) {
+    library = new Library();
+    libraries.set(io.root, library);
+  }
+
+  return library;
+};
+
+// The fill a theme sets behind code, or undefined when it sets none or cannot be read.
+export async function themeBackground(io: SyntaxIo, themePath: string): Promise<string | undefined> {
+  try {
+    return await libraryOf(io).background(io, themePath);
+  } catch {
+    return undefined;
+  }
+}
+
 // The code as styled runs, one list per line, or null when it should draw plain: no grammar for the language, too much
 // code, or a grammar that failed. `themePath` names a VS Code theme file; empty uses the shipped default.
 export async function highlight(
@@ -193,15 +217,8 @@ export async function highlight(
     return null;
   }
 
-  let library = libraries.get(io.root);
-
-  if (library === undefined) {
-    library = new Library();
-    libraries.set(io.root, library);
-  }
-
   try {
-    return await library.highlight(io, themePath, hint, lines);
+    return await libraryOf(io).highlight(io, themePath, hint, lines);
   } catch {
     return null;
   }

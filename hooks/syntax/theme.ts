@@ -6,7 +6,9 @@ export type ReadText = (path: string) => Promise<string | undefined>;
 // How far `include` may chain before a theme is taken as a loop.
 const MAX_INCLUDES = 8;
 
-type Selector = { parents: string[]; leaf: string; index: number; settings: ThemeRule["settings"] };
+type Path = { parents: string[]; leaf: string };
+
+type Selector = Path & { excluded: Path[]; index: number; settings: ThemeRule["settings"] };
 
 // Strips comments and trailing commas, which VS Code theme files may hold and JSON does not allow.
 export function parseJsonc(text: string): unknown {
@@ -51,13 +53,31 @@ export function colorOf(value: unknown): string | undefined {
   return `#${digits.length <= 4 ? [...digits.slice(0, 3)].map((digit) => digit + digit).join("") : digits.slice(0, 6)}`;
 }
 
+const pathOf = (text: string): Path | undefined => {
+  const parts = text.trim().split(/\s+/).filter(Boolean);
+
+  return parts.length === 0 ? undefined : { parents: parts.slice(0, -1), leaf: parts.at(-1) as string };
+};
+
+// A selector reads `a b - c - d`: the scope path `a b`, except where `c` or `d` also match.
 const selectorsOf = (rule: ThemeRule, index: number): Selector[] => {
   const scopes = Array.isArray(rule.scope) ? rule.scope : (rule.scope ?? "").split(",");
 
-  return scopes
-    .map((scope) => scope.trim().split(/\s+/).filter(Boolean))
-    .filter((parts) => parts.length > 0)
-    .map((parts) => ({ parents: parts.slice(0, -1), leaf: parts.at(-1) as string, index, settings: rule.settings }));
+  return scopes.flatMap((scope) => {
+    const [included = "", ...excluded] = scope.split(/(?:^|\s)-(?:\s|$)/);
+    const path = pathOf(included);
+
+    return path === undefined
+      ? []
+      : [
+          {
+            ...path,
+            excluded: excluded.map(pathOf).filter((found) => found !== undefined),
+            index,
+            settings: rule.settings,
+          },
+        ];
+  });
 };
 
 // A scope matches a selector part when it is that scope or lies inside it: `string` matches `string.quoted`.
@@ -80,6 +100,10 @@ const parentsMatch = (parents: string[], ancestors: string[]): boolean => {
 
   return true;
 };
+
+// An excluded path applies wherever in the scope path it matches, not only at the innermost scope.
+const occursIn = ({ parents, leaf }: Path, path: string[]): boolean =>
+  path.some((name, at) => within(name, leaf) && parentsMatch(parents, path.slice(0, at)));
 
 const depthOf = (selector: Selector): number => selector.leaf.split(".").length;
 
@@ -106,9 +130,13 @@ export class Theme {
 
   private readonly base: TokenStyle;
 
-  constructor(rules: ThemeRule[], base: TokenStyle = {}) {
+  // The fill behind code, from the theme's `editor.background`; undefined when the theme sets none.
+  readonly background: string | undefined;
+
+  constructor(rules: ThemeRule[], base: TokenStyle = {}, background?: string) {
     this.selectors = rules.flatMap(selectorsOf);
     this.base = base;
+    this.background = background;
   }
 
   styleOf(scope: ScopeNode): TokenStyle {
@@ -121,7 +149,12 @@ export class Theme {
     const outer = scope.parent === null ? this.base : this.styleOf(scope.parent);
     const ancestors = scope.path.slice(0, -1);
     const matching = this.selectors
-      .filter((selector) => within(scope.name, selector.leaf) && parentsMatch(selector.parents, ancestors))
+      .filter(
+        (selector) =>
+          within(scope.name, selector.leaf) &&
+          parentsMatch(selector.parents, ancestors) &&
+          !selector.excluded.some((path) => occursIn(path, scope.path)),
+      )
       .sort(bySpecificity);
     let style = outer;
 
@@ -153,7 +186,7 @@ function resolvePath(directory: string, relative: string): string {
   return `/${settled.join("/")}`;
 }
 
-type Parsed = { rules: ThemeRule[]; foreground: string | undefined };
+type Parsed = { rules: ThemeRule[]; foreground: string | undefined; background: string | undefined };
 
 // A theme file and the files it includes. Rules of an included theme come first, so the including theme overrides them.
 async function parseThemeFile(text: string, directory: string, read: ReadText, depth: number): Promise<Parsed | null> {
@@ -165,7 +198,7 @@ async function parseThemeFile(text: string, directory: string, read: ReadText, d
     return null;
   }
 
-  let inherited: Parsed = { rules: [], foreground: undefined };
+  let inherited: Parsed = { rules: [], foreground: undefined, background: undefined };
 
   if (file.include !== undefined && depth < MAX_INCLUDES) {
     const path = resolvePath(directory, file.include);
@@ -180,6 +213,7 @@ async function parseThemeFile(text: string, directory: string, read: ReadText, d
   return {
     rules: [...inherited.rules, ...(file.tokenColors ?? [])],
     foreground: colorOf(file.colors?.["editor.foreground"]) ?? inherited.foreground,
+    background: colorOf(file.colors?.["editor.background"]) ?? inherited.background,
   };
 }
 
@@ -187,5 +221,5 @@ async function parseThemeFile(text: string, directory: string, read: ReadText, d
 export async function loadTheme(text: string, directory: string, read: ReadText): Promise<Theme | null> {
   const parsed = await parseThemeFile(text, directory, read, 0);
 
-  return parsed === null ? null : new Theme(parsed.rules, { color: parsed.foreground });
+  return parsed === null ? null : new Theme(parsed.rules, { color: parsed.foreground }, parsed.background);
 }

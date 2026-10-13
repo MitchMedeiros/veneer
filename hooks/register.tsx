@@ -3,6 +3,7 @@ import type { EngineInterface, Register } from "claude-code";
 
 import type { Off, Palette } from "../types";
 import { configOf } from "./config";
+import type { Backdrop, Config } from "./config";
 import { OFF_TEXT, terminalOff } from "./gate";
 import { changeCounts, withBadges } from "./badge";
 import { diffCard, parseDiff } from "./diff";
@@ -16,9 +17,9 @@ import { cellHeightOf, MAX_COLUMNS, rasterize } from "./picture";
 import type { Picture, PictureIo } from "./picture";
 import { BULLET, GUTTER, MARGIN, replyTree } from "./reply";
 import { commandOfCall, rememberInput } from "./calls";
-import { filePathOf, paintCommand, paintDiff, paintFences, paintLines, paintOutput } from "./paint";
+import { filePathOf, outputFill, paintCommand, paintDiff, paintFences, paintLines, paintOutput } from "./paint";
 import type { Painter } from "./paint";
-import { highlight } from "./syntax/highlight";
+import { highlight, themeBackground } from "./syntax/highlight";
 import type { SyntaxIo } from "./syntax/highlight";
 import { tableSketch } from "./table";
 import { toolRow } from "./tool-row";
@@ -60,13 +61,31 @@ const pictureIo = ($: EngineInterface): PictureIo => ({
     ),
 });
 
-// Highlights code with the theme file the person set, or the shipped one. A path may start with `~/`.
-async function painterFor($: EngineInterface, setting: string): Promise<Painter> {
+// The theme file the person set, or empty for the shipped one. A path may start with `~/`.
+async function syntaxOf($: EngineInterface, setting: string): Promise<{ io: SyntaxIo; themePath: string }> {
   const home = await $.env.get("HOME");
   const themePath = setting.startsWith("~/") && home !== undefined ? `${home}${setting.slice(1)}` : setting;
   const io: SyntaxIo = { root: $.plugin.root, read: (path) => $.fs.read(path).catch(() => undefined) };
 
+  return { io, themePath };
+}
+
+// Highlights code with the syntax theme.
+async function painterFor($: EngineInterface, setting: string): Promise<Painter> {
+  const { io, themePath } = await syntaxOf($, setting);
+
   return (hint, code) => highlight(io, themePath, hint, code);
+}
+
+// The fill the syntax theme sets behind a kind of card; undefined when that card has the switch off or the theme sets none.
+async function backgroundFor($: EngineInterface, config: Config, card: Backdrop): Promise<string | undefined> {
+  if (!config.backgrounds[card]) {
+    return undefined;
+  }
+
+  const { io, themePath } = await syntaxOf($, config.syntaxTheme);
+
+  return themeBackground(io, themePath);
 }
 
 async function pictureDir($: EngineInterface): Promise<string> {
@@ -162,9 +181,10 @@ export const register: Register = (on, options) => {
     const fences = segments.some((segment) => segment.kind === "code")
       ? await paintFences(await painterFor($, config.syntaxTheme), segments)
       : undefined;
+    const fenceBackground = fences === undefined ? undefined : await backgroundFor($, config, "fences");
 
     if (!("Image" in ui) || !hasDrawn(segments)) {
-      return replyTree(ui, segments, drawn, bullet, fences);
+      return replyTree(ui, segments, drawn, bullet, fences, fenceBackground);
     }
 
     const palette = await read($, paletteAtom);
@@ -191,7 +211,7 @@ export const register: Register = (on, options) => {
       }),
     );
 
-    return replyTree(ui, segments, drawn, bullet, fences);
+    return replyTree(ui, segments, drawn, bullet, fences, fenceBackground);
   });
 
   on("ui.render", { component: "ToolUse" }, async ($, e, next) => {
@@ -255,13 +275,23 @@ export const register: Register = (on, options) => {
         path === undefined
           ? await paintOutput(paint, tool, commandOfCall(id), shown)
           : await paintLines(paint, path, shown);
+      const background = await backgroundFor($, config, path === undefined ? "output" : "reads");
 
-      return outputCard(ui, painted, expanded, toggle, id);
+      return outputCard(ui, painted, expanded, toggle, id, outputFill(background, path !== undefined, painted));
     }
 
     const runs = path === undefined || paint === undefined ? [] : await paintDiff(paint, path, diff);
 
-    return diffCard(ui, diff, (await read($, paletteAtom)).isAnsi, expanded, toggle, id, runs);
+    return diffCard(
+      ui,
+      diff,
+      (await read($, paletteAtom)).isAnsi,
+      expanded,
+      toggle,
+      id,
+      runs,
+      await backgroundFor($, config, "diffs"),
+    );
   });
 
   on("ui.render", { component: "Spinner" }, async ($, e, next) => {
@@ -319,6 +349,9 @@ export const register: Register = (on, options) => {
       { open, toggle: (id) => flip($, id) },
       commandRuns,
       paintedOutput,
+      paint === undefined
+        ? {}
+        : { reads: await backgroundFor($, config, "reads"), output: await backgroundFor($, config, "output") },
     );
   });
 

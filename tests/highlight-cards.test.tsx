@@ -25,6 +25,7 @@ const FILES: Record<string, unknown> = {
     patterns: [{ match: "/\\blet\\b/u", name: "keyword.toy" }],
   },
   "/themes/default.json": {
+    colors: { "editor.background": "#101010" },
     tokenColors: [
       { scope: "keyword", settings: { foreground: "#ff0000" } },
       { scope: "markup.inserted", settings: { foreground: "#00ff00" } },
@@ -122,6 +123,32 @@ test("the lines of a file read are highlighted by the file's extension", async (
   const ui = await $.ui.mount(result("Read", output, "h5"));
 
   expect(await keywords(ui)).toBe(1);
+});
+
+type Filled = { findAll: (match: object) => Promise<{ props?: { backgroundColor?: string } }[]> };
+
+// How many boxes were filled with the theme's background.
+const filled = async (ui: Filled): Promise<number> =>
+  (await ui.findAll({ type: "Box" })).filter((node) => node.props?.backgroundColor === "#101010").length;
+
+test("fences, file reads and diffs take the theme's background", async ($, on) => {
+  stub(on);
+
+  const edit = {
+    filePath: "/work/a.toy",
+    structuredPatch: [{ oldStart: 1, newStart: 1, lines: [" let a", "-let b", "+let c"] }],
+  };
+  const read = { type: "text", file: { filePath: "/work/a.toy", content: "let a", startLine: 1 } };
+
+  expect(await filled(await $.ui.mount(reply("```toy\nlet x\n```\n", "b1")))).toBe(1);
+  expect(await filled(await $.ui.mount(result("Read", read, "b2")))).toBe(1);
+  expect(await filled(await $.ui.mount(result("Edit", edit, "b3")))).toBe(1);
+});
+
+test("plain command output takes no background", async ($, on) => {
+  stub(on);
+
+  expect(await filled(await $.ui.mount(result("Bash", { stdout: "let a", stderr: "" }, "b4")))).toBe(0);
 });
 
 test("a command's output is never highlighted", async ($, on) => {

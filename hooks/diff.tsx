@@ -78,7 +78,7 @@ export function parseDiff(output: unknown): Diff | null {
 // Claude Code's own diff on every theme, and the fill starts right of its number. Like Claude Code's own diff there is
 // one number column, coloured on changed lines in the line's own fill colour, as the badges are filled: the line's
 // new number, or its old one where it was removed. The ansi themes draw the diff without fills, so there the numbers
-// and text take the success and error colours.
+// and text take the success and error colours. A background fills the card under the lines; changed lines keep their fill.
 export function diffCard(
   ui: Ui,
   diff: Diff,
@@ -87,6 +87,7 @@ export function diffCard(
   toggle: () => void,
   id: string,
   runs: readonly (StyledRun[] | undefined)[] = [],
+  background?: string,
 ): RenderElement {
   const { Box, Text } = ui;
   const shown = expanded ? diff.lines : diff.lines.slice(0, MAX_LINES);
@@ -98,7 +99,7 @@ export function diffCard(
   const numberTone = (kind: DiffLine["kind"]) => (isAnsi ? tone(kind) : fillOf(kind));
 
   return (
-    <Box flexDirection="column" marginLeft={2} borderStyle="round" borderColor="subtle">
+    <Box flexDirection="column" marginLeft={2} borderStyle="round" borderColor="subtle" backgroundColor={background}>
       {shown.map((line, i) => (
         <Box key={`line-${i}`} flexDirection="column">
           {diff.breaks.has(i) ? <Text dimColor>{`${" ".repeat(digits + 2)}⋯`}</Text> : null}

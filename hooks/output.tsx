@@ -54,20 +54,21 @@ export function parseOutput(tool: string, output: unknown, cwd: string, isErrore
 }
 
 // The result as a rounded card of lines, the same shape as the diff card, with a numbered column where lines carry
-// numbers and the error colour on what a command wrote to stderr.
+// numbers and the error colour on what a command wrote to stderr. A background fills the card.
 export function outputCard(
   ui: Ui,
   lines: OutputLine[],
   expanded: boolean,
   toggle: () => void,
   id: string,
+  background?: string,
 ): RenderElement {
   const { Box, Text } = ui;
   const shown = expanded ? lines : lines.slice(0, MAX_LINES);
   const digits = Math.max(0, ...shown.map((line) => String(line.number ?? "").length));
 
   return (
-    <Box flexDirection="column" marginLeft={2} borderStyle="round" borderColor="subtle">
+    <Box flexDirection="column" marginLeft={2} borderStyle="round" borderColor="subtle" backgroundColor={background}>
       {shown.map((line, i) => (
         <Box key={`line-${i}`} flexDirection="row">
           {digits > 0 ? <Text dimColor>{` ${String(line.number ?? "").padStart(digits)} `}</Text> : null}

@@ -75,6 +75,11 @@ export async function paintDiff(paint: Painter, path: string, diff: Diff): Promi
   return runs;
 }
 
+// The background an output card takes. A file read always takes it; the output of a command or search only where some
+// line was highlighted, so plain output such as a file listing never changes look with the theme.
+export const outputFill = (background: string | undefined, isFile: boolean, lines: readonly OutputLine[]) =>
+  isFile || lines.some((line) => line.runs !== undefined) ? background : undefined;
+
 // The lines with the runs of a language on those that have them.
 async function paintAs(paint: Painter, hint: string, lines: OutputLine[]): Promise<OutputLine[]> {
   const runs = await paint(hint, lines.map((line) => line.text).join("\n"));

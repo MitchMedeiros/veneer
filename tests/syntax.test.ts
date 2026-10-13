@@ -133,6 +133,19 @@ test("the most specific rule wins, a scope inherits from the scopes around it, a
   expect(theme.styleOf(scope("meta.block", "variable")).bold).toBe(true);
 });
 
+test("a selector skips the scope paths it excludes with a minus", () => {
+  const theme = new Theme([
+    { scope: "variable - meta.block, constant - string - comment", settings: { foreground: "#555555" } },
+  ]);
+
+  expect(theme.styleOf(scope("variable")).color).toBe("#555555");
+  expect(theme.styleOf(scope("meta.block", "variable")).color).toBeUndefined();
+  expect(theme.styleOf(scope("meta.block.inner", "variable")).color).toBeUndefined();
+  expect(theme.styleOf(scope("constant")).color).toBe("#555555");
+  expect(theme.styleOf(scope("string.quoted", "constant")).color).toBeUndefined();
+  expect(theme.styleOf(scope("comment.line", "constant")).color).toBeUndefined();
+});
+
 test("a theme includes another by path and overrides it", async () => {
   const files: Record<string, string> = {
     "/themes/base.json":

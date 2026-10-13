@@ -33,6 +33,30 @@
       "title": "Syntax theme",
       "description": "Path to a VS Code color theme file for code. Leave empty for the built-in colors.",
       "default": ""
+    },
+    "fenceBackground": {
+      "type": "boolean",
+      "title": "Syntax theme background on code blocks",
+      "description": "Fill fenced code blocks with the syntax theme's background, when the theme sets one.",
+      "default": true
+    },
+    "readBackground": {
+      "type": "boolean",
+      "title": "Syntax theme background on file reads",
+      "description": "Fill the card of a file read with the syntax theme's background, when the theme sets one.",
+      "default": true
+    },
+    "outputBackground": {
+      "type": "boolean",
+      "title": "Syntax theme background on command and search output",
+      "description": "Fill highlighted Bash and Grep output with the syntax theme's background, when the theme sets one.",
+      "default": true
+    },
+    "diffBackground": {
+      "type": "boolean",
+      "title": "Syntax theme background on diffs",
+      "description": "Fill diff lines that have no added or removed fill with the syntax theme's background.",
+      "default": true
     }
   }
 }

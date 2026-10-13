@@ -2,6 +2,7 @@ import type { ElementTable, RenderElement } from "claude-code";
 
 import { outputCard, parseOutput } from "./output";
 import type { OutputLine } from "./output";
+import { outputFill } from "./paint";
 import { lineChildren } from "./syntax/runs";
 import type { StyledRun } from "./syntax/types";
 import type { Look, ToolCall } from "./tool-row";
@@ -50,7 +51,14 @@ export function toolGroup(
   { open, toggle }: Folds,
   detailRuns: readonly (StyledRun[] | undefined)[] = [],
   paintedOutput: readonly (OutputLine[] | undefined)[] = [],
+  fills: { reads?: string; output?: string } = {},
 ): RenderElement {
+  const fillOf = (tool: string, lines: readonly OutputLine[]) =>
+    tool === "Read"
+      ? fills.reads
+      : tool === "Bash" || tool === "Grep"
+        ? outputFill(fills.output, false, lines)
+        : undefined;
   const groupId = `group:${id}`;
   const groupOpen = open.has(groupId);
   const single = calls.length === 1;
@@ -119,7 +127,14 @@ export function toolGroup(
         </Box>
         {callOpen ? (
           <Box marginLeft={2} flexDirection="column">
-            {outputCard({ Box, Button, Text }, lines, open.has(moreId), () => toggle(moreId), callId)}
+            {outputCard(
+              { Box, Button, Text },
+              lines,
+              open.has(moreId),
+              () => toggle(moreId),
+              callId,
+              fillOf(call.tool, lines),
+            )}
           </Box>
         ) : null}
       </Box>

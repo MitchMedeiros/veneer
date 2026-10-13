@@ -19,13 +19,15 @@ export const BULLET = "✦";
 
 // A reply block: its text left to the native `Markdown`, each table and heading as the picture drawn for it. A segment
 // without a picture falls back to its own markdown, so one failed picture never hides content. The first block of a
-// reply starts with the bullet, in the theme's accent colour. A fence with runs in `fences` is drawn highlighted.
+// reply starts with the bullet, in the theme's accent colour. A fence with runs in `fences` is drawn highlighted, on
+// the fence background where there is one.
 export function replyTree(
   { Box, Text, Markdown, Image }: Ui,
   segments: readonly Segment[],
   pictures: ReadonlyMap<Segment, { picture: Picture; alt: string }>,
   bullet: string | null,
   fences: ReadonlyMap<Segment, StyledRun[][]> = new Map(),
+  fenceBackground?: string,
 ): RenderElement {
   const rows = segments.map((segment, i) => {
     const drawn = pictures.get(segment);
@@ -37,7 +39,7 @@ export function replyTree(
     if (segment.kind === "code") {
       return (
         <Box key={`code-${i}`} flexDirection="column" marginTop={i > 0 ? 1 : 0}>
-          {codeCard({ Box, Text }, segment.lang, segment.code, fences.get(segment))}
+          {codeCard({ Box, Text }, segment.lang, segment.code, fences.get(segment), fenceBackground)}
         </Box>
       );
     }

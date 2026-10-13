@@ -60,6 +60,16 @@ test("message alignment is left unless set to right", () => {
   expect(configOf({ messageAlign: "middle" }).align).toBe("left");
 });
 
+test("every card takes the syntax theme background unless its switch is false", () => {
+  expect(configOf({}).backgrounds).toEqual({ fences: true, reads: true, output: true, diffs: true });
+  expect(configOf({ diffBackground: false, outputBackground: "false" }).backgrounds).toEqual({
+    fences: true,
+    reads: true,
+    output: false,
+    diffs: false,
+  });
+});
+
 test("picture options fall back to their defaults when blank or out of range", () => {
   expect(configOf({})).toMatchObject({ fontFamily: "Helvetica Neue", cellRatio: 2.9 });
   expect(configOf({ fontFamily: " Inter ", cellRatio: "2.4" })).toMatchObject({ fontFamily: "Inter", cellRatio: 2.4 });

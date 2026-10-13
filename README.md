@@ -20,12 +20,16 @@ Needs Claude Code 2.1.287 or later. Pictures need a terminal that draws them (Gh
 
 Colors come from your Claude Code theme. Edit a theme in `~/.claude/themes/`.
 
-| Option         | Default          | Use                                                                          |
-| -------------- | ---------------- | ---------------------------------------------------------------------------- |
-| `messageAlign` | `left`           | `left` or `right`                                                            |
-| `fontFamily`   | `Helvetica Neue` | Font for tables and headings. It must be installed on this machine.          |
-| `cellRatio`    | `2.9`            | Height of a terminal cell over its width. Change it if pictures letterbox.   |
-| `syntaxTheme`  | empty            | Path to a VS Code color theme file for code. Empty uses the built-in colors. |
+| Option             | Default          | Use                                                                          |
+| ------------------ | ---------------- | ---------------------------------------------------------------------------- |
+| `messageAlign`     | `left`           | `left` or `right`                                                            |
+| `fontFamily`       | `Helvetica Neue` | Font for tables and headings. It must be installed on this machine.          |
+| `cellRatio`        | `2.9`            | Height of a terminal cell over its width. Change it if pictures letterbox.   |
+| `syntaxTheme`      | empty            | Path to a VS Code color theme file for code. Empty uses the built-in colors. |
+| `fenceBackground`  | `true`           | Fill code blocks with the syntax theme's background, when it sets one.       |
+| `readBackground`   | `true`           | The same for the card of a file read.                                        |
+| `outputBackground` | `true`           | The same for highlighted Bash and Grep output.                               |
+| `diffBackground`   | `true`           | The same for diff cards. Added and removed lines keep their own fill.        |
 
 Set options through `/config` or under `pluginConfigs` in `settings.json`.
 
