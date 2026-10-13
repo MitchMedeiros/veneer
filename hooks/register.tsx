@@ -1,7 +1,7 @@
 import { atom, read, update } from "claude-code";
 import type { EngineInterface, Register } from "claude-code";
 
-import type { Off, Palette } from "../types";
+import type { Off, Palette, SyntaxPane } from "../types";
 import { configOf } from "./config";
 import type { Backdrop, Config } from "./config";
 import { OFF_TEXT, terminalOff } from "./gate";
@@ -21,6 +21,18 @@ import { filePathOf, outputFill, paintCommand, paintDiff, paintFences, paintLine
 import type { Painter } from "./paint";
 import { highlight, themeBackground } from "./syntax/highlight";
 import type { SyntaxIo } from "./syntax/highlight";
+import { DEFAULT_THEME, NEW_THEME, SAMPLES, syntaxPane } from "./syntax-pane";
+import {
+  baseNameOf,
+  configDirOf,
+  expandHome,
+  importName,
+  themeNames,
+  themeProblem,
+  themesDirOf,
+  THEME_EXTENSION,
+  uniqueName,
+} from "./syntax-themes";
 import { tableSketch } from "./table";
 import { toolRow } from "./tool-row";
 import { loadPalette } from "./theme";
@@ -33,6 +45,16 @@ const offAtom = atom({ plugin: "veneer", key: "off" } as const, null as Off | nu
 // The tool calls whose diff card shows every line.
 const expandedAtom = atom({ plugin: "veneer", key: "expanded" } as const, [] as string[]);
 const paletteAtom = atom({ plugin: "veneer", key: "palette" } as const, baseOf("dark") as Palette);
+// The syntax theme chosen with /syntax, by file name without `.json`; empty is the shipped default. Kept in the store.
+const syntaxAtom = atom({ plugin: "veneer", key: "syntax" } as const, "");
+const LIST_PANE: SyntaxPane = { step: "list", path: "", content: "", message: undefined };
+const syntaxPaneAtom = atom({ plugin: "veneer", key: "syntaxPane" } as const, LIST_PANE);
+
+const SYNTAX_PANE = "syntax";
+// What the pane asks for, as a request: rows when seated above the prompt, columns when docked beside the transcript.
+const PANE_ROWS = 22;
+const PANE_COLUMNS = 72;
+const SYNTAX_KEY = "syntaxTheme";
 
 // Opens a folded entry, or folds an open one again.
 function flip($: EngineInterface, id: string): void {
@@ -61,18 +83,25 @@ const pictureIo = ($: EngineInterface): PictureIo => ({
     ),
 });
 
-// The theme file the person set, or empty for the shipped one. A path may start with `~/`.
-async function syntaxOf($: EngineInterface, setting: string): Promise<{ io: SyntaxIo; themePath: string }> {
-  const home = await $.env.get("HOME");
-  const themePath = setting.startsWith("~/") && home !== undefined ? `${home}${setting.slice(1)}` : setting;
+// The folder the person's syntax themes are kept in, or undefined when no Claude folder can be found.
+async function themesFolder($: EngineInterface): Promise<string | undefined> {
+  const root = configDirOf(await $.env.get("CLAUDE_CONFIG_DIR"), await $.env.get("HOME"));
+
+  return root === undefined ? undefined : themesDirOf(root);
+}
+
+// The chosen syntax theme as a file path, empty for the shipped one, with what reads files.
+async function syntaxOf($: EngineInterface): Promise<{ io: SyntaxIo; themePath: string }> {
+  const name = await read($, syntaxAtom);
+  const folder = name === "" ? undefined : await themesFolder($);
   const io: SyntaxIo = { root: $.plugin.root, read: (path) => $.fs.read(path).catch(() => undefined) };
 
-  return { io, themePath };
+  return { io, themePath: folder === undefined ? "" : `${folder}/${name}${THEME_EXTENSION}` };
 }
 
 // Highlights code with the syntax theme.
-async function painterFor($: EngineInterface, setting: string): Promise<Painter> {
-  const { io, themePath } = await syntaxOf($, setting);
+async function painterFor($: EngineInterface): Promise<Painter> {
+  const { io, themePath } = await syntaxOf($);
 
   return (hint, code) => highlight(io, themePath, hint, code);
 }
@@ -83,9 +112,54 @@ async function backgroundFor($: EngineInterface, config: Config, card: Backdrop)
     return undefined;
   }
 
-  const { io, themePath } = await syntaxOf($, config.syntaxTheme);
+  const { io, themePath } = await syntaxOf($);
 
   return themeBackground(io, themePath);
+}
+
+async function showPane($: EngineInterface, pane: Partial<SyntaxPane>): Promise<void> {
+  await update($, syntaxPaneAtom, (current) => ({ ...current, ...pane }));
+}
+
+// Makes a theme the chosen one, now and in later sessions. Empty chooses the shipped default.
+async function chooseTheme($: EngineInterface, name: string): Promise<void> {
+  await (name === "" ? $.store.delete(SYNTAX_KEY) : $.store.set(SYNTAX_KEY, name));
+  await update($, syntaxAtom, () => name);
+}
+
+// First step of adding a theme: the file the person named, kept if it reads as a theme.
+async function readThemeFile($: EngineInterface, input: string): Promise<void> {
+  const path = expandHome(input.trim(), await $.env.get("HOME"));
+  const text = path === "" ? undefined : await $.fs.read(path).catch(() => undefined);
+  const problem = text === undefined ? `Could not read ${path === "" ? "an empty path" : path}.` : themeProblem(text);
+
+  await (problem === undefined
+    ? showPane($, { step: "name", path, content: text ?? "", message: undefined })
+    : showPane($, { message: problem }));
+}
+
+// Last step of adding a theme: copies the file into the themes folder under the name asked for, or its own name, with a
+// number added when that name is taken, and chooses it.
+async function importTheme($: EngineInterface, requested: string): Promise<void> {
+  const { path, content } = await read($, syntaxPaneAtom);
+  const folder = await themesFolder($);
+
+  if (folder === undefined) {
+    return showPane($, { step: "list", message: "The Claude folder could not be found." });
+  }
+
+  const taken = themeNames(await $.fs.list(folder).catch(() => []));
+  const name = uniqueName(importName(requested, path), taken);
+
+  try {
+    await $.fs.write(`${folder}/${name}${THEME_EXTENSION}`, content);
+  } catch {
+    return showPane($, { message: `Could not write ${name}${THEME_EXTENSION} to ${folder}.` });
+  }
+
+  await chooseTheme($, name);
+
+  return showPane($, { step: "list", path: "", content: "", message: `Added ${name} from ${baseNameOf(path)}.` });
 }
 
 async function pictureDir($: EngineInterface): Promise<string> {
@@ -117,6 +191,10 @@ async function settle($: EngineInterface): Promise<Off | null> {
   await update($, offAtom, () => off);
 
   if (off === null) {
+    const chosen = await $.store.get(SYNTAX_KEY);
+
+    await update($, syntaxAtom, () => (typeof chosen === "string" ? chosen : ""));
+    await $.command.register({ name: SYNTAX_PANE, description: "Choose the syntax theme for code" }).catch(() => null);
     await refreshPalette($);
     await prepareFolder($);
   }
@@ -179,7 +257,7 @@ export const register: Register = (on, options) => {
     const bullet = isFirstOfReply ? BULLET : null;
     const drawn = new Map<Segment, { picture: Picture; alt: string }>();
     const fences = segments.some((segment) => segment.kind === "code")
-      ? await paintFences(await painterFor($, config.syntaxTheme), segments)
+      ? await paintFences(await painterFor($), segments)
       : undefined;
     const fenceBackground = fences === undefined ? undefined : await backgroundFor($, config, "fences");
 
@@ -227,8 +305,7 @@ export const register: Register = (on, options) => {
     }
 
     const ui = $.ui.resolve(e);
-    const commandRuns =
-      e.props.tool === "Bash" ? await paintCommand(await painterFor($, config.syntaxTheme), e.props) : undefined;
+    const commandRuns = e.props.tool === "Bash" ? await paintCommand(await painterFor($), e.props) : undefined;
     const row = toolRow(ui, e.props, await $.session.cwd(), commandRuns) ?? native;
     const changes = !isRunning && !isErrored ? changeCounts(output) : null;
 
@@ -261,8 +338,7 @@ export const register: Register = (on, options) => {
     const ui = $.ui.resolve(e);
     const path = tool === "Read" || diff !== null ? filePathOf(output) : undefined;
 
-    const paint =
-      path !== undefined || tool === "Bash" || tool === "Grep" ? await painterFor($, config.syntaxTheme) : undefined;
+    const paint = path !== undefined || tool === "Bash" || tool === "Grep" ? await painterFor($) : undefined;
 
     if (diff === null) {
       const shown = lines ?? [];
@@ -323,9 +399,7 @@ export const register: Register = (on, options) => {
     const { calls } = e.props;
     const showsRows = calls.length === 1 || open.has(`group:${e.requestId}`);
     const paint =
-      showsRows && calls.some((call) => call.tool === "Bash" || call.tool === "Grep")
-        ? await painterFor($, config.syntaxTheme)
-        : undefined;
+      showsRows && calls.some((call) => call.tool === "Bash" || call.tool === "Grep") ? await painterFor($) : undefined;
     const commandRuns = await Promise.all(
       calls.map((call) => (paint === undefined ? undefined : paintCommand(paint, call))),
     );
@@ -352,6 +426,55 @@ export const register: Register = (on, options) => {
       paint === undefined
         ? {}
         : { reads: await backgroundFor($, config, "reads"), output: await backgroundFor($, config, "output") },
+    );
+  });
+
+  on("command.run", { command: SYNTAX_PANE }, async ($) => {
+    await showPane($, { step: "list", path: "", content: "", message: undefined });
+
+    const opened = await $.ui.open({
+      id: SYNTAX_PANE,
+      title: "Syntax theme",
+      focus: true,
+      closeOnEscape: true,
+      rows: PANE_ROWS,
+      columns: PANE_COLUMNS,
+    });
+
+    return opened.isPlaced ? {} : { text: "The syntax theme pane could not be shown: " + opened.reason };
+  });
+
+  on("ui.render", { component: "Pane", requestId: SYNTAX_PANE }, async ($, e, next) => {
+    if (e.surface !== "terminal") {
+      return next(e);
+    }
+
+    const ui = $.ui.resolve(e);
+    const folder = await themesFolder($);
+    const active = await read($, syntaxAtom);
+    const paint = await painterFor($);
+
+    return syntaxPane(
+      ui,
+      {
+        pane: await read($, syntaxPaneAtom),
+        names: folder === undefined ? [] : themeNames(await $.fs.list(folder).catch(() => [])),
+        active,
+        folder,
+        samples: await Promise.all(SAMPLES.map(async ({ hint, code }) => (await paint(hint, code)) ?? undefined)),
+        background: await backgroundFor($, config, "fences"),
+      },
+      {
+        pick: (value) => {
+          if (value === NEW_THEME) {
+            void showPane($, { step: "path", message: undefined });
+          } else {
+            void chooseTheme($, value === DEFAULT_THEME ? "" : value);
+          }
+        },
+        submitPath: (path) => void readThemeFile($, path),
+        submitName: (name) => void importTheme($, name),
+      },
     );
   });
 
