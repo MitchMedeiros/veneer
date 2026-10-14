@@ -387,7 +387,6 @@ async function settle($: EngineInterface, { icons, links }: Pick<Config, "icons"
     term: await $.env.get("TERM"),
     kittyWindow: await $.env.get("KITTY_WINDOW_ID"),
     weztermExecutable: await $.env.get("WEZTERM_EXECUTABLE"),
-    konsoleVersion: await $.env.get("KONSOLE_VERSION"),
     ghosttyResources: await $.env.get("GHOSTTY_RESOURCES_DIR"),
   };
   const terminal = terminalOff(env);

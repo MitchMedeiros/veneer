@@ -157,7 +157,7 @@ export function stateSketch(diagram: StateDiagram, available: number, palette: P
 
       return (
         strokeSvg(trimmed(route, 0, arrow), palette.inactive, EDGE_WIDTH, markerAttribute("arrow")) +
-        labelSvg(route, label, LABEL, palette.inactive)
+        labelSvg(route, label, LABEL, palette.text)
       );
     })
     .join("");

@@ -32,7 +32,7 @@ type Layout<E extends GraphEdge = GraphEdge> = {
 // Text sizes shared by every diagram, so a diagram reads the same size whatever its kind: the name of a node, the text
 // that runs along it, and the detail beside it.
 export const TEXT = 34;
-export const LABEL = 28;
+export const LABEL = 32;
 export const DETAIL = 24;
 export const LINE_HEIGHT = TEXT * 1.3;
 
@@ -352,6 +352,8 @@ export function layered<E extends GraphEdge>(
     });
   }
 
+  apart(routes, gaps.labelSize ?? 0);
+
   // Labels count toward the size of the picture.
   const extents = routes.flatMap(({ edge, label }) => {
     const width = measure(edge.label ?? "", gaps.labelSize ?? 0);
@@ -396,6 +398,70 @@ export function layered<E extends GraphEdge>(
   };
 }
 
+const SLOTS = [0.5, 0.3, 0.7, 0.15, 0.85];
+
+// The point a fraction of the way along the curve `pathOf` draws between two waypoints.
+function along(a: Point, b: Point, isDown: boolean, t: number): Point {
+  const bend = isDown ? { x: 0, y: (b.y - a.y) / 2 } : { x: (b.x - a.x) / 2, y: 0 };
+  const u = 1 - t;
+  const at = (p0: number, p1: number, p2: number, p3: number) =>
+    u ** 3 * p0 + 3 * u * u * t * p1 + 3 * u * t * t * p2 + t ** 3 * p3;
+
+  return {
+    x: at(a.x, a.x + bend.x, b.x - bend.x, b.x),
+    y: at(a.y, a.y + bend.y, b.y - bend.y, b.y),
+  };
+}
+
+// Points along the curves of a route, which a label of another edge must keep clear of.
+function sampled({ points, isLoop, isDown }: Route): Point[] {
+  return isLoop
+    ? points
+    : points.slice(1).flatMap((b, i) => Array.from({ length: 11 }, (_, n) => along(points[i]!, b, isDown, n / 10)));
+}
+
+// Moves a label that would cover another one, or the curve of another edge, along its edge to the nearest free place,
+// so that two edges leaving the same node do not write over each other.
+function apart<E extends GraphEdge>(routes: Route<E>[], size: number): void {
+  const taken: { x0: number; x1: number; y0: number; y1: number }[] = [];
+  const curves = routes.map(sampled);
+
+  for (const [index, route] of routes.entries()) {
+    const text = route.edge.label ?? "";
+
+    if (text === "") {
+      continue;
+    }
+
+    const width = measure(text, size);
+    const boxOf = ({ x, y, anchor }: Label) => {
+      const x0 = anchor === "start" ? x : anchor === "end" ? x - width : x - width / 2;
+
+      return { x0, x1: x0 + width, y0: y - size, y1: y + size * 0.3 };
+    };
+    const hits = (label: Label) => {
+      const box = boxOf(label);
+
+      return (
+        taken.some((other) => box.x0 < other.x1 && other.x0 < box.x1 && box.y0 < other.y1 && other.y0 < box.y1) ||
+        curves.some(
+          (curve, i) =>
+            i !== index && curve.some((p) => p.x > box.x0 - 4 && p.x < box.x1 + 4 && p.y > box.y0 && p.y < box.y1),
+        )
+      );
+    };
+    const pair = Math.floor((route.points.length - 1) / 2);
+    const [a, b] = [route.points[pair]!, route.points[pair + 1]];
+    const options =
+      route.isLoop || b === undefined
+        ? [route.label]
+        : SLOTS.map((t) => labelBeside(along(a, b, route.isDown, t), route.points, route.isDown));
+
+    route.label = options.find((label) => !hits(label)) ?? route.label;
+    taken.push(boxOf(route.label));
+  }
+}
+
 // Where an edge label sits: beside the middle of a vertical edge, on the half of the curve clear of the text, and above
 // a horizontal one.
 function labelBeside(mid: Point, points: readonly Point[], isDown: boolean): Label {
@@ -405,7 +471,7 @@ function labelBeside(mid: Point, points: readonly Point[], isDown: boolean): Lab
 
   const leftward = points[points.length - 1]!.x < points[0]!.x - 1;
 
-  return { x: mid.x + (leftward ? -12 : 12), y: mid.y - 4, anchor: leftward ? "end" : "start" };
+  return { x: mid.x + (leftward ? -16 : 16), y: mid.y - 4, anchor: leftward ? "end" : "start" };
 }
 
 const num = (value: number): number => Math.round(value * 10) / 10;

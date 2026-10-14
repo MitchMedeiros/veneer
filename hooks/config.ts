@@ -28,7 +28,17 @@ const BACKDROP_OPTIONS = {
 // A switch that is on unless set to false, as a boolean or as the text a settings file may hold.
 const onUnlessFalse = (value: unknown): boolean => value !== false && value !== "false";
 
-const DEFAULT_FONT = "Helvetica Neue";
+// Tried in order after the configured font, so a blank or unknown name still draws in a sans-serif face.
+const FALLBACK_FONTS = [
+  "Arial",
+  "Helvetica Neue",
+  "Helvetica",
+  "Segoe UI",
+  "Liberation Sans",
+  "DejaVu Sans",
+  "Noto Sans",
+  "Roboto",
+];
 const DEFAULT_RATIO = 2.9;
 
 // A terminal cell's height over its width; anything outside what real terminals use keeps the default.
@@ -40,10 +50,9 @@ const ratioOf = (value: unknown): number => {
 
 export const configOf = (options: PluginOptions): Config => ({
   align: options.messageAlign === "right" ? "right" : "left",
-  fontFamily:
-    typeof options.fontFamily === "string" && options.fontFamily.trim() !== ""
-      ? options.fontFamily.trim()
-      : DEFAULT_FONT,
+  fontFamily: [typeof options.fontFamily === "string" ? options.fontFamily.trim() : "", ...FALLBACK_FONTS]
+    .filter((font) => font !== "")
+    .join(", "),
   cellRatio: ratioOf(options.cellRatio),
   backgrounds: Object.fromEntries(
     Object.entries(BACKDROP_OPTIONS).map(([card, option]) => [card, onUnlessFalse(options[option])]),

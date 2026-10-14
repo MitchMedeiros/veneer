@@ -8,7 +8,6 @@ export type TerminalEnv = {
   term: string | undefined;
   kittyWindow: string | undefined;
   weztermExecutable: string | undefined;
-  konsoleVersion: string | undefined;
   ghosttyResources: string | undefined;
 };
 
@@ -18,12 +17,16 @@ export const OFF_TEXT: Record<Off, string> = {
   resvg: "Images need resvg (brew install resvg). Falling back to text replacements.",
 };
 
-// Terminals that draw pictures through the kitty graphics protocol and carry a symbol font, by `TERM_PROGRAM` and by
-// `TERM`. Warp and Konsole draw pictures too, and are found separately.
+// Terminals that carry their own symbol font, by `TERM_PROGRAM` and by `TERM`.
 const SYMBOL_PROGRAMS = new Set(["ghostty", "WezTerm", "rio"]);
 const SYMBOL_TERMS = new Set(["xterm-ghostty", "xterm-kitty", "wezterm", "rio"]);
 
-// Pictures are drawn in a terminal that speaks the kitty graphics protocol, and not inside a multiplexer unless forced.
+// Claude Code draws pictures with kitty Unicode placeholders and turns them on only in kitty and Ghostty. WezTerm, Rio
+// and Warp show an image's alt text instead.
+const PICTURE_PROGRAMS = new Set(["ghostty"]);
+const PICTURE_TERMS = new Set(["xterm-ghostty", "xterm-kitty"]);
+
+// Pictures are drawn in kitty and Ghostty, and not inside a multiplexer unless forced.
 export function terminalOff(env: TerminalEnv): Off | null {
   if (env.force === "1") {
     return null;
@@ -33,14 +36,17 @@ export function terminalOff(env: TerminalEnv): Off | null {
     return "tmux";
   }
 
-  const draws = hasSymbolFont(env) || env.program === "WarpTerminal" || env.konsoleVersion !== undefined;
+  const draws =
+    PICTURE_PROGRAMS.has(env.program ?? "") ||
+    PICTURE_TERMS.has(env.term ?? "") ||
+    env.kittyWindow !== undefined ||
+    env.ghosttyResources !== undefined;
 
   return draws ? null : "terminal";
 }
 
-// Terminals that carry their own symbol font, so the Nerd Font icons draw with nothing installed. Warp and Konsole draw
-// pictures but use the fonts installed on the machine. Ghostty's resources folder variable, like the kitty and WezTerm
-// ones, outlives a multiplexer that rewrites `TERM_PROGRAM` and `TERM`.
+// Terminals that carry their own symbol font, so the Nerd Font icons draw with nothing installed. Ghostty's resources
+// folder variable, like the kitty and WezTerm ones, outlives a multiplexer that rewrites `TERM_PROGRAM` and `TERM`.
 export const hasSymbolFont = (env: TerminalEnv): boolean =>
   SYMBOL_PROGRAMS.has(env.program ?? "") ||
   SYMBOL_TERMS.has(env.term ?? "") ||

@@ -186,7 +186,7 @@ export function flowSketch(flow: Flow, available: number, palette: Palette, font
           palette.inactive,
           width,
           (edge.line === "dotted" ? DASHED : "") + (edge.isArrow ? markerAttribute("arrow") : ""),
-        ) + labelSvg(route, edge.label, LABEL, palette.inactive)
+        ) + labelSvg(route, edge.label, LABEL, palette.text)
       );
     })
     .join("");

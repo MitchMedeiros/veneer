@@ -220,7 +220,7 @@ export function classSketch(diagram: ClassDiagram, available: number, palette: P
           DETAIL,
           palette.inactive,
         ) +
-        labelSvg(route, relation.label, LABEL, palette.inactive)
+        labelSvg(route, relation.label, LABEL, palette.text)
       );
     })
     .join("");

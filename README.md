@@ -1,12 +1,13 @@
 # Veneer
 
-The Claude desktop look in the Claude Code terminal. Veneer is a thin layer: wherever it cannot draw, Claude Code draws
-its own rows.
+Veneer is a Claude Code mod that enhances the overall look and feel for the terminal. It uses the built-in Claude Code
+themeing system for nearly everything. It adds customizable syntax highlighting for over 100 languages through any theme
+on [Open VSX](https://www.open-vsx.org/search?q=themes&category=Themes&sortBy=downloadCount) or using VSCode themeing
+format.
 
-## Install
+## Installing
 
-Needs Claude Code 2.1.287 or later. Table and heading pictures also need [resvg](https://github.com/linebender/resvg) on
-the path (`brew install resvg` on macOS).
+Mods require Claude Code 2.1.287+. Use the following slash commands inside Claude Code:
 
 ```
 /plugin marketplace add mitchmedeiros/veneer
@@ -16,24 +17,36 @@ the path (`brew install resvg` on macOS).
 /plugin install veneer@veneer
 ```
 
-## Terminals
+For image versions of components like graphs and tables you will need:
 
-Veneer works in any terminal. What differs is how tables and headings are drawn and which icons are used.
+- kitty, Ghostty, or a [libghostty-based terminal](https://github.com/Uzaaft/awesome-libghostty#terminal-apps--clients)
+- [resvg](https://github.com/linebender/resvg)
 
-| Terminal | Table and heading pictures | Icons with `icons` on `auto`                    |
-| -------- | -------------------------- | ----------------------------------------------- |
-| Ghostty  | Yes                        | Nerd Font, from the terminal's built-in symbols |
-| kitty    | Yes                        | Nerd Font, from the terminal's built-in symbols |
-| WezTerm  | Yes                        | Nerd Font, from the terminal's built-in symbols |
-| Rio      | Yes                        | Nerd Font, from the terminal's built-in symbols |
-| Warp     | Yes                        | Unicode symbols                                 |
-| Konsole  | Yes, untested              | Unicode symbols                                 |
-| Others   | No, drawn as text          | Unicode symbols                                 |
+Other terminals that can display images (including those with only partial kitty support like Wezterm) will not work
+currently due to Claude Code not supporting them. If this changes in the future, I will update the defaults or you can
+overwrite them with the setting: `/veneer text-based graphics off` and set `CLAUDE_CODE_FORCE_TERMINAL_IMAGES=1` when
+launching Claude Code.
 
-Pictures need a terminal that supports the kitty graphics protocol and `resvg`. Inside tmux, or where `resvg` is
-missing, Veneer draws tables and headings as text and shows a notice when the session starts. A terminal not listed that
-supports the protocol can set `CLAUDE_CODE_FORCE_TERMINAL_IMAGES=1` to turn pictures on. iTerm2 speaks the protocol but
-not the Unicode placeholders Claude Code draws pictures with, so it stays on text unless forced.
+#### Install resvg
+
+MacOS: `brew install resvg`
+
+Windows:
+
+Arch:
+
+Debian:
+
+## Customization
+
+It ships with the 50 most popular themes for you to pick from straight-away.
+
+### Icons
+
+Terminals that ship with Nerdfonts built-in have it enabled for Veneer by default (see the list below). If you have
+[NerdFonts installed](https://github.com/ryanoasis/nerd-fonts#font-installation) or built-in to your terminal and it's
+not detected you can enable it with the following command inside Claude Code: `/veneer icons nerd`. Otherwise Veneer
+uses similar Unicode icons.
 
 ### tmux
 
@@ -51,8 +64,9 @@ To try pictures in tmux, run `tmux set -g allow-passthrough on` (tmux 3.3a or la
   installed. Warp, Konsole and other terminals use the fonts installed on your machine, so `auto` draws plain Unicode
   symbols instead. If you have a Nerd Font installed and set as the terminal font, set `icons` to `nerd` to use the Nerd
   Font icons there. Set it to `plain` to use Unicode symbols everywhere.
-- **Pictures:** tables and headings are drawn in `fontFamily`, which defaults to `Helvetica Neue`. It must be installed
-  on the machine running Claude Code, so on Linux and Windows set `fontFamily` to a font you have.
+- **Pictures:** tables and headings are drawn in `fontFamily`. If it is blank or not installed on the machine running
+  Claude Code, the first installed font from Arial, Helvetica Neue, Helvetica, Segoe UI, Liberation Sans, DejaVu Sans,
+  Noto Sans and Roboto is used.
 - **Links:** file paths on tool rows are links that open the file, usually with Cmd+click (Shift+click in WezTerm). In a
   terminal Claude Code does not know to open links, it prints the address beside the name. Rio and Terminal.app show the
   full path as plain text instead. Rio finds the path and opens it with Cmd+click. Terminal.app opens neither. Set
@@ -60,29 +74,30 @@ To try pictures in tmux, run `tmux set -g allow-passthrough on` (tmux 3.3a or la
 
 ## Configure
 
-Colors come from your Claude Code theme. Edit a theme in `~/.claude/themes/`.
+Colors for everything aside from code come directly from your Claude Code theme. Edit a theme normally in
+`~/.claude/themes/`.
 
 Run `/veneer` to change every option below in one pane. Enter flips a switch, moves a choice to its next option, or
 opens a field for a typed value. Changes apply at once. The pane has a General tab and a Syntax tab. `/veneer` and
 `/veneer-settings` open it on General, and `/syntax` opens it on Syntax.
 
-| Option                 | Default          | Use                                                                        |
-| ---------------------- | ---------------- | -------------------------------------------------------------------------- |
-| `messageAlign`         | `left`           | `left` or `right`                                                          |
-| `styleUserMessage`     | `true`           | Draw your messages as a bubble. Turn off to leave them to another mod.     |
-| `icons`                | `auto`           | `auto`, `nerd` or `plain`. Nerd Font icons or Unicode symbols.             |
-| `links`                | `auto`           | `auto`, `link` or `text`. How a file path on a tool row is drawn.          |
-| `nativeTables`         | `false`          | Draw tables as a text card, not a picture.                                 |
-| `nativeHeadings`       | `false`          | Draw headings as styled text, not a picture.                               |
-| `nativeVisualizations` | `false`          | Draw Mermaid diagrams and charts in characters, not a picture.             |
-| `diagramHint`          | `true`           | Tell the model Mermaid is drawn here. Costs about 120 tokens.              |
-| `styleSpinner`         | `true`           | Indent the spinner line. Turn off to leave it to another mod.              |
-| `fontFamily`           | `Helvetica Neue` | Font for tables and headings. It must be installed on this machine.        |
-| `cellRatio`            | `2.9`            | Height of a terminal cell over its width. Change it if pictures letterbox. |
-| `fenceBackground`      | `true`           | Fill code blocks with the syntax theme's background, when it sets one.     |
-| `readBackground`       | `true`           | The same for the card of a file read.                                      |
-| `outputBackground`     | `true`           | The same for highlighted Bash and Grep output.                             |
-| `diffBackground`       | `true`           | The same for diff cards. Added and removed lines keep their own fill.      |
+| Option                 | Default | Use                                                                        |
+| ---------------------- | ------- | -------------------------------------------------------------------------- |
+| `messageAlign`         | `left`  | `left` or `right`                                                          |
+| `styleUserMessage`     | `true`  | Draw your messages as a bubble. Turn off to leave them to another mod.     |
+| `icons`                | `auto`  | `auto`, `nerd` or `plain`. Nerd Font icons or Unicode symbols.             |
+| `links`                | `auto`  | `auto`, `link` or `text`. How a file path on a tool row is drawn.          |
+| `nativeTables`         | `false` | Draw tables as a text card, not a picture.                                 |
+| `nativeHeadings`       | `false` | Draw headings as styled text, not a picture.                               |
+| `nativeVisualizations` | `false` | Draw Mermaid diagrams and charts in characters, not a picture.             |
+| `diagramHint`          | `true`  | Tell the model Mermaid is drawn here. Costs about 120 tokens.              |
+| `styleSpinner`         | `true`  | Indent the spinner line. Turn off to leave it to another mod.              |
+| `fontFamily`           | blank   | Font for tables and headings. Blank or missing fonts fall back to a list.  |
+| `cellRatio`            | `2.9`   | Height of a terminal cell over its width. Change it if pictures letterbox. |
+| `fenceBackground`      | `true`  | Fill code blocks with the syntax theme's background, when it sets one.     |
+| `readBackground`       | `true`  | The same for the card of a file read.                                      |
+| `outputBackground`     | `true`  | The same for highlighted Bash and Grep output.                             |
+| `diffBackground`       | `true`  | The same for diff cards. Added and removed lines keep their own fill.      |
 
 Set options through `/config` or under `pluginConfigs` in `settings.json`.
 

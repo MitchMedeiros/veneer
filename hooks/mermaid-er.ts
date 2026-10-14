@@ -212,7 +212,7 @@ export function erSketch(diagram: ErDiagram, available: number, palette: Palette
           EDGE_WIDTH,
           relationship.isDashed ? DASHED : "",
         ) +
-        labelSvg(route, relationship.label, LABEL, palette.inactive)
+        labelSvg(route, relationship.label, LABEL, palette.text)
       );
     })
     .join("");

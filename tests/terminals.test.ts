@@ -11,7 +11,6 @@ const NONE: TerminalEnv = {
   term: undefined,
   kittyWindow: undefined,
   weztermExecutable: undefined,
-  konsoleVersion: undefined,
   ghosttyResources: undefined,
 };
 
@@ -23,9 +22,8 @@ type Terminal = {
   plainLinks: boolean;
 };
 
-// The variables each terminal sets, with what Veneer should do in it. Pictures need the kitty graphics protocol with
-// Unicode placeholders, which is what Claude Code's own image element sends. iTerm2 speaks the protocol but not the
-// placeholders, so it stays on text.
+// The variables each terminal sets, with what Veneer should do in it. Claude Code's image element sends the kitty
+// graphics protocol with Unicode placeholders and turns it on only in kitty and Ghostty, so other terminals stay on text.
 const TERMINALS: Terminal[] = [
   {
     name: "Ghostty",
@@ -54,30 +52,30 @@ const TERMINALS: Terminal[] = [
   {
     name: "WezTerm",
     env: { program: "WezTerm", term: "xterm-256color", weztermExecutable: "/w" },
-    pictures: true,
+    pictures: false,
     nerdIcons: true,
     plainLinks: false,
   },
   {
     name: "WezTerm with its own TERM",
     env: { program: "WezTerm", term: "wezterm" },
-    pictures: true,
+    pictures: false,
     nerdIcons: true,
     plainLinks: false,
   },
-  { name: "Rio", env: { program: "rio", term: "rio" }, pictures: true, nerdIcons: true, plainLinks: true },
-  { name: "Rio over ssh", env: { term: "rio" }, pictures: true, nerdIcons: true, plainLinks: true },
+  { name: "Rio", env: { program: "rio", term: "rio" }, pictures: false, nerdIcons: true, plainLinks: true },
+  { name: "Rio over ssh", env: { term: "rio" }, pictures: false, nerdIcons: true, plainLinks: true },
   {
     name: "Warp",
     env: { program: "WarpTerminal", term: "xterm-256color" },
-    pictures: true,
+    pictures: false,
     nerdIcons: false,
     plainLinks: false,
   },
   {
     name: "Konsole",
-    env: { konsoleVersion: "250800", term: "xterm-256color" },
-    pictures: true,
+    env: { term: "xterm-256color" },
+    pictures: false,
     nerdIcons: false,
     plainLinks: false,
   },
@@ -285,7 +283,7 @@ test("forcing pictures keeps a session inside tmux quiet", async ($, on) => {
 });
 
 test("a session in a picture terminal without resvg says to install it", async ($, on) => {
-  const toasts = session(on, { TERM_PROGRAM: "WezTerm", HOME: "/home/a" }, false);
+  const toasts = session(on, { TERM_PROGRAM: "ghostty", HOME: "/home/a" }, false);
 
   await $.session.start(START);
 
