@@ -53,10 +53,12 @@ import {
   groupSettings,
   isTyped,
   nextValue,
+  parseSettingChange,
   SETTING_KEY,
   SETTINGS_PREFIX,
   settingsKeys,
   settingsPane,
+  valueText,
 } from "./settings-pane";
 import type { Setting } from "./settings-pane";
 import { PANE_ID, tabbed, tabKeys } from "./pane-tabs";
@@ -347,11 +349,11 @@ async function importTheme($: EngineInterface, requested: string): Promise<void>
 function sketchOf(segment: Segment, config: Config, available: number, palette: Palette, font: Font): Sketch | null {
   switch (segment.kind) {
     case "table":
-      return config.nativeTables ? null : tableSketch(segment, available, palette, font);
+      return config.nativeGraphics ? null : tableSketch(segment, available, palette, font);
     case "heading":
-      return config.nativeHeadings ? null : headingSketch(segment, available, palette, font);
+      return config.nativeGraphics ? null : headingSketch(segment, available, palette, font);
     case "code": {
-      return segment.lang === "mermaid" && !config.nativeVisualizations
+      return segment.lang === "mermaid" && !config.nativeGraphics
         ? diagramSketch(segment.code, available, palette, font)
         : null;
     }
@@ -437,11 +439,15 @@ async function showSettings($: EngineInterface, pane: Partial<SettingsPane>): Pr
 
 // Writes one setting the way `/config` does and takes it into effect. The terminal is settled again where the setting
 // decides what it draws with.
-async function applySetting($: EngineInterface, setting: Setting, value: Setting["value"]): Promise<void> {
+async function writeSetting(
+  $: EngineInterface,
+  setting: Setting,
+  value: Setting["value"],
+): Promise<string | undefined> {
   const { deny } = await $.config.set({ key: setting.key, value }).catch((error: unknown) => ({ deny: String(error) }));
 
   if (deny !== undefined) {
-    return showSettings($, { editing: null, message: `${setting.label} was not changed: ${deny}` });
+    return `${setting.label} was not changed: ${deny}`;
   }
 
   const field = fieldOf(setting.key);
@@ -452,7 +458,30 @@ async function applySetting($: EngineInterface, setting: Setting, value: Setting
     await settle($, await configNow($));
   }
 
-  await showSettings($, { editing: null, message: undefined });
+  return undefined;
+}
+
+async function applySetting($: EngineInterface, setting: Setting, value: Setting["value"]): Promise<void> {
+  await showSettings($, { editing: null, message: await writeSetting($, setting, value) });
+}
+
+// `/veneer <setting> <value>`: changes one setting without opening the pane. Bare `/veneer` opens the pane.
+async function runSettingsCommand($: EngineInterface, args: string): Promise<{ text?: string }> {
+  if (args.trim() === "") {
+    return openPane($, "settings");
+  }
+
+  const change = parseSettingChange(await settingsOf($), args);
+
+  if ("error" in change) {
+    return { text: change.error };
+  }
+
+  const failure = await writeSetting($, change.setting, change.value);
+
+  return {
+    text: failure ?? `${change.setting.label} set to ${valueText({ ...change.setting, value: change.value })}.`,
+  };
 }
 
 // A press on a setting: a switch or a choice moves on, and a typed setting turns into a field.
@@ -741,9 +770,9 @@ export const register: Register = (on, options) => {
     );
   });
 
-  on("command.run", { command: PANE_ID }, ($) => openPane($, "settings"));
+  on("command.run", { command: PANE_ID }, ($, e) => runSettingsCommand($, e.args));
 
-  on("command.run", { command: SETTINGS_COMMAND }, ($) => openPane($, "settings"));
+  on("command.run", { command: SETTINGS_COMMAND }, ($, e) => runSettingsCommand($, e.args));
 
   on("command.run", { command: SYNTAX_COMMAND }, ($) => openPane($, "syntax"));
 

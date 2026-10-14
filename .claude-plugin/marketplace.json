@@ -1,6 +1,6 @@
 {
   "name": "veneer",
-  "description": "Mods for Claude Code: the Claude desktop look in the terminal.",
+  "description": "Mods for Claude Code that upgrade the terminal with richer visuals, syntax highlighting and diagrams.",
   "owner": {
     "name": "Mitchell Medeiros"
   },
@@ -8,7 +8,7 @@
     {
       "name": "veneer",
       "source": "./",
-      "description": "The Claude desktop look in the terminal: a filled user message, code blocks with a language label, tables and headings in your font, and edit badges."
+      "description": "Syntax highlighting for 100+ languages with any VS Code or Open VSX theme, tables, headings and Mermaid diagrams drawn as images, and polished messages, code blocks and tool output."
     }
   ]
 }

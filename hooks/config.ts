@@ -7,9 +7,7 @@ export type Config = {
   backgrounds: Record<Backdrop, boolean>;
   icons: "auto" | "nerd" | "plain";
   links: "auto" | "link" | "text";
-  nativeTables: boolean;
-  nativeHeadings: boolean;
-  nativeVisualizations: boolean;
+  nativeGraphics: boolean;
   diagramHint: boolean;
   styleUserMessage: boolean;
   styleSpinner: boolean;
@@ -59,9 +57,7 @@ export const configOf = (options: PluginOptions): Config => ({
   ) as Record<Backdrop, boolean>,
   icons: options.icons === "nerd" || options.icons === "plain" ? options.icons : "auto",
   links: options.links === "link" || options.links === "text" ? options.links : "auto",
-  nativeTables: options.nativeTables === true || options.nativeTables === "true",
-  nativeHeadings: options.nativeHeadings === true || options.nativeHeadings === "true",
-  nativeVisualizations: options.nativeVisualizations === true || options.nativeVisualizations === "true",
+  nativeGraphics: options.nativeGraphics === true || options.nativeGraphics === "true",
   diagramHint: onUnlessFalse(options.diagramHint),
   styleUserMessage: onUnlessFalse(options.styleUserMessage),
   styleSpinner: onUnlessFalse(options.styleSpinner),

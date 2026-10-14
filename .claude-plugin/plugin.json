@@ -1,10 +1,13 @@
 {
   "name": "veneer",
   "version": "0.1.0",
-  "description": "Turns Claude Code in the terminal into a desktop quality app with syntax highlighting on the side.",
+  "description": "Claude Code in the terminal with enhanced visuals, syntax highlighting, tool use, attached images, and more.",
   "author": {
     "name": "Mitchell Medeiros"
   },
+  "displayName": "Veneer",
+  "homepage": "https://github.com/MitchMedeiros/veneer",
+  "repository": "https://github.com/MitchMedeiros/veneer",
   "license": "MIT",
   "types": "./types/index.d.ts",
   "keywords": ["claude-code-mods", "claude-mods", "function-hooks", "terminal", "theme"],
@@ -36,22 +39,10 @@
       "default": "auto",
       "options": ["auto", "link", "text"]
     },
-    "nativeTables": {
+    "nativeGraphics": {
       "type": "boolean",
-      "title": "Text-based tables",
-      "description": "Draw tables as a text card instead of a picture. Tables always use the card where pictures are unavailable.",
-      "default": false
-    },
-    "nativeHeadings": {
-      "type": "boolean",
-      "title": "Text-based headings",
-      "description": "Draw headings as styled text instead of a picture. Headings always use text where pictures are unavailable.",
-      "default": false
-    },
-    "nativeVisualizations": {
-      "type": "boolean",
-      "title": "Text-based visualizations",
-      "description": "Draw Mermaid diagrams and charts in characters instead of a picture. Visualizations always use text where pictures are unavailable.",
+      "title": "Text-based graphics",
+      "description": "Draw tables, headings, and Mermaid diagrams and charts as text instead of pictures. They always use text where pictures are unavailable.",
       "default": false
     },
     "diagramHint": {

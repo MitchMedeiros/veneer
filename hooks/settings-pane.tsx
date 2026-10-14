@@ -12,10 +12,7 @@ export const SETTING_KEY = "setting:";
 
 const GROUPS = [
   { title: "Styling", fields: ["messageAlign", "fontFamily", "cellRatio"] },
-  {
-    title: "Rendering",
-    fields: ["icons", "links", "nativeTables", "nativeHeadings", "nativeVisualizations", "diagramHint"],
-  },
+  { title: "Rendering", fields: ["icons", "links", "nativeGraphics", "diagramHint"] },
   { title: "Mod Compatibility", fields: ["styleUserMessage", "styleSpinner"] },
   {
     title: "Syntax theme backgrounds",
@@ -65,6 +62,66 @@ export function valueText({ kind, value }: Setting): string {
 }
 
 export const isTyped = ({ kind }: Setting): boolean => kind === "text" || kind === "number";
+
+export type SettingChange = { setting: Setting; value: ConfigValue } | { error: string };
+
+const SWITCH_WORDS: Readonly<Record<string, boolean>> = {
+  on: true,
+  true: true,
+  yes: true,
+  off: false,
+  false: false,
+  no: false,
+};
+
+const squash = (text: string): string => text.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+function valueOf(setting: Setting, text: string): ConfigValue | undefined {
+  if (setting.kind === "boolean") {
+    return SWITCH_WORDS[text.toLowerCase()];
+  }
+
+  if (setting.kind === "choice") {
+    return setting.options?.find((option) => option.toLowerCase() === text.toLowerCase());
+  }
+
+  if (setting.kind === "number") {
+    return text === "" || Number.isNaN(Number(text)) ? undefined : Number(text);
+  }
+
+  return text;
+}
+
+const expectedValue = ({ kind, options }: Setting): string =>
+  kind === "boolean"
+    ? "on or off"
+    : kind === "choice"
+      ? (options ?? []).join(", ")
+      : kind === "number"
+        ? "a number"
+        : "text";
+
+// The change a typed `/veneer <setting> <value>` asks for. The setting is named by its title in the pane or by its option
+// key, in any case and with or without separators (`cell-proportion`, `cellRatio`).
+export function parseSettingChange(settings: readonly Setting[], args: string): SettingChange {
+  const words = args.trim().split(/\s+/);
+
+  for (let count = words.length; count >= 1; count--) {
+    const name = squash(words.slice(0, count).join(""));
+    const setting = settings.find(({ key, label }) => squash(label) === name || squash(fieldOf(key)) === name);
+
+    if (setting === undefined) {
+      continue;
+    }
+
+    const text = words.slice(count).join(" ");
+    const value = valueOf(setting, text);
+
+    return value === undefined ? { error: `${setting.label} takes ${expectedValue(setting)}.` } : { setting, value };
+  }
+
+  return { error: `No Veneer setting is named "${args.trim()}". Run /veneer to see them.` };
+}
 
 export type SettingsPaneView = {
   groups: readonly SettingGroup[];

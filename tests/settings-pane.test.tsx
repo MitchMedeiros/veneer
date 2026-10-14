@@ -1,7 +1,7 @@
 import type { On } from "claude-code";
 import { expect, mock, test } from "claude-code/testing";
 
-import { fieldOf, groupSettings, nextValue, settingsKeys, valueText } from "../hooks/settings-pane";
+import { fieldOf, groupSettings, nextValue, parseSettingChange, settingsKeys, valueText } from "../hooks/settings-pane";
 import type { Setting } from "../hooks/settings-pane";
 import { NATIVE } from "./helpers";
 
@@ -95,6 +95,39 @@ test("the /veneer command opens the pane", async ($, on) => {
   });
 
   expect(result.text).toBeUndefined();
+});
+
+test("a typed setting is found by its title or its key and its value read by the kind", () => {
+  const rows = [
+    row("nativeGraphics", { label: "Text-based graphics" }),
+    row("icons", { label: "Icons", kind: "choice", value: "auto", options: ["auto", "nerd", "plain"] }),
+    row("cellRatio", { label: "Cell proportion", kind: "number", value: 2.9 }),
+  ];
+
+  expect(parseSettingChange(rows, "text-based graphics off")).toEqual({ setting: rows[0], value: false });
+  expect(parseSettingChange(rows, "nativeGraphics ON")).toEqual({ setting: rows[0], value: true });
+  expect(parseSettingChange(rows, "icons Nerd")).toEqual({ setting: rows[1], value: "nerd" });
+  expect(parseSettingChange(rows, "cell-proportion 1.9")).toEqual({ setting: rows[2], value: 1.9 });
+  expect(parseSettingChange(rows, "icons fancy")).toEqual({ error: "Icons takes auto, nerd, plain." });
+  expect(parseSettingChange(rows, "cellRatio wide")).toEqual({ error: "Cell proportion takes a number." });
+  expect(parseSettingChange(rows, "nativeGraphics")).toEqual({ error: "Text-based graphics takes on or off." });
+  expect(parseSettingChange(rows, "colour red")).toEqual({
+    error: 'No Veneer setting is named "colour red". Run /veneer to see them.',
+  });
+});
+
+test("/veneer with a setting and a value writes it without opening the pane", async ($, on) => {
+  world(on);
+
+  const result = await $.command.run({
+    command: "veneer",
+    args: "icons nerd",
+    origin: { kind: "composer" },
+    presentation: { isFullscreen: true, columns: 100 },
+  });
+
+  expect(written).toEqual([{ key: "veneer.icons", value: "nerd" }]);
+  expect(result.text).toBe("icons set to nerd.");
 });
 
 test("pressing a switch writes the opposite value", async ($, on) => {

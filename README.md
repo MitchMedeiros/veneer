@@ -1,13 +1,27 @@
 # Veneer
 
-Veneer is a Claude Code mod that enhances the overall look and feel for the terminal. It uses the built-in Claude Code
-themeing system for nearly everything. It adds customizable syntax highlighting for over 100 languages through any theme
-on [Open VSX](https://www.open-vsx.org/search?q=themes&category=Themes&sortBy=downloadCount) or using VSCode themeing
-format.
+Veneer is a Claude Code mod that enhances the overall look and feel of the terminal. It uses the built-in Claude Code
+theming system for nearly everything. It adds customizable syntax highlighting for over 100 languages, using any theme
+on [Open VSX](https://www.open-vsx.org/search?q=themes&category=Themes&sortBy=downloadCount) or any theme in VS Code
+theme format.
+
+## Table of Contents
+
+- [Installing](#installing)
+- [Terminal Setup](#terminal-setup)
+  - [Image Support](#image-support)
+  - [Nerd Font Icons](#nerd-font-icons)
+  - [Rio](#rio)
+  - [tmux](#tmux)
+- [Syntax Highlighting](#syntax-highlighting)
+- [General Settings](#general-settings)
+  - [Diagrams and charts](#diagrams-and-charts)
+- [Supported Languages and File Types](#supported-languages-and-file-types)
+- [Contributing](#contributing)
 
 ## Installing
 
-Mods require Claude Code 2.1.287+. Use the following slash commands inside Claude Code:
+Use the following slash commands inside Claude Code (requires Claude Code>=2.1.287):
 
 ```
 /plugin marketplace add mitchmedeiros/veneer
@@ -17,94 +31,85 @@ Mods require Claude Code 2.1.287+. Use the following slash commands inside Claud
 /plugin install veneer@veneer
 ```
 
-For image versions of components like graphs and tables you will need:
+Or do both in one command from your shell (requires Claude Code>=2.1.292):
 
-- kitty, Ghostty, or a [libghostty-based terminal](https://github.com/Uzaaft/awesome-libghostty#terminal-apps--clients)
-- [resvg](https://github.com/linebender/resvg)
+```
+claude plugin install veneer --marketplace mitchmedeiros/veneer
+```
 
-Other terminals that can display images (including those with only partial kitty support like Wezterm) will not work
-currently due to Claude Code not supporting them. If this changes in the future, I will update the defaults or you can
-overwrite them with the setting: `/veneer text-based graphics off` and set `CLAUDE_CODE_FORCE_TERMINAL_IMAGES=1` when
-launching Claude Code.
+## Terminal Setup
 
-#### Install resvg
+Veneer works in any terminal. The sections below cover optional setup for specific terminals and features.
 
-MacOS: `brew install resvg`
+### Image Support
 
-Windows:
+To see diagrams and tables as images, and image previews in messages, you need:
 
-Arch:
+- kitty, Ghostty, a [libghostty-based terminal](https://github.com/Uzaaft/awesome-libghostty#terminal-apps--clients), or
+  Rio
+- [resvg](https://github.com/linebender/resvg) installed
 
-Debian:
+This is a limitation of how Claude Code displays images.
 
-## Customization
+### Nerd Font Icons
 
-It ships with the 50 most popular themes for you to pick from straight-away.
+If you want Nerd Font icons rather than Unicode, either use a terminal that ships with them built in or
+[install them](https://github.com/ryanoasis/nerd-fonts#font-installation). If you still see Unicode symbols in Claude
+Code, enable the icons with `/veneer icons nerd`.
 
-### Icons
+### Rio
 
-Terminals that ship with Nerdfonts built-in have it enabled for Veneer by default (see the list below). If you have
-[NerdFonts installed](https://github.com/ryanoasis/nerd-fonts#font-installation) or built-in to your terminal and it's
-not detected you can enable it with the following command inside Claude Code: `/veneer icons nerd`. Otherwise Veneer
-uses similar Unicode icons.
+Launch Claude Code with `CLAUDE_CODE_FORCE_TERMINAL_IMAGES=1` to display images in Rio. In my testing, pictures look
+small with the default `cellRatio`, and a value of `1.9` fits better. Run `/veneer cell-proportion 1.9` or change it in
+the settings pane.
 
 ### tmux
 
-Veneer turns pictures off inside tmux, because tmux does not pass the kitty graphics protocol through by default. Icons
-are not affected. tmux replaces `TERM_PROGRAM` and `TERM`, so Veneer recognizes Ghostty, kitty and WezTerm by the
-variables they set that tmux keeps (`GHOSTTY_RESOURCES_DIR`, `KITTY_WINDOW_ID` and `WEZTERM_EXECUTABLE`) and still draws
-Nerd Font icons there. Other terminals get Unicode symbols.
+For images in tmux, run `tmux set -g allow-passthrough on` (tmux>=3.3a). Then start Claude Code with
+`CLAUDE_CODE_FORCE_TERMINAL_IMAGES=1` and run `/veneer text-based graphics off`.
 
-To try pictures in tmux, run `tmux set -g allow-passthrough on` (tmux 3.3a or later) and start Claude Code with
-`CLAUDE_CODE_FORCE_TERMINAL_IMAGES=1`. This only works in a terminal that supports the protocol, and it is untested.
+## Syntax Highlighting
 
-### Fonts
+Run `/syntax` to pick a theme. It lists every theme file in `~/.claude/veneer/themes/`.
 
-- **Icons:** Ghostty, kitty, WezTerm and Rio carry their own symbol font, so Nerd Font icons draw with nothing
-  installed. Warp, Konsole and other terminals use the fonts installed on your machine, so `auto` draws plain Unicode
-  symbols instead. If you have a Nerd Font installed and set as the terminal font, set `icons` to `nerd` to use the Nerd
-  Font icons there. Set it to `plain` to use Unicode symbols everywhere.
-- **Pictures:** tables and headings are drawn in `fontFamily`. If it is blank or not installed on the machine running
-  Claude Code, the first installed font from Arial, Helvetica Neue, Helvetica, Segoe UI, Liberation Sans, DejaVu Sans,
-  Noto Sans and Roboto is used.
-- **Links:** file paths on tool rows are links that open the file, usually with Cmd+click (Shift+click in WezTerm). In a
-  terminal Claude Code does not know to open links, it prints the address beside the name. Rio and Terminal.app show the
-  full path as plain text instead. Rio finds the path and opens it with Cmd+click. Terminal.app opens neither. Set
-  `links` to `link` or `text` to override this for your terminal.
+To add a new theme, either choose `Browse popular themes` to download one of the 50 most popular, or choose
+`New custom theme` and provide:
 
-## Configure
+- the page URL or `publisher.name` for a theme on [Open VSX](https://open-vsx.org)
+- a path to a local theme file
 
-Colors for everything aside from code come directly from your Claude Code theme. Edit a theme normally in
-`~/.claude/themes/`.
+If a theme on Open VSX has multiple variants (e.g. light, dark), you will be asked to choose one.
 
-Run `/veneer` to change every option below in one pane. Enter flips a switch, moves a choice to its next option, or
-opens a field for a typed value. Changes apply at once. The pane has a General tab and a Syntax tab. `/veneer` and
-`/veneer-settings` open it on General, and `/syntax` opens it on Syntax.
+## General Settings
 
-| Option                 | Default | Use                                                                        |
-| ---------------------- | ------- | -------------------------------------------------------------------------- |
-| `messageAlign`         | `left`  | `left` or `right`                                                          |
-| `styleUserMessage`     | `true`  | Draw your messages as a bubble. Turn off to leave them to another mod.     |
-| `icons`                | `auto`  | `auto`, `nerd` or `plain`. Nerd Font icons or Unicode symbols.             |
-| `links`                | `auto`  | `auto`, `link` or `text`. How a file path on a tool row is drawn.          |
-| `nativeTables`         | `false` | Draw tables as a text card, not a picture.                                 |
-| `nativeHeadings`       | `false` | Draw headings as styled text, not a picture.                               |
-| `nativeVisualizations` | `false` | Draw Mermaid diagrams and charts in characters, not a picture.             |
-| `diagramHint`          | `true`  | Tell the model Mermaid is drawn here. Costs about 120 tokens.              |
-| `styleSpinner`         | `true`  | Indent the spinner line. Turn off to leave it to another mod.              |
-| `fontFamily`           | blank   | Font for tables and headings. Blank or missing fonts fall back to a list.  |
-| `cellRatio`            | `2.9`   | Height of a terminal cell over its width. Change it if pictures letterbox. |
-| `fenceBackground`      | `true`  | Fill code blocks with the syntax theme's background, when it sets one.     |
-| `readBackground`       | `true`  | The same for the card of a file read.                                      |
-| `outputBackground`     | `true`  | The same for highlighted Bash and Grep output.                             |
-| `diffBackground`       | `true`  | The same for diff cards. Added and removed lines keep their own fill.      |
+Run `/veneer` to change every option below in one pane. It has a General tab and a Syntax tab.
 
-Set options through `/config` or under `pluginConfigs` in `settings.json`.
+To change a setting without opening the pane, run `/veneer <setting> <value>`, such as `/veneer icons nerd`. The setting
+can be either its display name or its option name, in any case: `/veneer cell-proportion 1.9` and
+`/veneer cellRatio 1.9` do the same thing. Switches take `on` or `off`.
 
-### Mermaid diagrams and charts
+| Display Name              | Setting            | Default | Use                                                      |
+| ------------------------- | ------------------ | ------- | -------------------------------------------------------- |
+| Message alignment         | `messageAlign`     | `left`  | `left` or `right`                                        |
+| Message styling           | `styleUserMessage` | `true`  | Draw your messages as a bubble. Off leaves it to a mod.  |
+| Icons                     | `icons`            | `auto`  | `auto`, `nerd` or `plain`. Nerd Font or Unicode icons.   |
+| File links                | `links`            | `auto`  | `auto`, `link` or `text`. How file paths are drawn.      |
+| Text-based graphics       | `nativeGraphics`   | `false` | Draw tables, headings and Mermaid diagrams as text.      |
+| Diagram hint              | `diagramHint`      | `true`  | Off stops Claude from responding with diagrams.          |
+| Spinner styling           | `styleSpinner`     | `true`  | Turn off to leave spinner styling to another mod.        |
+| Table font                | `fontFamily`       | blank   | Font for tables and headings. Blank uses defaults.       |
+| Cell proportion           | `cellRatio`        | `2.9`   | Terminal cell height over width. Fixes letterboxing.     |
+| Code blocks               | `fenceBackground`  | `true`  | Fill code blocks with the syntax theme's background.     |
+| File reads                | `readBackground`   | `true`  | The same for the card of a file read.                    |
+| Command and search output | `outputBackground` | `true`  | The same for highlighted Bash and Grep output.           |
+| Diffs                     | `diffBackground`   | `true`  | The same for diffs. Added and removed lines keep theirs. |
 
-A `mermaid` fence is drawn as a picture where pictures work, and in characters everywhere else and with
-`nativeVisualizations` on. A diagram that Veneer cannot read stays a code block.
+Settings are stored under `pluginConfigs` in the global `~/.claude/settings.json`.
+
+### Diagrams and charts
+
+Veneer instructs Claude to draw `mermaid` fences when they add value. Veneer then parses these and displays them as
+images or text blocks. The supported types are:
 
 | Kind           | Opens with                                                                |
 | -------------- | ------------------------------------------------------------------------- |
@@ -130,27 +135,16 @@ A `mermaid` fence is drawn as a picture where pictures work, and in characters e
 | Architecture   | `architecture-beta`, with groups, services, junctions and ports           |
 | C4             | `C4Context`, `C4Container`, `C4Component`, `C4Dynamic` and `C4Deployment` |
 
-Each of the kinds from Pie down is laid out once in terminal cells and drawn twice, as a picture and as text. Both read
-the same Mermaid source and take their colors from your Claude Code theme. The text drawing fills shapes in eighths of a
-cell, joins lines into box characters and draws slanting lines as braille dots. Frontmatter titles name a diagram that
-has none of its own. A chart wider than the terminal or too long to read is left as a code block.
+## Supported Languages and File Types
 
-The first five kinds are laid out by [beautiful-mermaid](https://github.com/lukilabs/beautiful-mermaid) (MIT) as text,
-bundled into `hooks/vendor/mermaid-ascii.js`. Rebuild it with `npm run build:mermaid`. Their pictures are drawn by
-Veneer, and a diagram the picture drawing does not read (subgraphs, composite states and the like) falls back to the
-text.
-
-### Syntax highlighting
-
-Code in fences, edits and file reads is highlighted. A language is picked by the fence name, an alias, or the file
-extension or name. Any other language draws plain. Veneer highlights these 106 languages and file types:
+Syntax highlighting is supported for 106 languages and file types:
 
 - Web: TypeScript, TSX, JavaScript, JSX, JSON, JSONC, JSON5, JSON Lines, HTML, CSS, SCSS, Sass, Less, Stylus, Vue, Pug,
   Handlebars, Jinja, Twig, Razor, GraphQL
-- Scripting and shells: Python, Shell, Shell Session, Fish, PowerShell, Batch, AWK, Ruby, PHP, Perl, Lua, R, Julia,
-  MATLAB, Tcl, Vim script
-- Systems and general purpose: C, C++, Objective-C, Objective-C++, C#, F#, Visual Basic, Java, Kotlin, Scala, Groovy,
-  Swift, Dart, Go, Rust, Zig, D, Nim, Crystal, Pascal, Fortran, COBOL, Solidity, GDScript
+- Scripting and shells: Shell, Shell Session, Fish, PowerShell, Batch, AWK, Ruby, PHP, Perl, Lua, R, Julia, MATLAB, Tcl,
+  Vim script
+- Systems and general purpose: Python, C, C++, Objective-C, Objective-C++, C#, F#, Visual Basic, Java, Kotlin, Scala,
+  Groovy, Swift, Dart, Go, Rust, Zig, D, Nim, Crystal, Pascal, Fortran, COBOL, Solidity, GDScript
 - Functional and Lisp: Haskell, OCaml, Elm, PureScript, Elixir, Erlang, Clojure, Racket, Scheme, Common Lisp, Emacs Lisp
 - Data and config: YAML, TOML, INI, dotenv, XML, Protocol Buffers, Prisma, Terraform, HCL, Nix, Bicep, Dockerfile,
   Makefile, CMake, Nginx, Apache, systemd, SSH config, HTTP, Git commit messages
@@ -158,38 +152,16 @@ extension or name. Any other language draws plain. Veneer highlights these 106 l
 - Shaders and hardware: GLSL, HLSL, WGSL, Verilog, SystemVerilog, VHDL
 - SQL
 
-### Syntax themes
+## Contributing
 
-Run `/syntax` to pick the colors for code. The list holds `Default` and every VS Code color theme file in
-`veneer/themes/` inside your Claude folder (`~/.claude`, or `CLAUDE_CONFIG_DIR` when set). Choose `New custom theme...`
-to add one: give the path of a theme file and a name, and Veneer copies it into that folder and selects it. A name that
-is taken gets a number added. Moving through the list previews each theme on the code in the chat. Enter chooses one and
-closes the list; Escape closes it and keeps the theme you had. The choice is kept between sessions.
-
-`New custom theme...` also takes a VS Code extension on [Open VSX](https://open-vsx.org), as `publisher.name` or the
-address of its page, and fetches its theme without installing it. An extension with several themes asks which one.
-`Browse popular themes...` lists 50 popular theme extensions, ten to a page, most downloaded first as of October 2026.
-Fetching a theme is the only time Veneer uses the network.
-
-## Develop
-
-Needs Node 24 or later (`nvm use` reads `.nvmrc`) and the Claude Code CLI. Install the tooling once with `npm install`,
-which also sets up the pre-commit hook.
+Requires Node 24 or later and the Claude Code CLI. Install the tooling once with `npm install`, which also sets up the
+pre-commit hook.
 
 | Command                  | Does                                                                                    |
 | ------------------------ | --------------------------------------------------------------------------------------- |
-| `npm run format`         | Format every file with Prettier                                                         |
-| `npm run format:check`   | Check formatting without changing files                                                 |
-| `npm run lint`           | Lint with ESLint (`npm run lint:fix` fixes what it can)                                 |
 | `npm run typecheck`      | Type-check with `tsc`                                                                   |
 | `npm run validate`       | Run `claude plugin validate` on the repo                                                |
 | `npm test`               | Run `claude plugin test` on the repo                                                    |
 | `npm run build:grammars` | Rebuild `grammars/` from `tools/languages.json`                                         |
 | `npm run conformance`    | Compare the tokenizer with Shiki on `tools/samples/`                                    |
 | `npm run check:themes`   | Fetch the popular themes from Open VSX (network, not in CI; `-- --all` for every theme) |
-| `npm run benchmark`      | Time the tokenizer per language in Node (not in CI)                                     |
-| `npm run benchmark:host` | Time the highlighter in the plugin test host (not in CI)                                |
-| `npm run check`          | Run the checks above, as CI does                                                        |
-
-`validate` and `test` run from outside the repo, because Claude Code needs that. The pre-commit hook formats and lints
-the staged files and type-checks the project. CI runs `npm run check` on every push to `main` and every pull request.
