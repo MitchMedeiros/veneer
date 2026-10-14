@@ -14,7 +14,7 @@ export type DiffLine = {
   newNumber: number | null;
 };
 
-export type Diff = { lines: DiffLine[]; breaks: ReadonlySet<number> };
+export type Diff = { lines: DiffLine[]; breaks: ReadonlySet<number>; created?: boolean };
 
 type Hunk = { oldStart?: number; newStart?: number; lines?: unknown };
 
@@ -72,7 +72,9 @@ export function parseDiff(output: unknown): Diff | null {
     }
   }
 
-  return lines.some((line) => line.kind !== "context") ? { lines, breaks } : null;
+  const created = (output as { type?: unknown } | null | undefined)?.type === "create";
+
+  return lines.some((line) => line.kind !== "context") ? { lines, breaks, created } : null;
 }
 
 // The edit as a rounded card of numbered lines. A changed line's code is filled with the theme's diff token, so it matches
@@ -94,9 +96,11 @@ export function diffCard(
   const shown = expanded ? diff.lines : diff.lines.slice(0, MAX_LINES);
   const numberOf = (line: DiffLine) => line.newNumber ?? line.oldNumber;
   const digits = Math.max(1, ...shown.map((line) => String(numberOf(line) ?? "").length));
-  const tone = (kind: DiffLine["kind"]) => (kind === "add" ? "success" : kind === "remove" ? "error" : undefined);
+  const plainLines = diff.created === true;
+  const tone = (kind: DiffLine["kind"]) =>
+    plainLines ? undefined : kind === "add" ? "success" : kind === "remove" ? "error" : undefined;
   const fillOf = (kind: DiffLine["kind"]) =>
-    isAnsi ? undefined : kind === "add" ? "diffAdded" : kind === "remove" ? "diffRemoved" : undefined;
+    isAnsi || plainLines ? undefined : kind === "add" ? "diffAdded" : kind === "remove" ? "diffRemoved" : undefined;
   const numberTone = (kind: DiffLine["kind"]) => (isAnsi ? tone(kind) : fillOf(kind));
 
   return (
@@ -114,7 +118,7 @@ export function diffCard(
           <Box flexDirection="row">
             <Text
               color={numberTone(line.kind)}
-              dimColor={line.kind === "context"}
+              dimColor={line.kind === "context" || plainLines}
             >{` ${String(numberOf(line) ?? "").padStart(digits)} `}</Text>
             <Box flexGrow={1} flexShrink={1} paddingLeft={1} backgroundColor={fillOf(line.kind)}>
               <Text color={isAnsi ? tone(line.kind) : undefined} wrap="wrap">

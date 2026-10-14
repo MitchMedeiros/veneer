@@ -209,6 +209,7 @@ export function syntaxPane(
             <Button
               key={`${CHOICE_KEY}${page * PAGE_SIZE + i}`}
               plain
+              autoFocus={i === 0 ? true : undefined}
               onPress={() => actions.choose(page * PAGE_SIZE + i)}
             >
               {`${String(page * PAGE_SIZE + i + 1).padStart(String(choices.length).length)}. ${label}`}

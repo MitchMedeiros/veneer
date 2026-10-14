@@ -157,6 +157,11 @@ Syntax highlighting is supported for 106 languages and file types:
 Requires Node 24 or later and the Claude Code CLI. Install the tooling once with `npm install`, which also sets up the
 pre-commit hook.
 
+To test local changes, start Claude Code with `claude --plugin-dir /path/to/veneer`. For that session it loads your
+checkout instead of an installed copy of Veneer.
+
+Other useful commands:
+
 | Command                  | Does                                                                                    |
 | ------------------------ | --------------------------------------------------------------------------------------- |
 | `npm run typecheck`      | Type-check with `tsc`                                                                   |

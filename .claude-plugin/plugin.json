@@ -1,6 +1,6 @@
 {
   "name": "veneer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Claude Code in the terminal with enhanced visuals, syntax highlighting, tool use, attached images, and more.",
   "author": {
     "name": "Mitchell Medeiros"

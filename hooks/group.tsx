@@ -65,7 +65,8 @@ export function toolGroup(
   const groupId = `group:${id}`;
   const groupOpen = open.has(groupId);
   const single = calls.length === 1;
-  const lit = (scope: string) => ({ scope, color: "text", dimColor: false }) as const;
+  const lit = (scope: string) =>
+    ({ scope, color: "text", dimColor: false, backgroundColor: "userMessageBackground", inverse: false }) as const;
   const summaryLit = lit(groupId);
 
   const summary = (
