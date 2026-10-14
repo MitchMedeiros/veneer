@@ -3,7 +3,7 @@ import prettier from "eslint-config-prettier";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["node_modules", "tools/samples", ".claude/types", ".claude-plugin/types"] },
+  { ignores: ["node_modules", "tools/samples", "hooks/vendor", ".claude/types", ".claude-plugin/types"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   prettier,

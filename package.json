@@ -10,6 +10,7 @@
     "benchmark": "node tools/benchmark.mjs",
     "benchmark:host": "node tools/host-bench.mjs",
     "build:grammars": "node tools/build-grammars.mjs",
+    "build:mermaid": "node tools/build-mermaid.mjs",
     "check:themes": "node tools/check-themes.mjs",
     "conformance": "node tools/conformance.mjs",
     "format": "prettier --write .",
@@ -29,6 +30,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "beautiful-mermaid": "^1.1.3",
+    "esbuild": "^0.28.2",
     "eslint": "^10.12.0",
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",

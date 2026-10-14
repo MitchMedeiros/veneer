@@ -3,4 +3,5 @@ node_modules
 .claude-plugin/types
 package-lock.json
 grammars
+hooks/vendor
 tools/samples

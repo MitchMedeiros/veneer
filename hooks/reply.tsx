@@ -5,6 +5,8 @@ import { copyRow } from "./copy-button";
 import type { CopyAction } from "./copy-button";
 import { headingCard } from "./heading-card";
 import type { Segment } from "./markdown";
+import { mermaidCard } from "./mermaid-card";
+import { mermaidText } from "./mermaid-text";
 import type { Picture } from "./picture";
 import type { StyledRun } from "./syntax/types";
 import { tableCard } from "./table-card";
@@ -54,11 +56,41 @@ export function replyTree(
     );
   };
 
+  const pictureOf = (
+    Img: NonNullable<Ui["Image"]>,
+    i: number,
+    drawn: { picture: Picture; alt: string },
+    isSpaced: boolean,
+  ) => (
+    <Box key={`picture-${i}`} marginTop={isSpaced ? 1 : 0} alignSelf="flex-start" flexShrink={0}>
+      <Img
+        key={`image-${i}`}
+        source={{ png: drawn.picture.png }}
+        columns={drawn.picture.columns}
+        rows={drawn.picture.rows}
+        alt={drawn.alt}
+      />
+    </Box>
+  );
+
   const rows = segments.map((segment, i) => {
     const drawn = pictures.get(segment);
 
     if (segment.kind === "text") {
       return <Markdown key={`text-${i}`} text={segment.text} />;
+    }
+
+    if (segment.kind === "code" && segment.lang === "mermaid") {
+      const diagram = drawn === undefined ? mermaidText(segment.code) : null;
+      const copy = copyFor(i, segment.code, "Diagram");
+
+      if (drawn !== undefined && Image !== undefined) {
+        return framed(i, copy, pictureOf(Image, i, drawn, false), "flex-start");
+      }
+
+      if (diagram !== null) {
+        return framed(i, copy, mermaidCard({ Box, Text }, diagram), "flex-start");
+      }
     }
 
     if (segment.kind === "code") {
@@ -81,22 +113,7 @@ export function replyTree(
       );
     }
 
-    const picture = (
-      <Box
-        key={`picture-${i}`}
-        marginTop={segment.kind === "heading" && i > 0 ? 1 : 0}
-        alignSelf="flex-start"
-        flexShrink={0}
-      >
-        <Image
-          key={`image-${i}`}
-          source={{ png: drawn.picture.png }}
-          columns={drawn.picture.columns}
-          rows={drawn.picture.rows}
-          alt={drawn.alt}
-        />
-      </Box>
-    );
+    const picture = pictureOf(Image, i, drawn, segment.kind === "heading" && i > 0);
 
     return segment.kind === "table" ? framed(i, copyFor(i, segment.raw, "Table"), picture, "flex-start") : picture;
   });

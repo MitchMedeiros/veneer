@@ -9,6 +9,7 @@ export type Config = {
   links: "auto" | "link" | "text";
   nativeTables: boolean;
   nativeHeadings: boolean;
+  nativeDiagrams: boolean;
   styleUserMessage: boolean;
   styleSpinner: boolean;
 };
@@ -50,6 +51,7 @@ export const configOf = (options: PluginOptions): Config => ({
   links: options.links === "link" || options.links === "text" ? options.links : "auto",
   nativeTables: options.nativeTables === true || options.nativeTables === "true",
   nativeHeadings: options.nativeHeadings === true || options.nativeHeadings === "true",
+  nativeDiagrams: options.nativeDiagrams === true || options.nativeDiagrams === "true",
   styleUserMessage: onUnlessFalse(options.styleUserMessage),
   styleSpinner: onUnlessFalse(options.styleSpinner),
 });

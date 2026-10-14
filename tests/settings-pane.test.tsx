@@ -208,7 +208,7 @@ test("the wheel, the page keys and a scroll another plugin asks for scroll the p
 const run = (command: string) =>
   ({ command, args: "", origin: { kind: "composer" }, presentation: { isFullscreen: true, columns: 100 } }) as never;
 
-test("/veneer and /veneer-settings open the Settings tab and /syntax the Syntax theme tab", async ($, on) => {
+test("/veneer and /veneer-settings open the General tab and /syntax the Syntax tab", async ($, on) => {
   world(on);
 
   const ui = await $.ui.mount(pane);
@@ -256,4 +256,74 @@ test("the arrow keys walk the tab buttons before the rows of the tab", async ($,
   await $.ui.scroll(scroll(1));
 
   expect(scrolled).toBe(0);
+});
+
+test("a value typed into a text setting is written trimmed", async ($, on) => {
+  world(on);
+  await $.ui.mount(pane);
+  await $.ui.press({ plugin: "veneer", key: "setting:veneer.cellRatio" });
+  await $.ui.input({ plugin: "veneer", key: "setting:veneer.cellRatio", text: " 3.2 " });
+
+  expect(written).toEqual([{ key: "veneer.cellRatio", value: "3.2" }]);
+});
+
+test("a value typed into a number setting is written as a number, and text that is not one is refused", async ($, on) => {
+  world(on, [row("cellRatio", { kind: "number", value: 2.9 })]);
+
+  const ui = await $.ui.mount(pane);
+
+  await $.ui.press({ plugin: "veneer", key: "setting:veneer.cellRatio" });
+  await $.ui.input({ plugin: "veneer", key: "setting:veneer.cellRatio", text: "tall" });
+
+  expect(written).toEqual([]);
+  expect(await ui.find({ type: "Text", text: "cellRatio takes a number." })).toBeDefined();
+
+  await $.ui.press({ plugin: "veneer", key: "setting:veneer.cellRatio" });
+  await $.ui.input({ plugin: "veneer", key: "setting:veneer.cellRatio", text: "4" });
+
+  expect(written).toEqual([{ key: "veneer.cellRatio", value: 4 }]);
+});
+
+test("a change the engine refuses shows its reason", async ($, on) => {
+  world(on, ROWS, "set by policy");
+
+  const ui = await $.ui.mount(pane);
+
+  await $.ui.press({ plugin: "veneer", key: "setting:veneer.styleSpinner" });
+
+  expect(await ui.find({ type: "Text", text: "styleSpinner was not changed: set by policy" })).toBeDefined();
+});
+
+const spinner = (id: string) =>
+  ({
+    plugin: "veneer",
+    viewport: { columns: 100, rows: 30 },
+    surface: "terminal",
+    component: "Spinner",
+    requestId: id,
+    props: { word: "Wrangling", message: null, suffix: "…", mode: "responding" },
+  }) as never;
+
+test("a setting changed in the pane takes effect on the next draw", async ($, on) => {
+  world(on);
+
+  expect(await (await $.ui.mount(spinner("s1"))).drawn()).toMatchObject({ type: "Box" });
+
+  await $.ui.mount(pane);
+  await $.ui.press({ plugin: "veneer", key: "setting:veneer.styleSpinner" });
+
+  expect(await (await $.ui.mount(spinner("s2"))).drawn()).toEqual(NATIVE);
+});
+
+test("a setting changed in /config takes effect on the next draw", async ($, on) => {
+  world(on);
+  await $.config.set({
+    key: "veneer.styleSpinner",
+    value: false,
+    previous: true,
+    provider: { kind: "composer" },
+    origin: { kind: "composer" },
+  } as never);
+
+  expect(await (await $.ui.mount(spinner("s3"))).drawn()).toEqual(NATIVE);
 });

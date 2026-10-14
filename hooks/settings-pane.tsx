@@ -12,7 +12,7 @@ export const SETTING_KEY = "setting:";
 
 const GROUPS = [
   { title: "Styling", fields: ["messageAlign", "fontFamily", "cellRatio"] },
-  { title: "Rendering", fields: ["icons", "links", "nativeTables", "nativeHeadings"] },
+  { title: "Rendering", fields: ["icons", "links", "nativeTables", "nativeHeadings", "nativeDiagrams"] },
   { title: "Mod Compatibility", fields: ["styleUserMessage", "styleSpinner"] },
   {
     title: "Syntax theme backgrounds",

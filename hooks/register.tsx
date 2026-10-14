@@ -14,7 +14,8 @@ import type { Segment } from "./markdown";
 import { outputCard, parseOutput } from "./output";
 import { baseOf } from "./palette";
 import { cellHeightOf, MAX_COLUMNS, rasterize } from "./picture";
-import type { Picture, PictureIo } from "./picture";
+import type { Font, Picture, PictureIo, Sketch } from "./picture";
+import { diagramSketch } from "./mermaid-diagram";
 import { BULLET, GUTTER, MARGIN, replyTree } from "./reply";
 import { commandOfCall, rememberInput } from "./calls";
 import { filePathOf, outputFill, paintCommand, paintDiff, paintFences, paintLines, paintOutput } from "./paint";
@@ -339,6 +340,24 @@ async function importTheme($: EngineInterface, requested: string): Promise<void>
   $.ui.toast(`Added ${name} from ${baseNameOf(path)}.`);
 }
 
+// The picture a block of a reply is drawn as, or null where it stays text: plain text, code, and what the settings leave
+// to native drawing.
+function sketchOf(segment: Segment, config: Config, available: number, palette: Palette, font: Font): Sketch | null {
+  switch (segment.kind) {
+    case "table":
+      return config.nativeTables ? null : tableSketch(segment, available, palette, font);
+    case "heading":
+      return config.nativeHeadings ? null : headingSketch(segment, available, palette, font);
+    case "code": {
+      return segment.lang === "mermaid" && !config.nativeDiagrams
+        ? diagramSketch(segment.code, available, palette, font)
+        : null;
+    }
+    default:
+      return null;
+  }
+}
+
 async function pictureDir($: EngineInterface): Promise<string> {
   return `${((await $.env.get("TMPDIR")) ?? "/tmp").replace(/[\\/]+$/, "")}/veneer-pictures`;
 }
@@ -563,22 +582,10 @@ export const register: Register = (on, options) => {
 
     await Promise.all(
       segments.map(async (segment) => {
-        if (
-          segment.kind === "text" ||
-          segment.kind === "code" ||
-          (segment.kind === "table" && config.nativeTables) ||
-          (segment.kind === "heading" && config.nativeHeadings)
-        ) {
-          return;
-        }
+        const sketch = sketchOf(segment, config, available, palette, font);
+        const picture = sketch === null ? null : await rasterize(io, dir, sketch, font);
 
-        const sketch =
-          segment.kind === "table"
-            ? tableSketch(segment, available, palette, font)
-            : headingSketch(segment, available, palette, font);
-        const picture = await rasterize(io, dir, sketch, font);
-
-        if (picture !== null) {
+        if (sketch !== null && picture !== null) {
           drawn.set(segment, { picture, alt: sketch.alt });
         }
       }),

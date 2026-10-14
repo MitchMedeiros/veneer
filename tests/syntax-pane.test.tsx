@@ -118,7 +118,7 @@ const pane = {
 
 type World = Parameters<Extract<Parameters<typeof test>[1], (...args: never[]) => unknown>>[0];
 
-// The pane as `/syntax` leaves it, on the Syntax theme tab.
+// The pane as `/syntax` leaves it, on the Syntax tab.
 async function mountSyntax($: World) {
   await $.command.run({
     command: "syntax",

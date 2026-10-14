@@ -48,6 +48,12 @@
       "description": "Draw headings as styled text instead of a picture. Headings always use text where pictures are unavailable.",
       "default": false
     },
+    "nativeDiagrams": {
+      "type": "boolean",
+      "title": "Text-based diagrams",
+      "description": "Draw Mermaid diagrams in box characters instead of a picture. Diagrams always use text where pictures are unavailable.",
+      "default": false
+    },
     "styleSpinner": {
       "type": "boolean",
       "title": "Spinner styling",

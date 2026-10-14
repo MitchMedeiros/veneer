@@ -74,6 +74,7 @@ opens a field for a typed value. Changes apply at once. The pane has a General t
 | `links`            | `auto`           | `auto`, `link` or `text`. How a file path on a tool row is drawn.          |
 | `nativeTables`     | `false`          | Draw tables as a text card, not a picture.                                 |
 | `nativeHeadings`   | `false`          | Draw headings as styled text, not a picture.                               |
+| `nativeDiagrams`   | `false`          | Draw Mermaid diagrams in box characters, not a picture.                    |
 | `styleSpinner`     | `true`           | Indent the spinner line. Turn off to leave it to another mod.              |
 | `fontFamily`       | `Helvetica Neue` | Font for tables and headings. It must be installed on this machine.        |
 | `cellRatio`        | `2.9`            | Height of a terminal cell over its width. Change it if pictures letterbox. |
@@ -83,6 +84,15 @@ opens a field for a typed value. Changes apply at once. The pane has a General t
 | `diffBackground`   | `true`           | The same for diff cards. Added and removed lines keep their own fill.      |
 
 Set options through `/config` or under `pluginConfigs` in `settings.json`.
+
+### Mermaid diagrams
+
+A `mermaid` fence is drawn as a diagram. Flowcharts (`graph` and `flowchart` without subgraphs), state, sequence, class
+and ER diagrams are drawn as a picture where pictures work. Everywhere else, with `nativeDiagrams` on, and for a diagram
+the picture drawing does not read (subgraphs, composite states and the like), the diagram is drawn in box characters,
+which covers flowcharts, state, sequence, class and ER diagrams. Any other diagram stays a code block. The box character
+renderer is [beautiful-mermaid](https://github.com/lukilabs/beautiful-mermaid) (MIT), bundled into
+`hooks/vendor/mermaid-ascii.js`. Rebuild it with `npm run build:mermaid`.
 
 ### Syntax highlighting
 
