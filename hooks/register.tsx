@@ -15,7 +15,9 @@ import { outputCard, parseOutput } from "./output";
 import { baseOf } from "./palette";
 import { cellHeightOf, MAX_COLUMNS, rasterize } from "./picture";
 import type { Font, Picture, PictureIo, Sketch } from "./picture";
-import { diagramSketch } from "./mermaid-diagram";
+import { CARD_COLUMNS } from "./mermaid-card";
+import { diagramSketch, diagramText } from "./mermaid-diagram";
+import { MERMAID_HINT } from "./mermaid-hint";
 import { BULLET, GUTTER, MARGIN, replyTree } from "./reply";
 import { commandOfCall, rememberInput } from "./calls";
 import { filePathOf, outputFill, paintCommand, paintDiff, paintFences, paintLines, paintOutput } from "./paint";
@@ -349,7 +351,7 @@ function sketchOf(segment: Segment, config: Config, available: number, palette: 
     case "heading":
       return config.nativeHeadings ? null : headingSketch(segment, available, palette, font);
     case "code": {
-      return segment.lang === "mermaid" && !config.nativeDiagrams
+      return segment.lang === "mermaid" && !config.nativeVisualizations
         ? diagramSketch(segment.code, available, palette, font)
         : null;
     }
@@ -513,6 +515,15 @@ export const register: Register = (on, options) => {
     return next(e);
   });
 
+  on("prompt.compose", async ($, e, next) => {
+    const result = await next(e);
+    const isHeadless = e.surfaces.length === 0 || e.traits.includes("bare") || e.traits.includes("print");
+
+    return isHeadless || !(await configNow($)).diagramHint
+      ? result
+      : { sections: [...result.sections, { id: "veneer:diagrams", text: MERMAID_HINT, scope: "session" as const }] };
+  });
+
   on("ui.render", { component: "UserMessage" }, async ($, e, next) => {
     const { text, origin } = e.props;
     const config = await configNow($);
@@ -569,9 +580,11 @@ export const register: Register = (on, options) => {
       : undefined;
     const fenceBackground = fences === undefined ? undefined : await backgroundFor($, config, "fences");
     const width = (e.viewport?.columns ?? 100) - GUTTER - 2 * MARGIN;
+    const diagramOf = (source: string) =>
+      diagramText(source, { columns: width - CARD_COLUMNS, ratio: config.cellRatio });
 
     if (!("Image" in ui) || !hasDrawn(segments) || (await read($, offAtom)) !== null) {
-      return replyTree(ui, segments, drawn, bullet, fences, fenceBackground, copyFor, width);
+      return replyTree(ui, segments, drawn, bullet, fences, fenceBackground, copyFor, width, diagramOf);
     }
 
     const palette = await read($, paletteAtom);
@@ -591,7 +604,7 @@ export const register: Register = (on, options) => {
       }),
     );
 
-    return replyTree(ui, segments, drawn, bullet, fences, fenceBackground, copyFor, width);
+    return replyTree(ui, segments, drawn, bullet, fences, fenceBackground, copyFor, width, diagramOf);
   });
 
   on("ui.render", { component: "ToolUse" }, async ($, e, next) => {

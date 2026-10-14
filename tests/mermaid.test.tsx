@@ -95,7 +95,7 @@ test("a diagram wider than the window is scaled down, and null where that would 
 test("a diagram the picture drawing cannot read is left to the text renderer", () => {
   expect(diagramSketch("stateDiagram-v2\n  state Group {\n    A --> B\n  }", 100, PALETTE, FONT)).toBeNull();
   expect(diagramSketch("sequenceDiagram\n  box Purple Team\n  participant A\n  end", 100, PALETTE, FONT)).toBeNull();
-  expect(diagramSketch('pie\n  "a": 1', 100, PALETTE, FONT)).toBeNull();
+  expect(diagramSketch("journey\n  not a step", 100, PALETTE, FONT)).toBeNull();
 });
 
 test("state, class and er diagrams read their parts", () => {
@@ -355,7 +355,17 @@ test("a mermaid fence with no picture is a text diagram card with a copy button"
 test("a mermaid fence the text renderer cannot read stays a code block", async ($, on) => {
   stub(on, NATIVE);
 
-  const ui = await $.ui.mount(reply('```mermaid\npie\n  "a": 1\n```', "mm2"));
+  const ui = await $.ui.mount(reply("```mermaid\njourney\n  not a step\n```", "mm2"));
 
-  expect(await ui.find({ type: "Text", text: "pie" })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "journey" })).toBeDefined();
+});
+
+test("a chart with no picture is drawn as a card of coloured text", async ($, on) => {
+  stub(on, NATIVE);
+
+  const ui = await $.ui.mount(reply('```mermaid\npie title Pets\n  "Dogs" : 3\n  "Cats" : 1\n```', "mm3"));
+
+  expect(await ui.find({ type: "Text", text: "Dogs" })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "75%" })).toBeDefined();
+  expect(await ui.find({ type: "Button" })).toBeDefined();
 });

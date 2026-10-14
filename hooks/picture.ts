@@ -6,7 +6,7 @@ export const CELL_WIDTH = 20;
 
 // The engine refuses a picture with a side over 4096 pixels, and a box of more than 250 cells.
 const MAX_PIXELS = 4096;
-const MAX_CELLS = 250;
+export const MAX_CELLS = 250;
 export const MAX_COLUMNS = Math.floor(MAX_PIXELS / CELL_WIDTH);
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;

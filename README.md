@@ -66,33 +66,64 @@ Run `/veneer` to change every option below in one pane. Enter flips a switch, mo
 opens a field for a typed value. Changes apply at once. The pane has a General tab and a Syntax tab. `/veneer` and
 `/veneer-settings` open it on General, and `/syntax` opens it on Syntax.
 
-| Option             | Default          | Use                                                                        |
-| ------------------ | ---------------- | -------------------------------------------------------------------------- |
-| `messageAlign`     | `left`           | `left` or `right`                                                          |
-| `styleUserMessage` | `true`           | Draw your messages as a bubble. Turn off to leave them to another mod.     |
-| `icons`            | `auto`           | `auto`, `nerd` or `plain`. Nerd Font icons or Unicode symbols.             |
-| `links`            | `auto`           | `auto`, `link` or `text`. How a file path on a tool row is drawn.          |
-| `nativeTables`     | `false`          | Draw tables as a text card, not a picture.                                 |
-| `nativeHeadings`   | `false`          | Draw headings as styled text, not a picture.                               |
-| `nativeDiagrams`   | `false`          | Draw Mermaid diagrams in box characters, not a picture.                    |
-| `styleSpinner`     | `true`           | Indent the spinner line. Turn off to leave it to another mod.              |
-| `fontFamily`       | `Helvetica Neue` | Font for tables and headings. It must be installed on this machine.        |
-| `cellRatio`        | `2.9`            | Height of a terminal cell over its width. Change it if pictures letterbox. |
-| `fenceBackground`  | `true`           | Fill code blocks with the syntax theme's background, when it sets one.     |
-| `readBackground`   | `true`           | The same for the card of a file read.                                      |
-| `outputBackground` | `true`           | The same for highlighted Bash and Grep output.                             |
-| `diffBackground`   | `true`           | The same for diff cards. Added and removed lines keep their own fill.      |
+| Option                 | Default          | Use                                                                        |
+| ---------------------- | ---------------- | -------------------------------------------------------------------------- |
+| `messageAlign`         | `left`           | `left` or `right`                                                          |
+| `styleUserMessage`     | `true`           | Draw your messages as a bubble. Turn off to leave them to another mod.     |
+| `icons`                | `auto`           | `auto`, `nerd` or `plain`. Nerd Font icons or Unicode symbols.             |
+| `links`                | `auto`           | `auto`, `link` or `text`. How a file path on a tool row is drawn.          |
+| `nativeTables`         | `false`          | Draw tables as a text card, not a picture.                                 |
+| `nativeHeadings`       | `false`          | Draw headings as styled text, not a picture.                               |
+| `nativeVisualizations` | `false`          | Draw Mermaid diagrams and charts in characters, not a picture.             |
+| `diagramHint`          | `true`           | Tell the model Mermaid is drawn here. Costs about 120 tokens.              |
+| `styleSpinner`         | `true`           | Indent the spinner line. Turn off to leave it to another mod.              |
+| `fontFamily`           | `Helvetica Neue` | Font for tables and headings. It must be installed on this machine.        |
+| `cellRatio`            | `2.9`            | Height of a terminal cell over its width. Change it if pictures letterbox. |
+| `fenceBackground`      | `true`           | Fill code blocks with the syntax theme's background, when it sets one.     |
+| `readBackground`       | `true`           | The same for the card of a file read.                                      |
+| `outputBackground`     | `true`           | The same for highlighted Bash and Grep output.                             |
+| `diffBackground`       | `true`           | The same for diff cards. Added and removed lines keep their own fill.      |
 
 Set options through `/config` or under `pluginConfigs` in `settings.json`.
 
-### Mermaid diagrams
+### Mermaid diagrams and charts
 
-A `mermaid` fence is drawn as a diagram. Flowcharts (`graph` and `flowchart` without subgraphs), state, sequence, class
-and ER diagrams are drawn as a picture where pictures work. Everywhere else, with `nativeDiagrams` on, and for a diagram
-the picture drawing does not read (subgraphs, composite states and the like), the diagram is drawn in box characters,
-which covers flowcharts, state, sequence, class and ER diagrams. Any other diagram stays a code block. The box character
-renderer is [beautiful-mermaid](https://github.com/lukilabs/beautiful-mermaid) (MIT), bundled into
-`hooks/vendor/mermaid-ascii.js`. Rebuild it with `npm run build:mermaid`.
+A `mermaid` fence is drawn as a picture where pictures work, and in characters everywhere else and with
+`nativeVisualizations` on. A diagram that Veneer cannot read stays a code block.
+
+| Kind           | Opens with                                                                |
+| -------------- | ------------------------------------------------------------------------- |
+| Flowchart      | `graph` or `flowchart`, without subgraphs                                 |
+| State          | `stateDiagram` or `stateDiagram-v2`                                       |
+| Sequence       | `sequenceDiagram`                                                         |
+| Class          | `classDiagram`                                                            |
+| ER             | `erDiagram`                                                               |
+| Pie            | `pie`                                                                     |
+| XY chart       | `xychart` or `xychart-beta`, bars and lines, vertical or `horizontal`     |
+| Radar          | `radar-beta`                                                              |
+| Sankey         | `sankey` or `sankey-beta`                                                 |
+| Treemap        | `treemap-beta`                                                            |
+| Quadrant chart | `quadrantChart`                                                           |
+| Gantt          | `gantt`, with dependencies, milestones, `dateFormat` and `axisFormat`     |
+| Timeline       | `timeline`                                                                |
+| User journey   | `journey`                                                                 |
+| Kanban         | `kanban`, with ticket, assignee and priority metadata                     |
+| Mind map       | `mindmap`                                                                 |
+| Git graph      | `gitGraph`, with branches, merges, tags and cherry-picks                  |
+| Packet         | `packet` or `packet-beta`                                                 |
+| Block          | `block-beta`, with spans, spaces, nested blocks and arrows                |
+| Architecture   | `architecture-beta`, with groups, services, junctions and ports           |
+| C4             | `C4Context`, `C4Container`, `C4Component`, `C4Dynamic` and `C4Deployment` |
+
+Each of the kinds from Pie down is laid out once in terminal cells and drawn twice, as a picture and as text. Both read
+the same Mermaid source and take their colors from your Claude Code theme. The text drawing fills shapes in eighths of a
+cell, joins lines into box characters and draws slanting lines as braille dots. Frontmatter titles name a diagram that
+has none of its own. A chart wider than the terminal or too long to read is left as a code block.
+
+The first five kinds are laid out by [beautiful-mermaid](https://github.com/lukilabs/beautiful-mermaid) (MIT) as text,
+bundled into `hooks/vendor/mermaid-ascii.js`. Rebuild it with `npm run build:mermaid`. Their pictures are drawn by
+Veneer, and a diagram the picture drawing does not read (subgraphs, composite states and the like) falls back to the
+text.
 
 ### Syntax highlighting
 

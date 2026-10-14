@@ -11,6 +11,10 @@ const DARK: Palette = {
   border: "#888888",
   success: "#4eba65",
   error: "#ff6b80",
+  suggestion: "#b1b9f9",
+  warning: "#ffc107",
+  planMode: "#48968c",
+  autoAccept: "#af87ff",
   userBackground: "#373737",
   isAnsi: false,
 };
@@ -23,11 +27,19 @@ const LIGHT: Palette = {
   border: "#8a8a8a",
   success: "#2c7a39",
   error: "#ab2b3f",
+  suggestion: "#5769f7",
+  warning: "#966c1e",
+  planMode: "#006666",
+  autoAccept: "#8700ff",
   userBackground: "#f0f0f0",
   isAnsi: false,
 };
 
-const TOKENS: Record<Exclude<keyof Palette, "isAnsi">, string> = {
+// A colour a picture draws with: every palette entry but the flag.
+export type Tone = Exclude<keyof Palette, "isAnsi">;
+
+// The theme token each palette entry reads, which is also the colour name native text takes.
+export const TOKENS: Record<Tone, string> = {
   text: "text",
   inactive: "inactive",
   subtle: "subtle",
@@ -35,6 +47,10 @@ const TOKENS: Record<Exclude<keyof Palette, "isAnsi">, string> = {
   border: "promptBorder",
   success: "success",
   error: "error",
+  suggestion: "suggestion",
+  warning: "warning",
+  planMode: "planMode",
+  autoAccept: "autoAccept",
   userBackground: "userMessageBackground",
 };
 
@@ -94,7 +110,7 @@ export const baseOf = (name: string | undefined): Palette => (name?.startsWith("
 export function paletteOf(base: string | undefined, overrides: Tokens | undefined): Palette {
   const palette = { ...baseOf(base), isAnsi: base?.includes("ansi") === true };
 
-  for (const key of Object.keys(TOKENS) as (keyof typeof TOKENS)[]) {
+  for (const key of Object.keys(TOKENS) as Tone[]) {
     palette[key] = hexOf(overrides?.[TOKENS[key]]) ?? palette[key];
   }
 

@@ -6,7 +6,7 @@ import type { CopyAction } from "./copy-button";
 import { headingCard } from "./heading-card";
 import type { Segment } from "./markdown";
 import { mermaidCard } from "./mermaid-card";
-import { mermaidText } from "./mermaid-text";
+import type { Row } from "./mermaid-cells";
 import type { Picture } from "./picture";
 import type { StyledRun } from "./syntax/types";
 import { tableCard } from "./table-card";
@@ -26,7 +26,8 @@ export const BULLET = "✦";
 // A reply block: its text left to the native `Markdown`, each table and heading as the picture drawn for it. A segment
 // without a picture falls back to its own markdown, so one failed picture never hides content. The first block of a
 // reply starts with the bullet, in the theme's accent colour. A fence with runs in `fences` is drawn highlighted, on
-// the fence background where there is one.
+// the fence background where there is one. A Mermaid fence with no picture is drawn as the characters `diagramOf` gives
+// for its source, and stays a code block where it gives none.
 export function replyTree(
   { Box, Text, Markdown, Button, Image }: Ui,
   segments: readonly Segment[],
@@ -36,6 +37,7 @@ export function replyTree(
   fenceBackground: string | undefined,
   copyFor: (index: number, text: string, noun: string) => CopyAction,
   available: number,
+  diagramOf: (source: string) => Row[] | null,
 ): RenderElement {
   // A code block or table: a blank row above it, holding its copy button, and a blank row below it, unless a block
   // follows, whose own blank row above is the gap.
@@ -81,7 +83,7 @@ export function replyTree(
     }
 
     if (segment.kind === "code" && segment.lang === "mermaid") {
-      const diagram = drawn === undefined ? mermaidText(segment.code) : null;
+      const diagram = drawn === undefined ? diagramOf(segment.code) : null;
       const copy = copyFor(i, segment.code, "Diagram");
 
       if (drawn !== undefined && Image !== undefined) {

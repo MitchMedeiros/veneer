@@ -48,11 +48,17 @@
       "description": "Draw headings as styled text instead of a picture. Headings always use text where pictures are unavailable.",
       "default": false
     },
-    "nativeDiagrams": {
+    "nativeVisualizations": {
       "type": "boolean",
-      "title": "Text-based diagrams",
-      "description": "Draw Mermaid diagrams in box characters instead of a picture. Diagrams always use text where pictures are unavailable.",
+      "title": "Text-based visualizations",
+      "description": "Draw Mermaid diagrams and charts in characters instead of a picture. Visualizations always use text where pictures are unavailable.",
       "default": false
+    },
+    "diagramHint": {
+      "type": "boolean",
+      "title": "Diagram hint",
+      "description": "Tell the model that Mermaid diagrams are drawn here, so it answers with one when a picture reads better. Adds about 120 tokens to the system prompt.",
+      "default": true
     },
     "styleSpinner": {
       "type": "boolean",

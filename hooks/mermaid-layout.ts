@@ -559,11 +559,12 @@ const MARKERS: Record<MarkerKind, { length: number; height: number; box: string;
 // How far a route must stop short of a node for a marker of this kind to fit in the space.
 export const markerLength = (kind: MarkerKind): number => MARKERS[kind].length;
 
-// The definition of a marker whose tip lands on the end of a path that stops `markerLength` short of its node.
-export const markerDef = (kind: MarkerKind, color: string): string => {
+// The definition of a marker whose tip lands on the end of a path that stops `markerLength` short of its node. A
+// diagram that needs one marker in several colours gives each its own `id`.
+export const markerDef = (kind: MarkerKind, color: string, id: string = kind): string => {
   const { length, height, box, shape } = MARKERS[kind];
 
-  return `<marker id="${kind}" viewBox="${box}" refX="0" refY="${Number(box.split(" ")[3]) / 2}" markerWidth="${length}" markerHeight="${height}" markerUnits="userSpaceOnUse" orient="auto">${shape.replaceAll("COLOR", color)}</marker>`;
+  return `<marker id="${id}" viewBox="${box}" refX="0" refY="${Number(box.split(" ")[3]) / 2}" markerWidth="${length}" markerHeight="${height}" markerUnits="userSpaceOnUse" orient="auto">${shape.replaceAll("COLOR", color)}</marker>`;
 };
 
-export const markerAttribute = (kind: MarkerKind): string => ` marker-end="url(#${kind})"`;
+export const markerAttribute = (kind: MarkerKind, id: string = kind): string => ` marker-end="url(#${id})"`;
