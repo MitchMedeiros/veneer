@@ -8,7 +8,7 @@ import { iconsArePlain, linksArePlain, OFF_TEXT, terminalOff } from "./gate";
 import { changeCounts, withBadges } from "./badge";
 import { diffCard, parseDiff } from "./diff";
 import { MAX_LINES } from "./fold";
-import { toolGroup } from "./group";
+import { callIdOf, hiddenIdOf, toolGroup } from "./group";
 import { headingSketch } from "./heading";
 import {
   altOf,
@@ -958,19 +958,24 @@ export const register: Register = (on, options) => {
 
     const ui = $.ui.resolve(e);
     const columns = e.viewport?.columns ?? 100;
-    const foundIn = calls.map((call) => {
+    const foundIn = calls.map((call, i) => {
       const path = (call.input as { file_path?: unknown } | null | undefined)?.file_path;
 
-      return showsRows && config.images ? imagesOf(call, typeof path === "string" ? path : undefined) : [];
+      return {
+        id: callIdOf(call, e.requestId, i),
+        found: showsRows && config.images ? imagesOf(call, typeof path === "string" ? path : undefined) : [],
+      };
     });
+    const imageCalls = new Set(foundIn.filter(({ found }) => found.length > 0).map(({ id }) => id));
+    const drawn = foundIn.map(({ id, found }) => (open.has(hiddenIdOf(id)) ? [] : found));
     const [reads, output, plain, shown] = await Promise.all([
       paint === undefined ? undefined : backgroundFor($, config, "reads"),
       paint === undefined ? undefined : backgroundFor($, config, "output"),
       plainOf($),
-      shownImages($, foundIn.flat(), config, columns, "Image" in ui),
+      shownImages($, drawn.flat(), config, columns, "Image" in ui),
     ]);
     let taken = 0;
-    const images = foundIn.map((found) => {
+    const images = drawn.map((found) => {
       const column = imageColumn(ui, shown.slice(taken, taken + found.length), 2);
 
       taken += found.length;
@@ -989,6 +994,7 @@ export const register: Register = (on, options) => {
       paint === undefined ? {} : { reads, output },
       plain,
       images,
+      imageCalls,
     );
   });
 

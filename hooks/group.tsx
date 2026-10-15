@@ -41,10 +41,18 @@ function segmentsOf(calls: readonly GroupCall[], isPlain: boolean): Segment[] {
   return [...found.values()];
 }
 
+// The id a call's row is kept open or shut by.
+export const callIdOf = (call: Pick<GroupCall, "tool_use_id">, groupId: string, index: number): string =>
+  `call:${call.tool_use_id ?? `${groupId}:${index}`}`;
+
+// The id that is in `open` while the images of a call are folded away.
+export const hiddenIdOf = (callId: string): string => `hidden:${callId}`;
+
 // A run of finished calls as one line of counts, `Command 2  Read 3`, which opens into a row for each call, and each row
 // that has output opens into its card. A run of one call has nothing to count, so it is drawn as its row. The whole line takes the text colour while the pointer is on it. A path stays a
 // link beside its row's button, so a click on it opens the file and a click on the rest folds the row. The images a
-// call returned, drawn by the caller, sit under its row.
+// call returned, drawn by the caller, sit under its row; a click on the row of a call in `imageCalls` folds them away
+// and shows them again.
 export function toolGroup(
   { Box, Button, Link, Text }: Ui,
   calls: readonly GroupCall[],
@@ -56,6 +64,7 @@ export function toolGroup(
   fills: { reads?: string; output?: string } = {},
   plain: Plain = NOT_PLAIN,
   images: readonly (RenderElement | null)[] = [],
+  imageCalls: ReadonlySet<string> = new Set(),
 ): RenderElement {
   const fillOf = (tool: string, lines: readonly OutputLine[]) =>
     tool === "Read"
@@ -92,7 +101,7 @@ export function toolGroup(
   }
 
   const rows = calls.map((call, i) => {
-    const callId = `call:${call.tool_use_id ?? `${id}:${i}`}`;
+    const callId = callIdOf(call, id, i);
     const look = lookFor(call.tool, plain.icons);
     const input = inputOf(call.input);
     const detail = look.detail(input);
@@ -107,6 +116,8 @@ export function toolGroup(
     const press = () => {
       if (lines !== null) {
         toggle(callId);
+      } else if (imageCalls.has(callId)) {
+        toggle(hiddenIdOf(callId));
       }
     };
 

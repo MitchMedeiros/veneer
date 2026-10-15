@@ -76,6 +76,32 @@ test("a group of one call is its row, with no count line to open", async ($, on)
   expect(await ui.find({ type: "Text", text: "Command " })).toBeUndefined();
 });
 
+test("pressing the row of an image Read folds its image away, and again shows it", async ($, on) => {
+  stub(on);
+
+  const image = call(
+    "Read",
+    { file_path: "/work/shot.png" },
+    {
+      type: "image",
+      file: { base64: "AAAA", type: "image/png", dimensions: { displayWidth: 400, displayHeight: 300 } },
+    },
+    "c1",
+  );
+  const ui = await $.ui.mount({
+    ...(group("g6", false, 1) as object),
+    props: { isActive: false, isExpanded: false, calls: [image] },
+  } as never);
+
+  expect(await ui.find({ type: "Text", text: "shot.png · 400×300" })).toBeDefined();
+
+  await ui.press({ key: "row:call:c1" });
+  expect(await ui.find({ type: "Text", text: "shot.png · 400×300" })).toBeUndefined();
+
+  await ui.press({ key: "row:call:c1" });
+  expect(await ui.find({ type: "Text", text: "shot.png · 400×300" })).toBeDefined();
+});
+
 test("a group the engine already expanded keeps the native drawing", async ($, on) => {
   stub(on);
 
