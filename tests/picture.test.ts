@@ -3,7 +3,7 @@ import { expect, test } from "claude-code/testing";
 import { headingSketch } from "../hooks/heading";
 import { hasDrawn, splitReply } from "../hooks/markdown";
 import { baseOf } from "../hooks/palette";
-import { CELL_WIDTH, cellHeightOf, hashOf, rasterize, rowsFor } from "../hooks/picture";
+import { CELL_WIDTH, cellHeightOf, hashOf, pictureFor, rasterize, rowsFor } from "../hooks/picture";
 import type { PictureIo } from "../hooks/picture";
 import { fitColumns, tableSketch } from "../hooks/table";
 import { wrap } from "../hooks/svg-text";
@@ -122,9 +122,36 @@ test("a picture is drawn once, then served from disk and from memory", async () 
     FONT,
   );
 
-  expect(first).toEqual({ png: PNG, columns: 4, rows: 1 });
+  expect(first).toEqual({ png: PNG, columns: 4, rows: 1, alt: "x" });
   expect(again).toBe(first);
   expect(elsewhere).toBe(first);
+  expect(draws).toBe(1);
+});
+
+test("a repeat of the same inputs builds no sketch, and calls that overlap share one draw", async () => {
+  let draws = 0;
+  let builds = 0;
+  const io: PictureIo = {
+    run: async (argv) => {
+      draws += argv[0] === "resvg" ? 1 : 0;
+      return true;
+    },
+    readBase64: async (path) => (path.endsWith(".tmp") || draws > 0 ? PNG : undefined),
+  };
+  const build = () => {
+    builds++;
+    return { svg: '<svg id="inputs"/>', columns: 4, rows: 1, alt: "x" };
+  };
+
+  const [first, overlapping] = await Promise.all([
+    pictureFor(io, "/cache", "inputs-a", build, FONT),
+    pictureFor(io, "/cache", "inputs-a", build, FONT),
+  ]);
+  const again = await pictureFor(io, "/cache", "inputs-a", build, FONT);
+
+  expect(overlapping).toBe(first);
+  expect(again).toBe(first);
+  expect(builds).toBe(1);
   expect(draws).toBe(1);
 });
 

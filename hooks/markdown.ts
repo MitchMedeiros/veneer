@@ -44,9 +44,31 @@ const alignOf = (cell: string): Align => {
   return spec.endsWith(":") ? "right" : "left";
 };
 
+const MEMORY_REPLIES = 64;
+const splits = new Map<string, Segment[]>();
+
 // The reply as runs of text with each table, heading and closed code fence taken out as its own segment. A fence still
-// open, as while the reply streams, stays text with everything after it.
+// open, as while the reply streams, stays text with everything after it. A reply is split once however often it is
+// drawn.
 export function splitReply(markdown: string): Segment[] {
+  const known = splits.get(markdown);
+
+  if (known !== undefined) {
+    return known;
+  }
+
+  const segments = split(markdown);
+
+  splits.set(markdown, segments);
+
+  if (splits.size > MEMORY_REPLIES) {
+    splits.delete(splits.keys().next().value as string);
+  }
+
+  return segments;
+}
+
+function split(markdown: string): Segment[] {
   const lines = markdown.split("\n");
   const segments: Segment[] = [];
   let text: string[] = [];
@@ -98,13 +120,9 @@ export function splitReply(markdown: string): Segment[] {
       continue;
     }
 
-    const header = cellsOf(line);
     const separator = lines[i + 1] ?? "";
-    const isTable =
-      line.includes("|") &&
-      SEPARATOR.test(separator) &&
-      header.length > 1 &&
-      cellsOf(separator).length === header.length;
+    const header = line.includes("|") && SEPARATOR.test(separator) ? cellsOf(line) : [];
+    const isTable = header.length > 1 && cellsOf(separator).length === header.length;
 
     let end = i + 2;
 

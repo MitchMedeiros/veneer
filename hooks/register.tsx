@@ -13,7 +13,7 @@ import { hasDrawn, splitReply } from "./markdown";
 import type { Segment } from "./markdown";
 import { outputCard, parseOutput } from "./output";
 import { baseOf } from "./palette";
-import { cellHeightOf, MAX_COLUMNS, rasterize } from "./picture";
+import { cellHeightOf, hashOf, MAX_COLUMNS, pictureFor } from "./picture";
 import type { Font, Picture, PictureIo, Sketch } from "./picture";
 import { CARD_COLUMNS } from "./mermaid-card";
 import { diagramSketch, diagramText } from "./mermaid-diagram";
@@ -143,7 +143,8 @@ const pictureIo = ($: EngineInterface): PictureIo => ({
 
 // The folder the person's syntax themes are kept in, or undefined when no Claude folder can be found.
 async function themesFolder($: EngineInterface): Promise<string | undefined> {
-  const root = configDirOf(await $.env.get("CLAUDE_CONFIG_DIR"), await $.env.get("HOME"));
+  const [configDir, home] = await Promise.all([$.env.get("CLAUDE_CONFIG_DIR"), $.env.get("HOME")]);
+  const root = configDirOf(configDir, home);
 
   return root === undefined ? undefined : themesDirOf(root);
 }
@@ -157,7 +158,8 @@ async function savedThemes($: EngineInterface): Promise<{ folder: string | undef
 
 // The chosen syntax theme as a file path, empty for the shipped one, with what reads files.
 async function syntaxOf($: EngineInterface): Promise<{ io: SyntaxIo; themePath: string }> {
-  const name = (await read($, syntaxPreviewAtom)) ?? (await read($, syntaxAtom));
+  const [preview, chosen] = await Promise.all([read($, syntaxPreviewAtom), read($, syntaxAtom)]);
+  const name = preview ?? chosen;
   const folder = name === "" ? undefined : await themesFolder($);
   const io: SyntaxIo = { root: $.plugin.root, read: (path) => $.fs.read(path).catch(() => undefined) };
 
@@ -344,21 +346,29 @@ async function importTheme($: EngineInterface, requested: string): Promise<void>
   $.ui.toast(`Added ${name} from ${baseNameOf(path)}.`);
 }
 
-// The picture a block of a reply is drawn as, or null where it stays text: plain text, code, and what the settings leave
-// to native drawing.
-function sketchOf(segment: Segment, config: Config, available: number, palette: Palette, font: Font): Sketch | null {
+// Whether a block of a reply is drawn as a picture: a table, a heading or a Mermaid fence, unless the settings leave
+// graphics to native drawing.
+function wantsPicture(segment: Segment, config: Config): segment is Exclude<Segment, { kind: "text" }> {
+  return (
+    !config.nativeGraphics &&
+    (segment.kind === "table" || segment.kind === "heading" || (segment.kind === "code" && segment.lang === "mermaid"))
+  );
+}
+
+// The picture a block of a reply is drawn as, or null where it stays text.
+function sketchOf(
+  segment: Exclude<Segment, { kind: "text" }>,
+  available: number,
+  palette: Palette,
+  font: Font,
+): Sketch | null {
   switch (segment.kind) {
     case "table":
-      return config.nativeGraphics ? null : tableSketch(segment, available, palette, font);
+      return tableSketch(segment, available, palette, font);
     case "heading":
-      return config.nativeGraphics ? null : headingSketch(segment, available, palette, font);
-    case "code": {
-      return segment.lang === "mermaid" && !config.nativeGraphics
-        ? diagramSketch(segment.code, available, palette, font)
-        : null;
-    }
-    default:
-      return null;
+      return headingSketch(segment, available, palette, font);
+    case "code":
+      return diagramSketch(segment.code, available, palette, font);
   }
 }
 
@@ -378,7 +388,9 @@ async function prepareFolder($: EngineInterface): Promise<void> {
 
 // What this terminal cannot draw: icons by the setting and the terminal, links wherever pictures are off.
 async function plainOf($: EngineInterface): Promise<Plain> {
-  return { icons: await read($, plainIconsAtom), links: await read($, plainLinksAtom) };
+  const [icons, links] = await Promise.all([read($, plainIconsAtom), read($, plainLinksAtom)]);
+
+  return { icons, links };
 }
 
 async function settle($: EngineInterface, { icons, links }: Pick<Config, "icons" | "links">): Promise<Off | null> {
@@ -589,10 +601,22 @@ export const register: Register = (on, options) => {
     }
 
     const ui = $.ui.resolve(e);
-    const config = await configNow($);
     const segments = splitReply(text);
     const bullet = isFirstOfReply ? BULLET : null;
-    const isPlain = await read($, plainIconsAtom);
+    const hasPictures = "Image" in ui && hasDrawn(segments);
+    const hasCode = segments.some((segment) => segment.kind === "code");
+    const [config, isPlain, off] = await Promise.all([
+      configNow($),
+      read($, plainIconsAtom),
+      hasPictures ? read($, offAtom) : null,
+    ]);
+    const isPictured = hasPictures && off === null;
+    const [fences, fenceBackground, palette, dir] = await Promise.all([
+      hasCode ? painterFor($).then((paint) => paintFences(paint, segments)) : undefined,
+      hasCode ? backgroundFor($, config, "fences") : undefined,
+      isPictured ? read($, paletteAtom) : undefined,
+      isPictured ? pictureDir($) : undefined,
+    ]);
     const copyFor = (index: number, source: string, noun: string) => ({
       scope: `copy:${e.requestId}:${index}`,
       isPlain,
@@ -603,31 +627,35 @@ export const register: Register = (on, options) => {
       },
     });
     const drawn = new Map<Segment, { picture: Picture; alt: string }>();
-    const fences = segments.some((segment) => segment.kind === "code")
-      ? await paintFences(await painterFor($), segments)
-      : undefined;
-    const fenceBackground = fences === undefined ? undefined : await backgroundFor($, config, "fences");
     const width = (e.viewport?.columns ?? 100) - GUTTER - 2 * MARGIN;
     const diagramOf = (source: string) =>
       diagramText(source, { columns: width - CARD_COLUMNS, ratio: config.cellRatio });
 
-    if (!("Image" in ui) || !hasDrawn(segments) || (await read($, offAtom)) !== null) {
+    if (!isPictured || palette === undefined || dir === undefined) {
       return replyTree(ui, segments, drawn, bullet, fences, fenceBackground, copyFor, width, diagramOf);
     }
 
-    const palette = await read($, paletteAtom);
     const font = { family: config.fontFamily, cellHeight: cellHeightOf(config.cellRatio) };
     const available = Math.min(MAX_COLUMNS, width);
-    const dir = await pictureDir($);
     const io = pictureIo($);
+    const look = `${dir}|${available}|${font.family}|${font.cellHeight}|${hashOf(JSON.stringify(palette))}`;
 
     await Promise.all(
       segments.map(async (segment) => {
-        const sketch = sketchOf(segment, config, available, palette, font);
-        const picture = sketch === null ? null : await rasterize(io, dir, sketch, font);
+        if (!wantsPicture(segment, config)) {
+          return;
+        }
 
-        if (sketch !== null && picture !== null) {
-          drawn.set(segment, { picture, alt: sketch.alt });
+        const picture = await pictureFor(
+          io,
+          dir,
+          `${look}|${segment.kind}|${segment.raw}`,
+          () => sketchOf(segment, available, palette, font),
+          font,
+        );
+
+        if (picture !== null) {
+          drawn.set(segment, { picture, alt: picture.alt });
         }
       }),
     );

@@ -58,7 +58,13 @@ class Library {
   private readonly memory = new Map<string, StyledRun[][]>();
   private index: Promise<GrammarIndex | undefined> | undefined;
 
-  async highlight(io: SyntaxIo, themePath: string, hint: string, lines: string[]): Promise<StyledRun[][] | null> {
+  async highlight(
+    io: SyntaxIo,
+    themePath: string,
+    hint: string,
+    lines: string[],
+    code: string,
+  ): Promise<StyledRun[][] | null> {
     this.index ??= readJson<GrammarIndex>(io, `${io.root}/grammars/index.json`);
 
     const index = await this.index;
@@ -68,7 +74,7 @@ class Library {
       return null;
     }
 
-    const key = `${themePath}\n${language.scopeName}\n${lines.join("\n")}`;
+    const key = `${themePath}\n${language.scopeName}\n${code}`;
     const cached = this.memory.get(key);
 
     if (cached !== undefined) {
@@ -235,7 +241,7 @@ export async function highlight(
   }
 
   try {
-    return await libraryOf(io).highlight(io, themePath, hint, lines);
+    return await libraryOf(io).highlight(io, themePath, hint, lines, code);
   } catch {
     return null;
   }

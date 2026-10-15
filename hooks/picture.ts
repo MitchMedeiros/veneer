@@ -10,9 +10,10 @@ export const MAX_CELLS = 250;
 export const MAX_COLUMNS = Math.floor(MAX_PIXELS / CELL_WIDTH);
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
-const MEMORY_PICTURES = 300;
+const MEMORY_BYTES = 32 * 1024 * 1024;
+const MAX_ALIASES = 2000;
 
-export type Picture = { png: string; columns: number; rows: number };
+export type Picture = { png: string; columns: number; rows: number; alt: string };
 
 // A picture's pixels before drawing: an SVG over `columns` cell columns and `rows` cell rows.
 export type Sketch = { svg: string; columns: number; rows: number; alt: string };
@@ -69,20 +70,34 @@ export const isPng = (base64: string): boolean => {
 };
 
 const memory = new Map<string, Picture>();
+let memoryBytes = 0;
 
-function remember(key: string, picture: Picture): void {
-  memory.delete(key);
-  memory.set(key, picture);
+function forget(key: string): void {
+  const held = memory.get(key);
 
-  if (memory.size > MEMORY_PICTURES) {
-    memory.delete(memory.keys().next().value as string);
+  if (held !== undefined) {
+    memoryBytes -= held.png.length;
+    memory.delete(key);
   }
 }
 
+function remember(key: string, picture: Picture): void {
+  forget(key);
+  memory.set(key, picture);
+  memoryBytes += picture.png.length;
+
+  while (memoryBytes > MEMORY_BYTES && memory.size > 1) {
+    forget(memory.keys().next().value as string);
+  }
+}
+
+const keyOf = ({ svg, columns, rows }: Sketch, font: Font): string =>
+  `${hashOf(`${svg}|${font.family}`)}-${columns}x${rows}`;
+
 // A sketch as a PNG: from memory, then from the disk folder, then drawn once by `resvg`. Null where it cannot be drawn.
 export async function rasterize(io: PictureIo, dir: string, sketch: Sketch, font: Font): Promise<Picture | null> {
-  const { svg, columns, rows } = sketch;
-  const key = `${hashOf(`${svg}|${font.family}`)}-${columns}x${rows}`;
+  const { svg, columns, rows, alt } = sketch;
+  const key = keyOf(sketch, font);
   const cached = memory.get(key);
 
   if (cached !== undefined) {
@@ -119,9 +134,57 @@ export async function rasterize(io: PictureIo, dir: string, sketch: Sketch, font
     return null;
   }
 
-  const picture = { png, columns, rows };
+  const picture = { png, columns, rows, alt };
 
   remember(key, picture);
 
   return picture;
+}
+
+// Maps what a sketch is made from to the key of its picture, so a redraw finds the picture without building the sketch.
+const aliases = new Map<string, string>();
+const drawing = new Map<string, Promise<Picture | null>>();
+
+// The picture for `inputs`, a string naming everything `build` reads. A repeat of the same inputs is served from memory
+// with no sketch built and no SVG hashed, and a repeat that arrives while the first is still drawing shares its draw.
+export async function pictureFor(
+  io: PictureIo,
+  dir: string,
+  inputs: string,
+  build: () => Sketch | null,
+  font: Font,
+): Promise<Picture | null> {
+  const known = aliases.get(inputs);
+  const cached = known === undefined ? undefined : memory.get(known);
+
+  if (known !== undefined && cached !== undefined) {
+    remember(known, cached);
+    return cached;
+  }
+
+  const pending = drawing.get(inputs);
+
+  if (pending !== undefined) {
+    return pending;
+  }
+
+  const draw = (async () => {
+    const sketch = build();
+
+    if (sketch === null) {
+      return null;
+    }
+
+    aliases.set(inputs, keyOf(sketch, font));
+
+    if (aliases.size > MAX_ALIASES) {
+      aliases.delete(aliases.keys().next().value as string);
+    }
+
+    return rasterize(io, dir, sketch, font);
+  })().finally(() => drawing.delete(inputs));
+
+  drawing.set(inputs, draw);
+
+  return draw;
 }
