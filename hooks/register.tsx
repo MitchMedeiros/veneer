@@ -1,5 +1,5 @@
 import { atom, read, update } from "claude-code";
-import type { EngineInterface, PluginOptions, Register, RenderElement } from "claude-code";
+import type { EngineInterface, PluginOptions, Register, RenderElement, Timer } from "claude-code";
 
 import type { Off, Palette, SettingsPane, SyntaxPane, Tab } from "../types";
 import { configOf } from "./config";
@@ -12,6 +12,7 @@ import { callIdOf, hiddenIdOf, toolGroup } from "./group";
 import { headingSketch } from "./heading";
 import {
   altOf,
+  draftImageIds,
   imageSketch,
   imagesOf,
   pastedImagesOf,
@@ -113,6 +114,8 @@ const syntaxPreviewAtom = atom({ plugin: "veneer", key: "syntaxPreview" } as con
 const tabAtom = atom({ plugin: "veneer", key: "tab" } as const, "settings" as Tab);
 // The element the pane's focus ring is on, which the arrow keys move from when the pane would scroll.
 const focusAtom = atom({ plugin: "veneer", key: "focus" } as const, null as string | null);
+// The numbers of the images pasted into the prompt box and not yet sent.
+const draftImagesAtom = atom({ plugin: "veneer", key: "draftImages" } as const, [] as string[]);
 
 // The plugin's settings as they stand, by field name. Hooks read them from here so a change made in the `/veneer` pane or
 // in `/config` shows at once.
@@ -492,6 +495,80 @@ async function pastedOf($: EngineInterface, requestId: string, text: string): Pr
   return found;
 }
 
+const DRAFT_POLL_MS = 400;
+// Where Claude Code keeps a pasted image from the moment it is pasted: `<root>/claude-<uid>/<project>/<session>/images`.
+const IMAGE_ROOT = "/tmp/";
+const MEMORY_DRAFT_FILES = 4;
+const draftPaths = new Map<string, string>();
+const draftFiles = new Map<string, Found>();
+let draftWatch: Timer | undefined;
+
+// Keeps `draftImagesAtom` equal to the images the prompt box holds. A paste fires no `prompt.edit`, so the box is read
+// on a timer.
+function watchDraft($: EngineInterface): void {
+  draftWatch ??= $.clock.every(DRAFT_POLL_MS, () => {
+    void (async () => {
+      const ids = draftImageIds((await $.prompt.read()).text);
+      const shown = await read($, draftImagesAtom);
+
+      if (ids.join() !== shown.join()) {
+        await update($, draftImagesAtom, () => ids);
+      }
+    })().catch(() => null);
+  });
+}
+
+// The pasted images of the draft as the files Claude Code wrote them to; the few read last are kept so a redraw does not
+// read them again.
+async function draftImagesOf($: EngineInterface, ids: readonly string[]): Promise<Found[]> {
+  const session = await $.session.id();
+  const keyOf = (id: string) => `${session}/${id}`;
+
+  if (ids.some((id) => !draftPaths.has(keyOf(id)))) {
+    const run = await $.process
+      .run(["find", IMAGE_ROOT, "-maxdepth", "5", "-path", `*/${session}/images/*.png`], { timeoutMs: 3000 })
+      .catch(() => null);
+
+    for (const path of run?.stdout.split("\n") ?? []) {
+      const name = path.slice(path.lastIndexOf("/") + 1, -".png".length);
+
+      if (name !== "") {
+        draftPaths.set(keyOf(name), path);
+      }
+    }
+  }
+
+  const found = await Promise.all(
+    ids.map(async (id): Promise<Found[]> => {
+      const key = keyOf(id);
+      const held = draftFiles.get(key);
+      const path = draftPaths.get(key);
+
+      if (held !== undefined) {
+        return [held];
+      }
+
+      const file = path === undefined ? undefined : await $.fs.read(path, { as: "bytes" }).catch(() => undefined);
+
+      if (file === undefined) {
+        return [];
+      }
+
+      const image = { id: `draft#${key}`, base64: file.base64, mediaType: "image/png", name: `Image ${id}` };
+
+      draftFiles.set(key, image);
+
+      if (draftFiles.size > MEMORY_DRAFT_FILES) {
+        draftFiles.delete(draftFiles.keys().next().value as string);
+      }
+
+      return [image];
+    }),
+  );
+
+  return found.flat();
+}
+
 async function pictureDir($: EngineInterface): Promise<string> {
   return `${((await $.env.get("TMPDIR")) ?? "/tmp").replace(/[\\/]+$/, "")}/veneer-pictures`;
 }
@@ -663,6 +740,15 @@ export const register: Register = (on, options) => {
     if (off !== null) {
       $.ui.toast(OFF_TEXT[off], { timeoutMs: NOTICE_MS });
     }
+
+    watchDraft($);
+
+    return next(e);
+  });
+
+  // A reload of the mod starts no session, so the first edit to the prompt box starts the watch.
+  on("prompt.edit", ($, e, next) => {
+    watchDraft($);
 
     return next(e);
   });
@@ -933,6 +1019,28 @@ export const register: Register = (on, options) => {
         {native}
       </Box>
     );
+  });
+
+  on("ui.render", { component: "AbovePrompt" }, async ($, e, next) => {
+    const native = await next(e);
+    const ids = await read($, draftImagesAtom);
+
+    if (e.surface !== "terminal" || e.props.hasSurvey || native.type !== "engine" || ids.length === 0) {
+      return native;
+    }
+
+    const config = await configNow($);
+
+    if (!config.images) {
+      return native;
+    }
+
+    const ui = $.ui.resolve(e);
+    const found = await draftImagesOf($, ids);
+    const fit = { ...config, imageRows: Math.min(config.imageRows, Math.max(2, e.props.maxRows - 2)) };
+    const shown = await shownImages($, found, fit, e.props.bodyColumns, "Image" in ui);
+
+    return imageColumn(ui, shown, MARGIN) ?? native;
   });
 
   on("ui.render", { component: "ToolGroup" }, async ($, e, next) => {

@@ -17,6 +17,10 @@ export type Size = { width: number; height: number };
 // The marker a prompt's text holds in place of each image pasted into it.
 export const PASTED_MARKER = "[Image #";
 
+// The numbers of the images a draft holds, as its `[Image #n]` markers give them.
+export const draftImageIds = (draft: string): string[] =>
+  [...draft.matchAll(/\[Image #(\d+)\]/g)].flatMap((match) => (match[1] === undefined ? [] : [match[1]]));
+
 // A prompt's text without its image markers, which the pictures drawn under the row stand in for.
 export const withoutMarkers = (text: string): string => text.replace(/\[Image #\d+\][ \t]*/g, "").trim();
 

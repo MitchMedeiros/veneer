@@ -65,6 +65,8 @@ declare module "claude-code" {
       syntaxPane: SyntaxPane;
       // The theme the picker's focus is on, shown live in place of the chosen one; null when none.
       syntaxPreview: string | null;
+      // The numbers of the images pasted into the prompt box and not yet sent, in the order the draft holds them.
+      draftImages: string[];
     };
   }
 }
