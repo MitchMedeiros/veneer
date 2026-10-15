@@ -19,6 +19,7 @@ import {
   shrinkFactor,
   sizeOfFound,
   treeBytes,
+  withoutMarkers,
 } from "./image";
 import type { Found } from "./image";
 import { imageColumn } from "./image-card";
@@ -697,7 +698,9 @@ export const register: Register = (on, options) => {
       return next(e);
     }
 
-    const native = await next(e);
+    const found = hasImages ? await pastedOf($, e.requestId, text) : [];
+    const words = found.length > 0 ? withoutMarkers(text) : text;
+    const native = await next(words === text || words === "" ? e : { ...e, props: { ...e.props, text: words } });
 
     if (native.type !== "engine") {
       return native;
@@ -705,13 +708,13 @@ export const register: Register = (on, options) => {
 
     const ui = $.ui.resolve(e);
     const columns = e.viewport?.columns ?? 100;
-    const withImages = async (row: RenderElement): Promise<RenderElement> => {
-      if (!hasImages) {
-        return row;
+    const withImages = async (row: RenderElement | null): Promise<RenderElement> => {
+      if (found.length === 0) {
+        return row ?? native;
       }
 
       const { Box } = ui;
-      const shown = await shownImages($, await pastedOf($, e.requestId, text), config, columns, "Image" in ui);
+      const shown = await shownImages($, found, config, columns, "Image" in ui);
 
       return (
         <Box flexDirection="column">
@@ -721,6 +724,10 @@ export const register: Register = (on, options) => {
       );
     };
 
+    if (words === "") {
+      return withImages(null);
+    }
+
     if (!config.styleUserMessage) {
       return withImages(native);
     }
@@ -729,13 +736,13 @@ export const register: Register = (on, options) => {
       scope: `bubble:${e.requestId}`,
       isPlain: await read($, plainIconsAtom),
       onCopy: async () => {
-        const { isCopied } = await $.ui.copy({ text, surface: e.surface });
+        const { isCopied } = await $.ui.copy({ text: words, surface: e.surface });
 
         $.ui.toast(isCopied ? "Message copied" : "Copy failed");
       },
     };
 
-    return withImages(userBubble(ui, text, columns, config.align, copy));
+    return withImages(userBubble(ui, words, columns, config.align, copy));
   });
 
   on("ui.render", { component: "AssistantMessage" }, async ($, e, next) => {

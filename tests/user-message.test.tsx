@@ -35,6 +35,26 @@ test("every line of a multi-line message is kept, blank lines included", async (
   expect(await ui.find({ type: "Text", text: "third" })).toBeDefined();
 });
 
+test("the image markers of a paste leave the bubble, and a message of only images has no bubble", async ($, on) => {
+  stub(on);
+
+  const image = { type: "image", source: { type: "base64", media_type: "image/png", data: "AAAA" } };
+  const texts = ["[Image #1] what is this", "[Image #2]"];
+
+  on("session.messages", () => ({
+    value: texts.map((text) => ({ role: "user", content: [{ type: "text", text }, image] })),
+  }));
+
+  const withText = await $.ui.mount(message(texts[0]!));
+
+  expect(await withText.find({ type: "Text", text: "what is this" })).toBeDefined();
+  expect(await withText.find({ type: "Text", text: "[Image #1] what is this" })).toBeUndefined();
+
+  const only = await $.ui.mount({ ...message(texts[1]!), requestId: "u2" });
+
+  expect(await only.find({ type: "Text", text: "[Image #2]" })).toBeUndefined();
+});
+
 test("an @file mention is its own piece of text", async ($, on) => {
   stub(on);
 

@@ -17,6 +17,9 @@ export type Size = { width: number; height: number };
 // The marker a prompt's text holds in place of each image pasted into it.
 export const PASTED_MARKER = "[Image #";
 
+// A prompt's text without its image markers, which the pictures drawn under the row stand in for.
+export const withoutMarkers = (text: string): string => text.replace(/\[Image #\d+\][ \t]*/g, "").trim();
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
