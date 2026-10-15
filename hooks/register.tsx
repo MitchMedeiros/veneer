@@ -7,6 +7,7 @@ import type { Backdrop, Config } from "./config";
 import { iconsArePlain, linksArePlain, OFF_TEXT, terminalOff } from "./gate";
 import { changeCounts, withBadges } from "./badge";
 import { diffCard, parseDiff } from "./diff";
+import { MAX_LINES } from "./fold";
 import { toolGroup } from "./group";
 import { headingSketch } from "./heading";
 import { hasDrawn, splitReply } from "./markdown";
@@ -676,12 +677,16 @@ export const register: Register = (on, options) => {
     }
 
     const ui = $.ui.resolve(e);
-    const commandRuns = e.props.tool === "Bash" ? await paintCommand(await painterFor($), e.props) : undefined;
-    const plain = await plainOf($);
-    const row = toolRow(ui, e.props, await $.session.cwd(), commandRuns, plain) ?? native;
     const changes = !isRunning && !isErrored ? changeCounts(output) : null;
+    const [commandRuns, plain, cwd, isAnsi] = await Promise.all([
+      e.props.tool === "Bash" ? painterFor($).then((paint) => paintCommand(paint, e.props)) : undefined,
+      plainOf($),
+      $.session.cwd(),
+      changes === null ? undefined : read($, paletteAtom).then((palette) => palette.isAnsi),
+    ]);
+    const row = toolRow(ui, e.props, cwd, commandRuns, plain) ?? native;
 
-    return changes === null ? row : withBadges(ui, row, changes, (await read($, paletteAtom)).isAnsi, plain.icons);
+    return changes === null || isAnsi === undefined ? row : withBadges(ui, row, changes, isAnsi, plain.icons);
   });
 
   on("ui.render", { component: "ToolResult" }, async ($, e, next) => {
@@ -699,14 +704,19 @@ export const register: Register = (on, options) => {
       return native;
     }
 
-    const config = await configNow($);
     const id = e.props.tool_use_id;
-    const expanded = (await read($, expandedAtom)).includes(id);
+    const path = tool === "Read" || diff !== null ? filePathOf(output) : undefined;
+    const [config, open, paint, palette] = await Promise.all([
+      configNow($),
+      read($, expandedAtom),
+      path !== undefined || tool === "Bash" || tool === "Grep" ? painterFor($) : undefined,
+      diff === null ? undefined : read($, paletteAtom),
+    ]);
+    const expanded = open.includes(id);
     const toggle = () => flip($, id);
     const ui = $.ui.resolve(e);
-    const path = tool === "Read" || diff !== null ? filePathOf(output) : undefined;
-
-    const paint = path !== undefined || tool === "Bash" || tool === "Grep" ? await painterFor($) : undefined;
+    // A folded card shows its first lines only, so only those are tokenized; unfolding paints the rest.
+    const visible = expanded ? Infinity : MAX_LINES;
 
     if (diff === null) {
       const shown = lines ?? [];
@@ -715,27 +725,24 @@ export const register: Register = (on, options) => {
         return outputCard(ui, shown, expanded, toggle, id);
       }
 
-      const painted =
+      const [painted, background] = await Promise.all([
         path === undefined
-          ? await paintOutput(paint, tool, commandOfCall(id), shown)
-          : await paintLines(paint, path, shown);
-      const background = await backgroundFor($, config, path === undefined ? "output" : "reads");
+          ? paintOutput(paint, tool, commandOfCall(id), shown)
+          : paintLines(paint, path, shown.slice(0, visible)).then((head) => [...head, ...shown.slice(visible)]),
+        backgroundFor($, config, path === undefined ? "output" : "reads"),
+      ]);
 
       return outputCard(ui, painted, expanded, toggle, id, outputFill(background, path !== undefined, painted));
     }
 
-    const runs = path === undefined || paint === undefined ? [] : await paintDiff(paint, path, diff);
+    const [runs, background] = await Promise.all([
+      path === undefined || paint === undefined
+        ? []
+        : paintDiff(paint, path, { ...diff, lines: diff.lines.slice(0, visible) }),
+      backgroundFor($, config, "diffs"),
+    ]);
 
-    return diffCard(
-      ui,
-      diff,
-      (await read($, paletteAtom)).isAnsi,
-      expanded,
-      toggle,
-      id,
-      runs,
-      await backgroundFor($, config, "diffs"),
-    );
+    return diffCard(ui, diff, palette?.isAnsi ?? false, expanded, toggle, id, runs, background);
   });
 
   on("ui.render", { component: "Spinner" }, async ($, e, next) => {
@@ -761,9 +768,8 @@ export const register: Register = (on, options) => {
       return native;
     }
 
-    const config = await configNow($);
-    const open = new Set(await read($, expandedAtom));
-    const cwd = await $.session.cwd();
+    const [config, expandedIds, cwd] = await Promise.all([configNow($), read($, expandedAtom), $.session.cwd()]);
+    const open = new Set(expandedIds);
     const { calls } = e.props;
     const showsRows = calls.length === 1 || open.has(`group:${e.requestId}`);
     const paint =
@@ -783,6 +789,12 @@ export const register: Register = (on, options) => {
       }),
     );
 
+    const [reads, output, plain] = await Promise.all([
+      paint === undefined ? undefined : backgroundFor($, config, "reads"),
+      paint === undefined ? undefined : backgroundFor($, config, "output"),
+      plainOf($),
+    ]);
+
     return toolGroup(
       $.ui.resolve(e),
       calls,
@@ -791,10 +803,8 @@ export const register: Register = (on, options) => {
       { open, toggle: (id) => flip($, id) },
       commandRuns,
       paintedOutput,
-      paint === undefined
-        ? {}
-        : { reads: await backgroundFor($, config, "reads"), output: await backgroundFor($, config, "output") },
-      await plainOf($),
+      paint === undefined ? {} : { reads, output },
+      plain,
     );
   });
 
