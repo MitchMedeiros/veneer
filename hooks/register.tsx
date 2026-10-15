@@ -1,5 +1,5 @@
 import { atom, read, update } from "claude-code";
-import type { EngineInterface, PluginOptions, Register } from "claude-code";
+import type { EngineInterface, PluginOptions, Register, RenderElement } from "claude-code";
 
 import type { Off, Palette, SettingsPane, SyntaxPane, Tab } from "../types";
 import { configOf } from "./config";
@@ -10,6 +10,10 @@ import { diffCard, parseDiff } from "./diff";
 import { MAX_LINES } from "./fold";
 import { toolGroup } from "./group";
 import { headingSketch } from "./heading";
+import { altOf, imageSketch, imagesOf, pastedImagesOf, PASTED_MARKER, sizeOfFound } from "./image";
+import type { Found } from "./image";
+import { imageColumn } from "./image-card";
+import type { Shown } from "./image-card";
 import { hasDrawn, splitReply } from "./markdown";
 import type { Segment } from "./markdown";
 import { outputCard, parseOutput } from "./output";
@@ -20,7 +24,7 @@ import { CARD_COLUMNS } from "./mermaid-card";
 import { diagramSketch, diagramText } from "./mermaid-diagram";
 import { MERMAID_HINT } from "./mermaid-hint";
 import { BULLET, GUTTER, MARGIN, replyTree } from "./reply";
-import { commandOfCall, rememberInput } from "./calls";
+import { commandOfCall, pathOfCall, rememberInput } from "./calls";
 import { filePathOf, outputFill, paintCommand, paintDiff, paintFences, paintLines, paintOutput } from "./paint";
 import type { Painter } from "./paint";
 import { highlight, themeBackground, themeSwatch } from "./syntax/highlight";
@@ -373,6 +377,68 @@ function sketchOf(
   }
 }
 
+// The images as drawn under a row: a picture each where pictures work, else the name and size.
+async function shownImages(
+  $: EngineInterface,
+  found: readonly Found[],
+  config: Config,
+  columns: number,
+  canDraw: boolean,
+): Promise<Shown[]> {
+  const isOff = canDraw ? (await read($, offAtom)) !== null : true;
+  const text = (image: Found): Shown => ({ id: image.id, alt: altOf(image, sizeOfFound(image)), picture: null });
+
+  if (isOff || found.length === 0) {
+    return found.map(text);
+  }
+
+  const font = { family: config.fontFamily, cellHeight: cellHeightOf(config.cellRatio) };
+  const available = Math.min(MAX_COLUMNS, columns - 2 * MARGIN);
+  const dir = await pictureDir($);
+  const io = pictureIo($);
+  const look = `${dir}|${available}|${font.family}|${font.cellHeight}|${config.imageRows}`;
+
+  return Promise.all(
+    found.map(async (image) => {
+      const picture = await pictureFor(
+        io,
+        dir,
+        `${look}|image|${image.id}`,
+        () => imageSketch(image, available, config.imageRows, font.cellHeight, font),
+        font,
+      );
+
+      return picture === null ? text(image) : { id: image.id, alt: picture.alt, picture };
+    }),
+  );
+}
+
+const pasted = new Map<string, Found[]>();
+const MEMORY_PASTED = 20;
+
+// The images pasted into a prompt row, looked up once per row.
+async function pastedOf($: EngineInterface, requestId: string, text: string): Promise<Found[]> {
+  const known = pasted.get(requestId);
+
+  if (known !== undefined) {
+    return known;
+  }
+
+  const found = pastedImagesOf(await $.session.messages({ as: "api" }), text, requestId);
+
+  if (found === null) {
+    return [];
+  }
+
+  pasted.set(requestId, found);
+
+  if (pasted.size > MEMORY_PASTED) {
+    pasted.delete(pasted.keys().next().value as string);
+  }
+
+  return found;
+}
+
 async function pictureDir($: EngineInterface): Promise<string> {
   return `${((await $.env.get("TMPDIR")) ?? "/tmp").replace(/[\\/]+$/, "")}/veneer-pictures`;
 }
@@ -568,8 +634,14 @@ export const register: Register = (on, options) => {
   on("ui.render", { component: "UserMessage" }, async ($, e, next) => {
     const { text, origin } = e.props;
     const config = await configNow($);
+    const hasImages = config.images && text.includes(PASTED_MARKER);
 
-    if (e.surface !== "terminal" || !config.styleUserMessage || origin.kind !== "composer" || text.trim() === "") {
+    if (
+      e.surface !== "terminal" ||
+      (!config.styleUserMessage && !hasImages) ||
+      origin.kind !== "composer" ||
+      text.trim() === ""
+    ) {
       return next(e);
     }
 
@@ -577,6 +649,28 @@ export const register: Register = (on, options) => {
 
     if (native.type !== "engine") {
       return native;
+    }
+
+    const ui = $.ui.resolve(e);
+    const columns = e.viewport?.columns ?? 100;
+    const withImages = async (row: RenderElement): Promise<RenderElement> => {
+      if (!hasImages) {
+        return row;
+      }
+
+      const { Box } = ui;
+      const shown = await shownImages($, await pastedOf($, e.requestId, text), config, columns, "Image" in ui);
+
+      return (
+        <Box flexDirection="column">
+          {row}
+          {imageColumn(ui, shown, MARGIN, config.align === "right" ? "flex-end" : "flex-start")}
+        </Box>
+      );
+    };
+
+    if (!config.styleUserMessage) {
+      return withImages(native);
     }
 
     const copy = {
@@ -589,7 +683,7 @@ export const register: Register = (on, options) => {
       },
     };
 
-    return userBubble($.ui.resolve(e), text, e.viewport?.columns ?? 100, config.align, copy);
+    return withImages(userBubble(ui, text, columns, config.align, copy));
   });
 
   on("ui.render", { component: "AssistantMessage" }, async ($, e, next) => {
@@ -665,7 +759,7 @@ export const register: Register = (on, options) => {
   });
 
   on("ui.render", { component: "ToolUse" }, async ($, e, next) => {
-    if (e.props.tool === "Bash") {
+    if (e.props.tool === "Bash" || e.props.tool === "Read") {
       rememberInput(e.props.tool_use_id, e.props.input);
     }
 
@@ -694,6 +788,27 @@ export const register: Register = (on, options) => {
 
     if (e.surface !== "terminal" || native.type !== "engine" || e.props.isErrored) {
       return native;
+    }
+
+    const found = imagesOf(e.props, pathOfCall(e.props.tool_use_id));
+
+    if (found.length > 0) {
+      const config = await configNow($);
+
+      if (!config.images) {
+        return native;
+      }
+
+      const ui = $.ui.resolve(e);
+      const { Box } = ui;
+      const shown = await shownImages($, found, config, e.viewport?.columns ?? 100, "Image" in ui);
+
+      return (
+        <Box flexDirection="column">
+          {native}
+          {imageColumn(ui, shown, MARGIN)}
+        </Box>
+      );
     }
 
     const { tool, output } = e.props;
@@ -789,14 +904,24 @@ export const register: Register = (on, options) => {
       }),
     );
 
-    const [reads, output, plain] = await Promise.all([
+    const ui = $.ui.resolve(e);
+    const columns = e.viewport?.columns ?? 100;
+    const [reads, output, plain, images] = await Promise.all([
       paint === undefined ? undefined : backgroundFor($, config, "reads"),
       paint === undefined ? undefined : backgroundFor($, config, "output"),
       plainOf($),
+      Promise.all(
+        calls.map(async (call) => {
+          const path = (call.input as { file_path?: unknown } | null | undefined)?.file_path;
+          const found = showsRows && config.images ? imagesOf(call, typeof path === "string" ? path : undefined) : [];
+
+          return imageColumn(ui, await shownImages($, found, config, columns, "Image" in ui), 2);
+        }),
+      ),
     ]);
 
     return toolGroup(
-      $.ui.resolve(e),
+      ui,
       calls,
       e.requestId,
       cwd,
@@ -805,6 +930,7 @@ export const register: Register = (on, options) => {
       paintedOutput,
       paint === undefined ? {} : { reads, output },
       plain,
+      images,
     );
   });
 

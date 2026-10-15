@@ -45,6 +45,18 @@
       "description": "Draw tables, headings, and Mermaid diagrams and charts as text instead of pictures. They always use text where pictures are unavailable.",
       "default": false
     },
+    "images": {
+      "type": "boolean",
+      "title": "Images",
+      "description": "Draw images that a Read or an MCP tool returned, and images pasted into a prompt, under their row. Terminals without pictures show the name and size.",
+      "default": true
+    },
+    "imageRows": {
+      "type": "number",
+      "title": "Image height",
+      "description": "The most terminal rows an image takes, from 2 to 250.",
+      "default": 20
+    },
     "diagramHint": {
       "type": "boolean",
       "title": "Diagram hint",

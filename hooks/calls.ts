@@ -14,6 +14,13 @@ export function rememberInput(id: string, input: unknown): void {
   }
 }
 
+// The file a remembered Read call named.
+export function pathOfCall(id: string): string | undefined {
+  const path = (inputs.get(id) as { file_path?: unknown } | null | undefined)?.file_path;
+
+  return typeof path === "string" ? path : undefined;
+}
+
 // The command of a remembered Bash call.
 export function commandOfCall(id: string): string | undefined {
   const command = (inputs.get(id) as { command?: unknown } | null | undefined)?.command;

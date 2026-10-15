@@ -3,7 +3,7 @@
 Veneer is a Claude Code mod that enhances the overall look and feel of the terminal. It uses the built-in Claude Code
 theming system for nearly everything. It adds customizable syntax highlighting for over 100 languages, using any theme
 on [Open VSX](https://www.open-vsx.org/search?q=themes&category=Themes&sortBy=downloadCount) or any theme in VS Code
-theme format.
+theme format. Furthermore, it can display attached and read images in the chat.
 
 ## Table of Contents
 

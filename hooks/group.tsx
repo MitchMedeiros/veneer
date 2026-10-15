@@ -43,7 +43,8 @@ function segmentsOf(calls: readonly GroupCall[], isPlain: boolean): Segment[] {
 
 // A run of finished calls as one line of counts, `Command 2  Read 3`, which opens into a row for each call, and each row
 // that has output opens into its card. A run of one call has nothing to count, so it is drawn as its row. The whole line takes the text colour while the pointer is on it. A path stays a
-// link beside its row's button, so a click on it opens the file and a click on the rest folds the row.
+// link beside its row's button, so a click on it opens the file and a click on the rest folds the row. The images a
+// call returned, drawn by the caller, sit under its row.
 export function toolGroup(
   { Box, Button, Link, Text }: Ui,
   calls: readonly GroupCall[],
@@ -54,6 +55,7 @@ export function toolGroup(
   paintedOutput: readonly (OutputLine[] | undefined)[] = [],
   fills: { reads?: string; output?: string } = {},
   plain: Plain = NOT_PLAIN,
+  images: readonly (RenderElement | null)[] = [],
 ): RenderElement {
   const fillOf = (tool: string, lines: readonly OutputLine[]) =>
     tool === "Read"
@@ -141,6 +143,7 @@ export function toolGroup(
             )}
           </Box>
         ) : null}
+        {images[i] ?? null}
       </Box>
     );
   });

@@ -8,6 +8,8 @@ export type Config = {
   icons: "auto" | "nerd" | "plain";
   links: "auto" | "link" | "text";
   nativeGraphics: boolean;
+  images: boolean;
+  imageRows: number;
   diagramHint: boolean;
   styleUserMessage: boolean;
   styleSpinner: boolean;
@@ -46,6 +48,15 @@ const ratioOf = (value: unknown): number => {
   return ratio >= 1 && ratio <= 6 ? ratio : DEFAULT_RATIO;
 };
 
+const DEFAULT_IMAGE_ROWS = 20;
+
+// The tallest an image draws, in rows; anything outside 2 to 250 keeps the default.
+const imageRowsOf = (value: unknown): number => {
+  const rows = Math.floor(Number(value));
+
+  return rows >= 2 && rows <= 250 ? rows : DEFAULT_IMAGE_ROWS;
+};
+
 export const configOf = (options: PluginOptions): Config => ({
   align: options.messageAlign === "right" ? "right" : "left",
   fontFamily: [typeof options.fontFamily === "string" ? options.fontFamily.trim() : "", ...FALLBACK_FONTS]
@@ -58,6 +69,8 @@ export const configOf = (options: PluginOptions): Config => ({
   icons: options.icons === "nerd" || options.icons === "plain" ? options.icons : "auto",
   links: options.links === "link" || options.links === "text" ? options.links : "auto",
   nativeGraphics: options.nativeGraphics === true || options.nativeGraphics === "true",
+  images: onUnlessFalse(options.images),
+  imageRows: imageRowsOf(options.imageRows),
   diagramHint: onUnlessFalse(options.diagramHint),
   styleUserMessage: onUnlessFalse(options.styleUserMessage),
   styleSpinner: onUnlessFalse(options.styleSpinner),
