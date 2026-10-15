@@ -10,7 +10,16 @@ import { diffCard, parseDiff } from "./diff";
 import { MAX_LINES } from "./fold";
 import { toolGroup } from "./group";
 import { headingSketch } from "./heading";
-import { altOf, imageSketch, imagesOf, pastedImagesOf, PASTED_MARKER, sizeOfFound } from "./image";
+import {
+  altOf,
+  imageSketch,
+  imagesOf,
+  pastedImagesOf,
+  PASTED_MARKER,
+  shrinkFactor,
+  sizeOfFound,
+  treeBytes,
+} from "./image";
 import type { Found } from "./image";
 import { imageColumn } from "./image-card";
 import type { Shown } from "./image-card";
@@ -377,7 +386,12 @@ function sketchOf(
   }
 }
 
-// The images as drawn under a row: a picture each where pictures work, else the name and size.
+const MAX_SHRINKS = 3;
+const MEMORY_REDUCED = 50;
+const reduced = new Set<string>();
+
+// The images as drawn under a row or a group: a picture each where pictures work, else the name and size. The pictures
+// of one call share the engine's size limit, so they are drawn again smaller until they fit, and the person is told once.
 async function shownImages(
   $: EngineInterface,
   found: readonly Found[],
@@ -396,21 +410,59 @@ async function shownImages(
   const available = Math.min(MAX_COLUMNS, columns - 2 * MARGIN);
   const dir = await pictureDir($);
   const io = pictureIo($);
-  const look = `${dir}|${available}|${font.family}|${font.cellHeight}|${config.imageRows}`;
+  const look = `${dir}|${font.family}|${font.cellHeight}`;
+  const draw = (image: Found, width: number, rows: number) =>
+    pictureFor(
+      io,
+      dir,
+      `${look}|${width}|${rows}|image|${image.id}`,
+      () => imageSketch(image, width, rows, font.cellHeight, font),
+      font,
+    );
+  let pictures = await Promise.all(found.map((image) => draw(image, available, config.imageRows)));
 
-  return Promise.all(
-    found.map(async (image) => {
-      const picture = await pictureFor(
-        io,
-        dir,
-        `${look}|image|${image.id}`,
-        () => imageSketch(image, available, config.imageRows, font.cellHeight, font),
-        font,
-      );
+  for (let pass = 0; pass < MAX_SHRINKS; pass++) {
+    const factor = shrinkFactor(treeBytes(pictures));
 
-      return picture === null ? text(image) : { id: image.id, alt: picture.alt, picture };
-    }),
-  );
+    if (factor === 1) {
+      break;
+    }
+
+    const key = found.map(({ id }) => id).join("|");
+
+    if (!reduced.has(key)) {
+      reduced.add(key);
+      $.ui.toast("Veneer made images smaller to fit Claude Code's size limit.", { timeoutMs: NOTICE_MS });
+
+      if (reduced.size > MEMORY_REDUCED) {
+        reduced.delete(reduced.values().next().value as string);
+      }
+    }
+
+    const current = pictures;
+
+    pictures = await Promise.all(
+      found.map((image, at) => {
+        const picture = current[at];
+
+        return picture === null || picture === undefined
+          ? null
+          : draw(
+              image,
+              Math.max(1, Math.floor(picture.columns * factor)),
+              Math.max(1, Math.floor(picture.rows * factor)),
+            );
+      }),
+    );
+  }
+
+  const fits = shrinkFactor(treeBytes(pictures)) === 1;
+
+  return found.map((image, at) => {
+    const picture = fits ? pictures[at] : null;
+
+    return picture === null || picture === undefined ? text(image) : { id: image.id, alt: picture.alt, picture };
+  });
 }
 
 const pasted = new Map<string, Found[]>();
@@ -906,19 +958,25 @@ export const register: Register = (on, options) => {
 
     const ui = $.ui.resolve(e);
     const columns = e.viewport?.columns ?? 100;
-    const [reads, output, plain, images] = await Promise.all([
+    const foundIn = calls.map((call) => {
+      const path = (call.input as { file_path?: unknown } | null | undefined)?.file_path;
+
+      return showsRows && config.images ? imagesOf(call, typeof path === "string" ? path : undefined) : [];
+    });
+    const [reads, output, plain, shown] = await Promise.all([
       paint === undefined ? undefined : backgroundFor($, config, "reads"),
       paint === undefined ? undefined : backgroundFor($, config, "output"),
       plainOf($),
-      Promise.all(
-        calls.map(async (call) => {
-          const path = (call.input as { file_path?: unknown } | null | undefined)?.file_path;
-          const found = showsRows && config.images ? imagesOf(call, typeof path === "string" ? path : undefined) : [];
-
-          return imageColumn(ui, await shownImages($, found, config, columns, "Image" in ui), 2);
-        }),
-      ),
+      shownImages($, foundIn.flat(), config, columns, "Image" in ui),
     ]);
+    let taken = 0;
+    const images = foundIn.map((found) => {
+      const column = imageColumn(ui, shown.slice(taken, taken + found.length), 2);
+
+      taken += found.length;
+
+      return column;
+    });
 
     return toolGroup(
       ui,

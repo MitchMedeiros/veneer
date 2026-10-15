@@ -198,6 +198,24 @@ export function boxFor(size: Size, available: number, maxRows: number, cellHeigh
   return { columns, rows: Math.max(1, rows) };
 }
 
+// What the engine takes of the pictures in one tree, a little under its 2 MiB, so the PNGs of a row or a group share it.
+export const TREE_BYTES = 1.9 * 1024 * 1024;
+
+const SHRINK_MARGIN = 0.95;
+
+// The bytes of a base64 string once decoded.
+const bytesOf = (base64: string): number => Math.floor((base64.length * 3) / 4);
+
+// The bytes the pictures of one tree come to; a picture that could not be drawn counts nothing.
+export const treeBytes = (pictures: ReadonlyArray<{ png: string } | null>): number =>
+  pictures.reduce((sum, picture) => sum + (picture === null ? 0 : bytesOf(picture.png)), 0);
+
+// The scale for each side of a tree's pictures so that they fit the budget, 1 when they already do. A PNG's size follows
+// its pixel count, so a side scales with the square root of the overflow, less a margin for art that compresses worse
+// when it is smaller.
+export const shrinkFactor = (bytes: number): number =>
+  bytes <= TREE_BYTES ? 1 : Math.sqrt(TREE_BYTES / bytes) * SHRINK_MARGIN;
+
 const MEMORY_SIZES = 200;
 const sizes = new Map<string, Size | null>();
 

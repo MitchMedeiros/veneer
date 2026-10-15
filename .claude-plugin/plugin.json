@@ -1,11 +1,11 @@
 {
   "name": "veneer",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Claude Code in the terminal with enhanced visuals, syntax highlighting, tool use, attached images, and more.",
   "author": {
     "name": "Mitchell Medeiros"
   },
-  "displayName": "Veneer",
+  "displayName": "veneer",
   "homepage": "https://github.com/MitchMedeiros/veneer",
   "repository": "https://github.com/MitchMedeiros/veneer",
   "license": "MIT",
@@ -55,7 +55,7 @@
       "type": "number",
       "title": "Image height",
       "description": "The most terminal rows an image takes, from 2 to 250.",
-      "default": 20
+      "default": 14
     },
     "diagramHint": {
       "type": "boolean",

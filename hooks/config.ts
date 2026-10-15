@@ -48,7 +48,7 @@ const ratioOf = (value: unknown): number => {
   return ratio >= 1 && ratio <= 6 ? ratio : DEFAULT_RATIO;
 };
 
-const DEFAULT_IMAGE_ROWS = 20;
+const DEFAULT_IMAGE_ROWS = 14;
 
 // The tallest an image draws, in rows; anything outside 2 to 250 keeps the default.
 const imageRowsOf = (value: unknown): number => {

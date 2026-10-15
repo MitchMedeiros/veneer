@@ -1,6 +1,16 @@
 import { expect, test } from "claude-code/testing";
 
-import { altOf, boxFor, imageSketch, imagesOf, pastedImagesOf, sizeOf } from "../hooks/image";
+import {
+  altOf,
+  boxFor,
+  imageSketch,
+  imagesOf,
+  pastedImagesOf,
+  shrinkFactor,
+  sizeOf,
+  TREE_BYTES,
+  treeBytes,
+} from "../hooks/image";
 import { CELL_WIDTH, cellHeightOf } from "../hooks/picture";
 import { stub } from "./helpers";
 
@@ -87,6 +97,19 @@ test("a picture keeps its shape and fits the room and the height cap", () => {
   expect(boxFor({ width: 200, height: 100 }, 80, 20, cell)).toEqual({ columns: 10, rows: 2 });
   expect(boxFor({ width: 4000, height: 100 }, 60, 20, cell)).toEqual({ columns: 60, rows: 1 });
   expect(boxFor({ width: 1000, height: 4000 }, 80, 10, cell)).toEqual({ columns: 7, rows: 10 });
+});
+
+test("pictures that fit the tree budget keep their size, and larger ones scale each side down", () => {
+  const picture = (bytes: number) => ({ png: "A".repeat(Math.ceil((bytes * 4) / 3)) });
+  const half = Math.floor(TREE_BYTES / 2);
+
+  expect(treeBytes([null, { png: "AAAA" }])).toBe(3);
+  expect(shrinkFactor(treeBytes([picture(half), picture(half)]))).toBe(1);
+
+  const factor = shrinkFactor(treeBytes([picture(2 * half), picture(2 * half)]));
+
+  expect(factor).toBeLessThan(Math.sqrt(0.5));
+  expect(factor).toBeGreaterThan(0.5);
 });
 
 test("a Read of an image keeps its row and names the image where the terminal has no pictures", async ($, on) => {
