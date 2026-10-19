@@ -10,6 +10,7 @@ import { diffCard, parseDiff } from "./diff";
 import { MAX_LINES } from "./fold";
 import { callIdOf, hiddenIdOf, toolGroup } from "./group";
 import { headingSketch } from "./heading";
+import { mathSketch } from "./math";
 import {
   altOf,
   draftImageIds,
@@ -364,12 +365,15 @@ async function importTheme($: EngineInterface, requested: string): Promise<void>
   $.ui.toast(`Added ${name} from ${baseNameOf(path)}.`);
 }
 
-// Whether a block of a reply is drawn as a picture: a table, a heading or a Mermaid fence, unless the settings leave
+// Whether a block of a reply is drawn as a picture: a table, a heading, an equation or a Mermaid fence, unless the settings leave
 // graphics to native drawing.
 function wantsPicture(segment: Segment, config: Config): segment is Exclude<Segment, { kind: "text" }> {
   return (
     !config.nativeGraphics &&
-    (segment.kind === "table" || segment.kind === "heading" || (segment.kind === "code" && segment.lang === "mermaid"))
+    (segment.kind === "table" ||
+      segment.kind === "heading" ||
+      segment.kind === "math" ||
+      (segment.kind === "code" && segment.lang === "mermaid"))
   );
 }
 
@@ -385,6 +389,8 @@ function sketchOf(
       return tableSketch(segment, available, palette, font);
     case "heading":
       return headingSketch(segment, available, palette, font);
+    case "math":
+      return mathSketch(segment.tex, available, palette, font);
     case "code":
       return diagramSketch(segment.code, available, palette, font);
   }

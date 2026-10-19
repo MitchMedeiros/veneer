@@ -62,6 +62,16 @@ test("a heading with no picture is bold text with a rule under the first two lev
   expect(await ui.find({ type: "Text", text: "─────" })).toBeUndefined();
 });
 
+test("display math with no picture is its Unicode form with a copy button, and inline math is in the text", async ($, on) => {
+  stub(on, NATIVE);
+
+  const ui = await $.ui.mount(reply("Let $x \\in \\mathbb{R}$.\n\n$$\n\\alpha^2 \\leq \\beta\n$$\n\nafter", "m8"));
+
+  expect(await ui.find({ type: "Markdown", text: "Let x ∈ ℝ." })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "α² ≤ β" })).toBeDefined();
+  expect(await ui.find({ type: "Button" })).toBeDefined();
+});
+
 test("columns are as wide as their longest cell until the table is too wide, then the widest are cut back", () => {
   const table: Table = {
     kind: "table",

@@ -5,6 +5,7 @@ import { copyRow } from "./copy-button";
 import type { CopyAction } from "./copy-button";
 import { headingCard } from "./heading-card";
 import type { Segment } from "./markdown";
+import { mathCard } from "./math-card";
 import { mermaidCard } from "./mermaid-card";
 import type { Row } from "./mermaid-cells";
 import type { Picture } from "./picture";
@@ -93,6 +94,15 @@ export function replyTree(
       if (diagram !== null) {
         return framed(i, copy, mermaidCard({ Box, Text }, diagram), "flex-start");
       }
+    }
+
+    if (segment.kind === "math") {
+      const equation =
+        drawn !== undefined && Image !== undefined
+          ? pictureOf(Image, i, drawn, false)
+          : mathCard({ Box, Text }, segment.tex);
+
+      return framed(i, copyFor(i, segment.tex, "Equation"), equation, "flex-start");
     }
 
     if (segment.kind === "code") {

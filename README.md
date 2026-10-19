@@ -16,6 +16,7 @@ theme format. Furthermore, it can display attached and read images in the chat.
 - [Syntax Highlighting](#syntax-highlighting)
 - [General Settings](#general-settings)
   - [Diagrams and charts](#diagrams-and-charts)
+  - [Math](#math)
 - [Supported Languages and File Types](#supported-languages-and-file-types)
 - [Contributing](#contributing)
 
@@ -135,6 +136,14 @@ images or text blocks. The supported types are:
 | Architecture   | `architecture-beta`, with groups, services, junctions and ports           |
 | C4             | `C4Context`, `C4Container`, `C4Component`, `C4Dynamic` and `C4Deployment` |
 
+### Math
+
+Display equations (`$$ ... $$`, `\[ ... \]` and `\begin{equation}`, `align`, `gather` and `multline` blocks) are typeset
+with [MathJax](https://www.mathjax.org) and drawn as images in the theme's text colour. An equation MathJax cannot read,
+or any equation where images are unavailable or text-based graphics is on, is drawn as Unicode text. Inline math
+(`$ ... $` and `\( ... \)`) is always converted to Unicode text, such as `x² + α ≤ ∑ᵢ₌₁ⁿ i`, so it stays in the line.
+Anything in a code span or fence is left alone. The equation's TeX is copied from the button above it.
+
 ## Supported Languages and File Types
 
 Syntax highlighting is supported for 106 languages and file types:
@@ -168,5 +177,6 @@ Other useful commands:
 | `npm run validate`       | Run `claude plugin validate` on the repo                                                |
 | `npm test`               | Run `claude plugin test` on the repo                                                    |
 | `npm run build:grammars` | Rebuild `grammars/` from `tools/languages.json`                                         |
+| `npm run build:math`     | Rebuild the bundled MathJax in `hooks/vendor/` from `node_modules`                      |
 | `npm run conformance`    | Compare the tokenizer with Shiki on `tools/samples/`                                    |
 | `npm run check:themes`   | Fetch the popular themes from Open VSX (network, not in CI; `-- --all` for every theme) |

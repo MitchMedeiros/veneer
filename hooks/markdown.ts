@@ -1,3 +1,5 @@
+import { inlineMath } from "./math-unicode";
+
 export type Align = "left" | "right" | "center";
 
 export type Table = { kind: "table"; header: string[]; align: Align[]; rows: string[][]; raw: string };
@@ -6,7 +8,9 @@ export type Heading = { kind: "heading"; level: number; text: string; raw: strin
 
 export type Code = { kind: "code"; lang: string; code: string; raw: string };
 
-export type Segment = { kind: "text"; text: string } | Table | Heading | Code;
+export type Math = { kind: "math"; tex: string; raw: string };
+
+export type Segment = { kind: "text"; text: string } | Table | Heading | Code | Math;
 
 const SEPARATOR = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
 const FENCE = /^(\s*)(`{3,}|~{3,})\s*([^\s`]*)/;
@@ -17,10 +21,32 @@ const closesFence = (line: string, marker: string): boolean => {
   return text.length >= marker.length && text === marker[0]!.repeat(text.length);
 };
 const HEADING = /^ {0,3}(#{1,4})\s+(.+?)(?:\s+#+)?\s*$/;
+const MATH_OPEN = /^\s*(?:\$\$|\\\[|\\begin\{(?:equation|align|gather|multline|eqnarray)\*?\})/;
+const MATH_ENVIRONMENT = /^\s*\\begin\{([a-z]+\*?)\}/;
+
+// The display equation that starts on line `start`: its TeX, and the line it ends on. Null where it has not closed, as
+// while the reply streams, or where text follows it on its last line.
+function displayMath(lines: readonly string[], start: number): { tex: string; end: number } | null {
+  const rest = lines.slice(start).join("\n").trimStart();
+  const environment = MATH_ENVIRONMENT.exec(rest)?.[1];
+  const [open, close] =
+    environment !== undefined ? ["", `\\end{${environment}}`] : rest.startsWith("$$") ? ["$$", "$$"] : ["\\[", "\\]"];
+  const stop = rest.indexOf(close, open.length);
+
+  if (stop === -1) {
+    return null;
+  }
+
+  const consumed = rest.slice(0, stop + close.length);
+  const tail = rest.slice(consumed.length).split("\n")[0] ?? "";
+  const tex = environment === undefined ? rest.slice(open.length, stop).trim() : consumed;
+
+  return tex === "" || tail.trim() !== "" ? null : { tex, end: start + consumed.split("\n").length - 1 };
+}
 
 // Inline marks read as noise in a picture, where they cannot be styled.
 const plain = (text: string): string =>
-  text
+  inlineMath(text)
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/\*\*|__|`/g, "")
     .replace(/\\\|/g, "|")
@@ -75,7 +101,7 @@ function split(markdown: string): Segment[] {
 
   const flush = () => {
     if (text.join("\n").trim() !== "") {
-      segments.push({ kind: "text", text: text.join("\n") });
+      segments.push({ kind: "text", text: inlineMath(text.join("\n")) });
     }
 
     text = [];
@@ -108,6 +134,15 @@ function split(markdown: string): Segment[] {
         raw: lines.slice(i, close + 1).join("\n"),
       });
       i = close;
+      continue;
+    }
+
+    const math = MATH_OPEN.test(line) ? displayMath(lines, i) : null;
+
+    if (math !== null) {
+      flush();
+      segments.push({ kind: "math", tex: math.tex, raw: lines.slice(i, math.end + 1).join("\n") });
+      i = math.end;
       continue;
     }
 
