@@ -14,7 +14,31 @@ export type AlertType = "note" | "tip" | "important" | "warning" | "caution";
 
 export type Alert = { kind: "alert"; type: AlertType; text: string; raw: string };
 
-export type Segment = { kind: "text"; text: string } | Table | Heading | Code | Math | Alert;
+export type Task = { text: string; isDone: boolean; depth: number };
+
+export type Tasks = { kind: "tasks"; items: Task[]; raw: string };
+
+// A list item: its markdown, how deep it is nested, its number (null in a bullet list), and whether a blank line came
+// before it.
+export type ListItem = { text: string; depth: number; number: number | null; isSpaced: boolean };
+
+export type List = { kind: "list"; items: ListItem[]; raw: string };
+
+export type Segment = { kind: "text"; text: string } | Table | Heading | Code | Math | Alert | Tasks | List;
+
+const ITEM = /^( *)([-*+]|\d{1,9}[.)])\s+(\S.*)$/;
+const RULE = /^ *([-*_])( *\1){2,} *$/;
+
+const TASK = /^( *)[-*+]\s+\[([ xX])\]\s+(\S.*)$/;
+
+// The list item a line is, or null where it is not a task.
+const taskOf = (line: string): Task | null => {
+  const match = TASK.exec(line);
+
+  return match === null
+    ? null
+    : { text: plain(match[3]!), isDone: match[2] !== " ", depth: Math.floor(match[1]!.length / 2) };
+};
 
 const ALERT = /^ {0,3}>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*$/i;
 const QUOTE = /^ {0,3}>/;
@@ -77,10 +101,86 @@ const alignOf = (cell: string): Align => {
   return spec.endsWith(":") ? "right" : "left";
 };
 
+// The list that starts on line `start`, as its items and the line after its last, or null where that line is not an
+// item. A list runs while lines are items; a line indented under an item that is not an item, fence, equation or table
+// row goes on that item's text. A blank line followed by another item goes on the list, and the item is marked as
+// spaced; a blank line followed by anything else, a task or any other line ends it, so a task list stays its own
+// segment. Numbers count on from the first at each depth, as Markdown numbers a list, whatever each line says, and from
+// the numbers of `carry` where the list goes on from an earlier one.
+function listFrom(
+  lines: readonly string[],
+  start: number,
+  carry: readonly (number | undefined)[] = [],
+): { items: ListItem[]; end: number; counts: (number | undefined)[] } | null {
+  const items: ListItem[] = [];
+  const indents: number[] = [];
+  const counts = [...carry];
+  let isSpaced = false;
+  let end = start;
+
+  const isItem = (line: string | undefined) =>
+    line !== undefined && ITEM.test(line) && !RULE.test(line) && taskOf(line) === null;
+
+  for (; end < lines.length; end++) {
+    const line = lines[end] ?? "";
+    const item = ITEM.exec(line);
+
+    if (line.trim() === "") {
+      let next = end + 1;
+
+      while (next < lines.length && (lines[next] ?? "").trim() === "") {
+        next++;
+      }
+
+      if (items.length === 0 || !isItem(lines[next])) {
+        break;
+      }
+
+      isSpaced = true;
+      end = next - 1;
+      continue;
+    }
+
+    if (item === null || RULE.test(line) || taskOf(line) !== null) {
+      const isContinuation =
+        items.length > 0 && /^ {2,}\S/.test(line) && !FENCE.test(line) && !MATH_OPEN.test(line) && !line.includes("|");
+
+      if (!isContinuation) {
+        break;
+      }
+
+      const last = items[items.length - 1]!;
+
+      last.text = `${last.text} ${line.trim()}`;
+      continue;
+    }
+
+    const indent = item[1]!.length;
+
+    while (indents.length > 0 && indent < indents[indents.length - 1]!) {
+      indents.pop();
+    }
+
+    if (indents.length === 0 || indent > indents[indents.length - 1]!) {
+      indents.push(indent);
+    }
+
+    const depth = indents.length - 1;
+    const ordered = /^\d/.test(item[2]!);
+
+    counts.length = depth + 1;
+    counts[depth] = ordered ? (counts[depth] === undefined ? parseInt(item[2]!, 10) : counts[depth]! + 1) : undefined;
+    items.push({ text: inlineMath(item[3]!), depth, number: ordered ? counts[depth]! : null, isSpaced });
+    isSpaced = false;
+  }
+
+  return items.length === 0 ? null : { items, end, counts };
+}
+
 const MEMORY_REPLIES = 64;
 const splits = new Map<string, Segment[]>();
 
-// The reply as runs of text with each table, heading, alert and closed code fence taken out as its own segment. A fence still
+// The reply as runs of text with each table, heading, alert, task list and closed code fence taken out as its own segment. A fence still
 // open, as while the reply streams, stays text with everything after it. A reply is split once however often it is
 // drawn.
 export function splitReply(markdown: string): Segment[] {
@@ -105,6 +205,7 @@ function split(markdown: string): Segment[] {
   const lines = markdown.split("\n");
   const segments: Segment[] = [];
   let text: string[] = [];
+  let counts: (number | undefined)[] = [];
 
   const flush = () => {
     if (text.join("\n").trim() !== "") {
@@ -177,6 +278,35 @@ function split(markdown: string): Segment[] {
       continue;
     }
 
+    // A list that a code fence cut in two goes on counting where the first part stopped.
+    const goesOn = text.join("").trim() === "" && segments.at(-1)?.kind === "code" && segments.at(-2)?.kind === "list";
+    const list = taskOf(line) === null && !RULE.test(line) ? listFrom(lines, i, goesOn ? counts : []) : null;
+
+    if (list !== null) {
+      flush();
+      segments.push({ kind: "list", items: list.items, raw: lines.slice(i, list.end).join("\n") });
+      counts = list.counts;
+      i = list.end - 1;
+      continue;
+    }
+
+    if (taskOf(line) !== null) {
+      let end = i + 1;
+
+      while (end < lines.length && taskOf(lines[end] ?? "") !== null) {
+        end++;
+      }
+
+      flush();
+      segments.push({
+        kind: "tasks",
+        items: lines.slice(i, end).map((row) => taskOf(row)!),
+        raw: lines.slice(i, end).join("\n"),
+      });
+      i = end - 1;
+      continue;
+    }
+
     const heading = HEADING.exec(line);
 
     // The last line of the text may still be streaming; a line is final once another follows it.
@@ -225,6 +355,8 @@ function split(markdown: string): Segment[] {
   return segments;
 }
 
-// Whether a reply has a block that may be drawn as a picture. An alert is native text, so it is not one.
+const NATIVE_KINDS: ReadonlySet<Segment["kind"]> = new Set(["text", "alert", "tasks", "list"]);
+
+// Whether a reply has a block that may be drawn as a picture. Text, an alert, a task list and a list are native.
 export const hasDrawn = (segments: readonly Segment[]): boolean =>
-  segments.some((segment) => segment.kind !== "text" && segment.kind !== "alert");
+  segments.some((segment) => !NATIVE_KINDS.has(segment.kind));

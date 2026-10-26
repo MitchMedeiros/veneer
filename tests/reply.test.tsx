@@ -155,6 +155,81 @@ test("a blockquote tagged as an alert is split out with its kind and its quoted 
   expect(splitReply("> an ordinary quote").map((segment) => segment.kind)).toEqual(["text"]);
 });
 
+test("a run of task lines is split out with each task's state, and a plain list is not", () => {
+  const segments = splitReply("Plan:\n\n- [x] Strip **the** notice\n- [ ] Draw cards\n  - [ ] Nested\n\nafter");
+
+  expect(segments.map((segment) => segment.kind)).toEqual(["text", "tasks", "text"]);
+  expect(segments[1]).toMatchObject({
+    items: [
+      { text: "Strip the notice", isDone: true, depth: 0 },
+      { text: "Draw cards", isDone: false, depth: 0 },
+      { text: "Nested", isDone: false, depth: 1 },
+    ],
+  });
+  expect(splitReply("- one\n- two").map((segment) => segment.kind)).toEqual(["list"]);
+});
+
+test("a list keeps its depth, counts numbers on from the first, and holds an indented line in its item", () => {
+  const [list] = splitReply("3. three\n3. again\n   - inner **b**\n     wraps here\n   - inner two\n9. nine\n\ntext");
+
+  expect(list).toMatchObject({
+    kind: "list",
+    items: [
+      { text: "three", depth: 0, number: 3 },
+      { text: "again", depth: 0, number: 4 },
+      { text: "inner **b** wraps here", depth: 1, number: null },
+      { text: "inner two", depth: 1, number: null },
+      { text: "nine", depth: 0, number: 5 },
+    ],
+  });
+});
+
+test("a blank line between items keeps one list and spaces the item, and a code fence cut keeps counting", () => {
+  const [loose] = splitReply("1. First\n\n1. Second\n\ntext");
+
+  expect(loose).toMatchObject({
+    items: [
+      { number: 1, isSpaced: false },
+      { number: 2, isSpaced: true },
+    ],
+  });
+
+  const parts = splitReply("1. Run this:\n   ```sh\n   npm test\n   ```\n1. Then this");
+
+  expect(parts[2]).toMatchObject({ items: [{ text: "Then this", number: 2 }] });
+});
+
+test("a rule, a task line and a code fence in an item end the list and are not items", () => {
+  expect(splitReply("- a\n---\n- b").map((segment) => segment.kind)).toEqual(["list", "text", "list"]);
+  expect(splitReply("- a\n- [ ] b").map((segment) => segment.kind)).toEqual(["list", "tasks"]);
+  expect(splitReply("1. a\n   ```ts\n   x\n   ```\n2. b").map((segment) => segment.kind)).toEqual([
+    "list",
+    "code",
+    "list",
+  ]);
+});
+
+test("a list is drawn with a mark for each item, bullets or numbers", async ($, on) => {
+  stub(on, NATIVE);
+
+  const ui = await $.ui.mount(reply("- first\n  - child\n\n9. nine\n10. ten\n\nafter", "l1"));
+
+  expect(await ui.find({ type: "Text", text: "• " })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "◦ " })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: " 9. " })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "10. " })).toBeDefined();
+});
+
+test("a task list is a card with its count and a mark for each task", async ($, on) => {
+  stub(on, NATIVE);
+
+  const ui = await $.ui.mount(reply("- [x] Done thing\n- [ ] Open thing\n\nafter", "a2"));
+
+  expect(await ui.find({ type: "Text", text: "Tasks 1/2" })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "☑ " })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "☐ " })).toBeDefined();
+});
+
 test("an alert is a titled card holding its text", async ($, on) => {
   stub(on, NATIVE);
 

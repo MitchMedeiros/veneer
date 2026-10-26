@@ -5,6 +5,7 @@ import { codeCard } from "./code";
 import { copyCorner, copyRow } from "./copy-button";
 import type { CopyAction } from "./copy-button";
 import { headingCard } from "./heading-card";
+import { listCard } from "./list-card";
 import type { Segment } from "./markdown";
 import { mathCard } from "./math-card";
 import { texToText } from "./math-unicode";
@@ -13,6 +14,7 @@ import type { Row } from "./mermaid-cells";
 import type { Picture } from "./picture";
 import type { StyledRun } from "./syntax/types";
 import { tableCard } from "./table-card";
+import { tasksCard } from "./tasks-card";
 
 type Ui = Pick<ElementTable, "Box" | "Text" | "Markdown" | "Button"> &
   Partial<Pick<Extract<ElementTable, { Image: unknown }>, "Image">>;
@@ -86,6 +88,19 @@ export function replyTree(
     </Box>
   );
 
+  // A native block with a blank row above it unless it opens the reply, and below it where text follows, which the
+  // `Markdown` of that text does not leave.
+  const spaced = (i: number, child: RenderElement) => (
+    <Box
+      key={`block-${i}`}
+      flexDirection="column"
+      marginTop={i > 0 ? 1 : 0}
+      marginBottom={segments[i + 1]?.kind === "text" ? 1 : 0}
+    >
+      {child}
+    </Box>
+  );
+
   const rows = segments.map((segment, i) => {
     const drawn = pictures.get(segment);
 
@@ -98,11 +113,15 @@ export function replyTree(
     }
 
     if (segment.kind === "alert") {
-      return (
-        <Box key={`alert-${i}`} flexDirection="column" marginTop={i > 0 ? 1 : 0}>
-          {alertCard({ Box, Text, Markdown }, segment, fitted ? available : undefined)}
-        </Box>
-      );
+      return spaced(i, alertCard({ Box, Text, Markdown }, segment, fitted ? available : undefined));
+    }
+
+    if (segment.kind === "tasks") {
+      return spaced(i, tasksCard({ Box, Text }, segment, fitted ? available : undefined));
+    }
+
+    if (segment.kind === "list") {
+      return spaced(i, listCard({ Box, Text, Markdown }, segment));
     }
 
     if (segment.kind === "code" && segment.lang === "mermaid") {

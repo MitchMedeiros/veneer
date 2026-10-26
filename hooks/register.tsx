@@ -519,8 +519,9 @@ async function importTheme($: EngineInterface, requested: string): Promise<void>
   $.ui.toast(`Added ${name} from ${baseNameOf(path)}.`);
 }
 
-// The blocks of a reply that can be drawn as a picture: all but text, which is native, and an alert, a native card.
-type Pictured = Exclude<Segment, { kind: "text" | "alert" }>;
+// The blocks of a reply that can be drawn as a picture: all but text, which is native, and the alert, the task list and
+// the list, which are drawn natively.
+type Pictured = Exclude<Segment, { kind: "text" | "alert" | "tasks" | "list" }>;
 
 // Whether a block of a reply is drawn as a picture: a table, a heading, an equation or a Mermaid fence, unless the settings leave
 // graphics to native drawing.
