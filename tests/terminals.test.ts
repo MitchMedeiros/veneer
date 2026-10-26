@@ -228,6 +228,7 @@ function session(on: On, variables: Record<string, string>, resvgFound: boolean)
   on("ui.log", () => ({ value: undefined }));
   on("config.list", () => ({ value: [] }));
   on("command.register", () => ({ value: undefined }) as never);
+  on("session.id", () => ({ value: "s1" }));
   on("session.start", (_$, e) => ({ cwd: e.cwd }));
   on("classic.SessionStart", () => ({}));
   on("process.run", (_$, e) => {

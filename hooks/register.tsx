@@ -1,5 +1,5 @@
 import { atom, read, update } from "claude-code";
-import type { EngineInterface, PluginOptions, Register, RenderElement, Timer } from "claude-code";
+import type { EngineInterface, PluginOptions, Register, RenderElement, Timer, UiScrollResult } from "claude-code";
 
 import type { Off, Palette, SettingsPane, SyntaxPane, Tab } from "../types";
 import { configOf } from "./config";
@@ -9,7 +9,8 @@ import { changeCounts, withBadges } from "./badge";
 import type { PillLook } from "./badge";
 import { diffCard, parseDiff } from "./diff";
 import { bandButtons } from "./edits";
-import { firstRow, forgetRows, lastRow, noteRow } from "./transcript";
+import type { Target } from "./transcript";
+import { bottomTarget, CHUNK_BYTES, endsOf, forgetEnds, noteAppended, noteEnds, topTarget } from "./transcript";
 import { MAX_LINES } from "./fold";
 import { callIdOf, hiddenIdOf, toolGroup } from "./group";
 import { headingSketch } from "./heading";
@@ -163,22 +164,86 @@ async function seedEdits($: EngineInterface): Promise<void> {
   await update($, flippedEditsAtom, () => []);
 }
 
+// Finds the first and the newest row in the session's file, which may hold rows from before Veneer was loaded.
+async function readEnds($: EngineInterface): Promise<void> {
+  const [configDir, home, session] = await Promise.all([
+    $.env.get("CLAUDE_CONFIG_DIR"),
+    $.env.get("HOME"),
+    $.session.id(),
+  ]);
+  const root = configDirOf(configDir, home);
+
+  if (root === undefined) {
+    return;
+  }
+
+  const found = await $.process
+    .run(["find", `${root}/projects`, "-maxdepth", "2", "-name", `${session}.jsonl`], { timeoutMs: 5000 })
+    .catch(() => null);
+  const path = found?.stdout.split("\n")[0];
+
+  if (path === undefined || path === "") {
+    return;
+  }
+
+  const [start, end] = await Promise.all(
+    ["head", "tail"].map((command) =>
+      $.process.run([command, "-c", String(CHUNK_BYTES), path], { timeoutMs: 5000 }).then(
+        (result) => result.stdout,
+        () => "",
+      ),
+    ),
+  );
+
+  noteEnds(endsOf(start ?? "", end ?? ""));
+}
+
+let endsReadFor: string | undefined;
+
+// Reads the ends once for each session that has none yet, from the band, which draws after /resume has switched the
+// session. A press then needs no read, which would end its standing as the person's own input.
+async function ensureEnds($: EngineInterface): Promise<void> {
+  const session = await $.session.id().catch(() => undefined);
+
+  if ((topTarget() !== undefined && bottomTarget() !== undefined) || session === undefined || session === endsReadFor) {
+    return;
+  }
+
+  endsReadFor = session;
+  await readEnds($);
+}
+
 // Scrolls the transcript until its first or newest row shows, with that row at the edge it belongs to.
 async function scrollTranscript($: EngineInterface, end: "top" | "bottom"): Promise<void> {
-  const id = end === "top" ? firstRow() : lastRow();
+  const targetNow = (): Target | undefined => (end === "top" ? topTarget() : bottomTarget());
 
-  if (id === undefined) {
+  if (targetNow() === undefined) {
+    await readEnds($);
+  }
+
+  const target = targetNow();
+
+  if (target === undefined) {
     $.ui.toast("The transcript has nothing to scroll to yet.", { timeoutMs: NOTICE_MS });
 
     return;
   }
 
-  const { deny } = await $.ui
-    .scroll({ to: { requestId: id }, block: end === "top" ? "start" : "end" })
-    .catch((error: unknown) => ({ deny: error instanceof Error ? error.message : String(error) }));
+  const block = end === "top" ? "start" : "end";
+  const scrollTo = (requestId: string, at: "start" | "end"): Promise<UiScrollResult> =>
+    $.ui
+      .scroll({ to: { requestId }, block: at })
+      .catch((error: unknown) => ({ deny: error instanceof Error ? error.message : String(error) }));
+  let { deny } = await scrollTo(target.id, block);
+
+  // A group row exists only while it is drawn. The row before it always can be reached, which draws the group.
+  if (deny !== undefined && target.before !== undefined) {
+    await scrollTo(target.before, "start");
+    ({ deny } = await scrollTo(target.id, block));
+  }
 
   if (deny !== undefined) {
-    $.ui.toast(`Could not scroll to the ${end}: ${deny}`, { timeoutMs: NOTICE_MS });
+    $.ui.toast(`Could not scroll to the ${end} (${target.id}): ${deny}`, { timeoutMs: NOTICE_MS });
   }
 }
 
@@ -812,9 +877,10 @@ async function openPane($: EngineInterface, tab: Tab): Promise<{ text?: string }
 
 export const register: Register = (on, options) => {
   on("session.start", async ($, e, next) => {
-    forgetRows();
+    forgetEnds();
     await seedOptions($, options);
     await seedEdits($);
+    await readEnds($);
 
     const off = await settle($, await configNow($));
 
@@ -836,12 +902,26 @@ export const register: Register = (on, options) => {
 
   // /clear, /resume and /branch reset the session's state and skip session.start.
   on("classic.SessionStart", { source: ["clear", "resume", "fork"] }, async ($, e, next) => {
-    forgetRows();
+    forgetEnds();
     await seedOptions($, options);
     await seedEdits($);
     await settle($, await configNow($));
 
     return next(e);
+  });
+
+  on("turn.complete", async ($, e, next) => {
+    await readEnds($);
+
+    return next(e);
+  });
+
+  on("session.append", async ($, e, next) => {
+    const result = await next(e);
+
+    noteAppended({ ...e, isMeta: e.message.isMeta, isSidechain: e.agentId !== undefined, type: e.message.type });
+
+    return result;
   });
 
   on("prompt.compose", async ($, e, next) => {
@@ -854,8 +934,6 @@ export const register: Register = (on, options) => {
   });
 
   on("ui.render", { component: "UserMessage" }, async ($, e, next) => {
-    noteRow(e.requestId);
-
     const { text, origin } = e.props;
     const config = await configNow($);
     const hasImages = config.images && text.includes(PASTED_MARKER);
@@ -917,8 +995,6 @@ export const register: Register = (on, options) => {
   });
 
   on("ui.render", { component: "AssistantMessage" }, async ($, e, next) => {
-    noteRow(e.requestId);
-
     const native = await next(e);
     const { text, isFirstOfReply, isSummary } = e.props;
 
@@ -991,8 +1067,6 @@ export const register: Register = (on, options) => {
   });
 
   on("ui.render", { component: "ToolUse" }, async ($, e, next) => {
-    noteRow(e.requestId);
-
     if (e.props.tool === "Bash" || e.props.tool === "Read") {
       rememberInput(e.props.tool_use_id, e.props.input);
     }
@@ -1132,7 +1206,7 @@ export const register: Register = (on, options) => {
     }
 
     const [ids, config, collapsed, plain] = await Promise.all([
-      read($, draftImagesAtom),
+      ensureEnds($).then(() => read($, draftImagesAtom)),
       configNow($),
       read($, editsCollapsedAtom),
       plainOf($),
@@ -1163,8 +1237,6 @@ export const register: Register = (on, options) => {
   });
 
   on("ui.render", { component: "ToolGroup" }, async ($, e, next) => {
-    noteRow(e.requestId);
-
     const native = await next(e);
 
     if (e.surface !== "terminal" || native.type !== "engine" || e.props.isExpanded) {
