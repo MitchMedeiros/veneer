@@ -1250,8 +1250,11 @@ export const register: Register = (on, options) => {
     const open = new Set(expandedIds);
     const { calls } = e.props;
     const showsRows = calls.length === 1 || open.has(`group:${e.requestId}`);
+    const diffs = calls.map((call) => (call.isRunning || call.isErrored ? null : parseDiff(call.output)));
     const paint =
-      showsRows && calls.some((call) => call.tool === "Bash" || call.tool === "Grep") ? await painterFor($) : undefined;
+      showsRows && calls.some((call, i) => call.tool === "Bash" || call.tool === "Grep" || diffs[i] !== null)
+        ? await painterFor($)
+        : undefined;
     const commandRuns = await Promise.all(
       calls.map((call) => (paint === undefined ? undefined : paintCommand(paint, call))),
     );
@@ -1293,6 +1296,35 @@ export const register: Register = (on, options) => {
 
       return column;
     });
+    const hasEdits = showsRows && diffs.some((diff) => diff !== null);
+    const [collapsed, flipped, palette, pills] = hasEdits
+      ? await Promise.all([read($, editsCollapsedAtom), read($, flippedEditsAtom), read($, paletteAtom), pillsFor($)])
+      : [false, [] as string[], undefined, undefined];
+    const cards = await Promise.all(
+      calls.map(async (call, i) => {
+        const diff = diffs[i];
+
+        if (!hasEdits || diff === null || diff === undefined) {
+          return undefined;
+        }
+
+        if (call.tool_use_id !== undefined && collapsed !== flipped.includes(call.tool_use_id)) {
+          return null;
+        }
+
+        const callId = callIdOf(call, e.requestId, i);
+        const path = filePathOf(call.output);
+        const isOpen = open.has(callId);
+        const [runs, background] = await Promise.all([
+          path === undefined || paint === undefined
+            ? []
+            : paintDiff(paint, path, { ...diff, lines: diff.lines.slice(0, isOpen ? Infinity : MAX_LINES) }),
+          backgroundFor($, config, "diffs"),
+        ]);
+
+        return diffCard(ui, diff, palette?.isAnsi ?? false, isOpen, () => flip($, callId), callId, runs, background);
+      }),
+    );
 
     return toolGroup(
       ui,
@@ -1307,6 +1339,7 @@ export const register: Register = (on, options) => {
       images,
       imageCalls,
       config.rowGap,
+      { cards, flip: (id) => flipEdit($, id), pills },
     );
   });
 

@@ -109,3 +109,34 @@ test("a group the engine already expanded keeps the native drawing", async ($, o
 
   expect(await ui.find({ type: "Text", text: "Command " })).toBeUndefined();
 });
+
+test("an edit in a group shows its diff card with change counts, and pressing its row folds the card away", async ($, on) => {
+  stub(on);
+
+  const patch = { structuredPatch: [{ oldStart: 1, newStart: 1, lines: [" one", "-two", "+TWO"] }] };
+  const ui = await $.ui.mount({
+    plugin: "veneer",
+    viewport: { columns: 100, rows: 30 },
+    surface: "terminal",
+    component: "ToolGroup",
+    requestId: "g6",
+    props: {
+      isActive: false,
+      isExpanded: false,
+      calls: [
+        call("Edit", { file_path: "/work/a.ts" }, patch, "e1"),
+        call("Write", { file_path: "/work/b.ts" }, patch, "e2"),
+      ],
+    },
+  } as never);
+
+  await ui.press({ key: "group:g6" });
+  expect(await ui.find({ type: "Text", text: "TWO" })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "+1" })).toBeDefined();
+
+  await ui.press({ key: "row:call:e1" });
+  expect(await ui.find({ type: "Text", text: "TWO" })).toBeDefined();
+
+  await ui.press({ key: "row:call:e2" });
+  expect(await ui.find({ type: "Text", text: "TWO" })).toBeUndefined();
+});

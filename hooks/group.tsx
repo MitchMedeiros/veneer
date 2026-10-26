@@ -1,5 +1,7 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
+import { changeCounts, withBadges } from "./badge";
+import type { PillLook } from "./badge";
 import { outputCard, parseOutput } from "./output";
 import type { OutputLine } from "./output";
 import { outputFill } from "./paint";
@@ -15,6 +17,15 @@ export type GroupCall = ToolCall;
 
 // Which entries are open, by id, and the press that flips one.
 export type Folds = { open: ReadonlySet<string>; toggle: (id: string) => void };
+
+// The edits and file writes of a group, which the group draws as the diff card of a lone edit. `cards` holds one entry
+// for each call: undefined for a call that is not an edit, null for an edit whose card is folded away, else its card.
+// `flip` folds a card away or shows it again, by the call's `tool_use_id`.
+export type GroupEdits = {
+  cards?: readonly (RenderElement | null | undefined)[];
+  flip?: (toolUseId: string) => void;
+  pills?: PillLook;
+};
 
 type Tone = ReturnType<typeof toneOf>;
 type Segment = { look: Look; count: number; tone: Tone };
@@ -66,6 +77,7 @@ export function toolGroup(
   images: readonly (RenderElement | null)[] = [],
   imageCalls: ReadonlySet<string> = new Set(),
   gap = 0,
+  edits: GroupEdits = {},
 ): RenderElement {
   const fillOf = (tool: string, lines: readonly OutputLine[]) =>
     tool === "Read"
@@ -112,35 +124,43 @@ export function toolGroup(
     const callOpen = lines !== null && open.has(callId);
     const rowLit = litOf(callId);
     const moreId = `more:${callId}`;
+    const card = edits.cards?.[i];
+    const changes = card === undefined ? null : changeCounts(call.output);
     const press = () => {
-      if (lines !== null) {
+      if (card !== undefined && call.tool_use_id !== undefined) {
+        edits.flip?.(call.tool_use_id);
+      } else if (lines !== null) {
         toggle(callId);
       } else if (imageCalls.has(callId)) {
         toggle(hiddenIdOf(callId));
       }
     };
 
-    return (
-      <Box key={callId} flexDirection="column" marginLeft={single ? MARGIN : 4} marginTop={gap}>
-        <Box flexDirection="row" gap={2}>
-          <Button key={`row:${callId}`} plain hover={rowLit} onPress={press}>
-            <Text key="icon" color={tone} dimColor={call.isRunning} hover={rowLit}>{`${look.icon}${iconGap}`}</Text>
-            <Text key="label" color={tone} bold hover={rowLit}>
-              {look.label}
-            </Text>
-            {detail === undefined || path !== undefined ? null : (
-              <Text key="detail" dimColor wrap="truncate-end" hover={rowLit}>
-                {"  "}
-                {lineChildren({ Text }, detail, detailRuns[i], rowLit)}
-              </Text>
-            )}
-          </Button>
-          {detail === undefined || path === undefined ? null : (
-            <Text dimColor wrap="truncate-end" hover={plain.links ? undefined : pathHover(callId)}>
-              {plain.links ? detail : <Link href={`file://${encodeURI(path)}`}>{shortPath(detail, cwd)}</Link>}
+    const header = (
+      <Box flexDirection="row" gap={2}>
+        <Button key={`row:${callId}`} plain hover={rowLit} onPress={press}>
+          <Text key="icon" color={tone} dimColor={call.isRunning} hover={rowLit}>{`${look.icon}${iconGap}`}</Text>
+          <Text key="label" color={tone} bold hover={rowLit}>
+            {look.label}
+          </Text>
+          {detail === undefined || path !== undefined ? null : (
+            <Text key="detail" dimColor wrap="truncate-end" hover={rowLit}>
+              {"  "}
+              {lineChildren({ Text }, detail, detailRuns[i], rowLit)}
             </Text>
           )}
-        </Box>
+        </Button>
+        {detail === undefined || path === undefined ? null : (
+          <Text dimColor wrap="truncate-end" hover={plain.links ? undefined : pathHover(callId)}>
+            {plain.links ? detail : <Link href={`file://${encodeURI(path)}`}>{shortPath(detail, cwd)}</Link>}
+          </Text>
+        )}
+      </Box>
+    );
+
+    return (
+      <Box key={callId} flexDirection="column" marginLeft={single ? MARGIN : 4} marginTop={gap}>
+        {changes === null ? header : withBadges({ Box, Text }, header, changes, edits.pills)}
         {callOpen ? (
           <Box marginLeft={2} flexDirection="column">
             {outputCard(
@@ -153,6 +173,11 @@ export function toolGroup(
             )}
           </Box>
         ) : null}
+        {card === undefined || card === null ? null : (
+          <Box marginLeft={2} flexDirection="column">
+            {card}
+          </Box>
+        )}
         {images[i] ?? null}
       </Box>
     );
