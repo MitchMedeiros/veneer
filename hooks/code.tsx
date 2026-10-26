@@ -1,6 +1,6 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
-import { fitWidth } from "./fold";
+import { borderOf, fitWidth } from "./fold";
 import { codeLines } from "./paint";
 import { lineChildren } from "./syntax/runs";
 import type { StyledRun } from "./syntax/types";
@@ -18,6 +18,7 @@ export function codeCard(
   runs?: readonly StyledRun[][],
   background?: string,
   fit?: number,
+  isBordered = true,
 ): RenderElement {
   const lines = codeLines(code);
   const widest = Math.max(cellWidth(lang), ...lines.map(cellWidth));
@@ -26,9 +27,8 @@ export function codeCard(
     <Box
       flexDirection="column"
       alignSelf={fit === undefined ? undefined : "flex-start"}
-      width={fitWidth(widest + 2, 0, fit)}
-      borderStyle="round"
-      borderColor="subtle"
+      width={fitWidth(widest + 2, 0, fit, isBordered)}
+      {...borderOf(isBordered)}
       paddingX={1}
       backgroundColor={background}
     >

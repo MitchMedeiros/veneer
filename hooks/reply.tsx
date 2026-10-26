@@ -45,6 +45,7 @@ export function replyTree(
   diagramOf: (source: string) => Row[] | null,
   fitted = false,
   whole?: CopyAction,
+  isBordered = true,
 ): RenderElement {
   const isBeside = (segment: Segment | undefined) =>
     segment?.kind === "table" || (segment?.kind === "code" && segment.lang === "mermaid");
@@ -117,7 +118,7 @@ export function replyTree(
     }
 
     if (segment.kind === "tasks") {
-      return spaced(i, tasksCard({ Box, Text }, segment, fitted ? available : undefined));
+      return spaced(i, tasksCard({ Box, Text }, segment, fitted ? available : undefined, isBordered));
     }
 
     if (segment.kind === "list") {
@@ -133,7 +134,7 @@ export function replyTree(
       }
 
       if (diagram !== null) {
-        return framed(i, copy, mermaidCard({ Box, Text }, diagram), "flex-start");
+        return framed(i, copy, mermaidCard({ Box, Text }, diagram, isBordered), "flex-start");
       }
     }
 
@@ -162,6 +163,7 @@ export function replyTree(
           fences.get(segment),
           fenceBackground,
           fitted ? available : undefined,
+          isBordered,
         ),
         fitted ? "flex-start" : undefined,
       );
@@ -169,7 +171,12 @@ export function replyTree(
 
     if (drawn === undefined || Image === undefined) {
       if (segment.kind === "table") {
-        return framed(i, copyFor(i, segment.raw, "Table"), tableCard({ Box, Text }, segment, available), "flex-start");
+        return framed(
+          i,
+          copyFor(i, segment.raw, "Table"),
+          tableCard({ Box, Text }, segment, available, isBordered),
+          "flex-start",
+        );
       }
 
       return (

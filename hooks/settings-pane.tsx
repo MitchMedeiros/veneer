@@ -11,7 +11,10 @@ export const SETTINGS_PREFIX = "veneer.";
 export const SETTING_KEY = "setting:";
 
 const GROUPS = [
-  { title: "Styling", fields: ["messageAlign", "toolSpacing", "blockWidth", "changeStyle", "fontFamily", "cellRatio"] },
+  {
+    title: "Styling",
+    fields: ["messageAlign", "toolSpacing", "blockWidth", "blockBorders", "changeStyle", "fontFamily", "cellRatio"],
+  },
   { title: "Rendering", fields: ["icons", "links", "nativeGraphics", "images", "imageRows", "diagramHint"] },
   { title: "Mod Compatibility", fields: ["styleUserMessage", "styleSpinner"] },
   {

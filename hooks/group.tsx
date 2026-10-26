@@ -83,6 +83,7 @@ export function toolGroup(
   edits: GroupEdits = {},
   fit?: number,
   copyFor?: (id: string, text: string, noun: string) => CopyAction,
+  isBordered = true,
 ): RenderElement {
   const fillOf = (tool: string, lines: readonly OutputLine[]) =>
     tool === "Read"
@@ -132,7 +133,15 @@ export function toolGroup(
     const card = edits.cards?.[i];
     const output =
       callOpen && lines !== null
-        ? outputCard({ Box, Button, Text }, lines, foldOf(open, toggle, moreId), callId, fillOf(call.tool, lines), fit)
+        ? outputCard(
+            { Box, Button, Text },
+            lines,
+            foldOf(open, toggle, moreId),
+            callId,
+            fillOf(call.tool, lines),
+            fit,
+            isBordered,
+          )
         : null;
     const changes = card === undefined ? null : changeCounts(call.output);
     const press = () => {

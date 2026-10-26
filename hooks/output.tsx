@@ -1,6 +1,6 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
-import { fitWidth, foldButton, TAB } from "./fold";
+import { borderOf, fitWidth, foldButton, TAB } from "./fold";
 import type { Fold } from "./fold";
 import { MARGIN } from "./reply";
 import { lineChildren } from "./syntax/runs";
@@ -69,6 +69,7 @@ export function outputCard(
   id: string,
   background?: string,
   fit?: number,
+  isBordered = true,
 ): RenderElement {
   const { Box, Text } = ui;
   const shown = lines.slice(0, fold.limit);
@@ -81,11 +82,10 @@ export function outputCard(
     <Box
       flexDirection="column"
       alignSelf={fit === undefined ? undefined : "flex-start"}
-      width={fitWidth(gutter + 1 + widest, lines.length, fit)}
+      width={fitWidth(gutter + 1 + widest, lines.length, fit, isBordered)}
       marginLeft={MARGIN}
       marginRight={MARGIN}
-      borderStyle="round"
-      borderColor="subtle"
+      {...borderOf(isBordered)}
       backgroundColor={background}
     >
       {shown.map((line, i) => (

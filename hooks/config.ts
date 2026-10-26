@@ -11,6 +11,7 @@ export type Config = {
   images: boolean;
   imageRows: number;
   diagramHint: boolean;
+  borders: boolean;
   styleUserMessage: boolean;
   styleSpinner: boolean;
   changeStyle: "text" | "rounded" | "square";
@@ -77,6 +78,7 @@ export const configOf = (options: PluginOptions): Config => ({
   images: onUnlessFalse(options.images),
   imageRows: imageRowsOf(options.imageRows),
   diagramHint: onUnlessFalse(options.diagramHint),
+  borders: onUnlessFalse(options.blockBorders),
   styleUserMessage: onUnlessFalse(options.styleUserMessage),
   styleSpinner: onUnlessFalse(options.styleSpinner),
   changeStyle: options.changeStyle === "rounded" || options.changeStyle === "square" ? options.changeStyle : "text",

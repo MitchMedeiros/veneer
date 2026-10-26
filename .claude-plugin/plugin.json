@@ -83,6 +83,12 @@
       "default": "full",
       "options": ["full", "fitted"]
     },
+    "blockBorders": {
+      "type": "boolean",
+      "title": "Block borders",
+      "description": "Draw a rounded border around code blocks, tables, diagrams, task lists and the cards of edits, reads and commands. Alerts keep theirs.",
+      "default": true
+    },
     "changeStyle": {
       "type": "string",
       "title": "Edit line counts",

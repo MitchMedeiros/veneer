@@ -1,5 +1,6 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
+import { borderOf } from "./fold";
 import type { Row } from "./mermaid-cells";
 
 type Ui = Pick<ElementTable, "Box" | "Text">;
@@ -9,9 +10,9 @@ export const CARD_COLUMNS = 4;
 
 // A Mermaid diagram drawn in characters, inside a rounded card with its kind dimmed at the top left. Each row is runs of
 // text in theme colours. A row wider than the card is cut at the edge, since wrapping would tear the lines apart.
-export function mermaidCard({ Box, Text }: Ui, rows: readonly Row[]): RenderElement {
+export function mermaidCard({ Box, Text }: Ui, rows: readonly Row[], isBordered = true): RenderElement {
   return (
-    <Box flexDirection="column" alignSelf="flex-start" borderStyle="round" borderColor="subtle" paddingX={1}>
+    <Box flexDirection="column" alignSelf="flex-start" paddingX={1} {...borderOf(isBordered)}>
       <Text dimColor>mermaid</Text>
       {rows.map((row, i) => (
         <Text key={`line-${i}`} wrap="truncate-end">

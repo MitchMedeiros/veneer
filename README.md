@@ -103,6 +103,7 @@ can be either its display name or its option name, in any case: `/veneer cell-pr
 | Spinner styling           | `styleSpinner`     | `true`    | Turn off to leave spinner styling to another mod.             |
 | Tool spacing              | `toolSpacing`      | `compact` | `compact` or `spacious`. Blank line above each tool.          |
 | Block width               | `blockWidth`       | `full`    | `full` or `fitted`. Fitted blocks are only as wide as needed. |
+| Block borders             | `blockBorders`     | `true`    | Border around blocks and cards. Alerts always keep theirs.    |
 | Edit line counts          | `changeStyle`      | `text`    | `text`, `rounded` or `square`. How `+N -M` is drawn.          |
 | Table font                | `fontFamily`       | blank     | Font for tables and headings. Blank uses defaults.            |
 | Cell proportion           | `cellRatio`        | `2.9`     | Terminal cell height over width. Fixes letterboxing.          |

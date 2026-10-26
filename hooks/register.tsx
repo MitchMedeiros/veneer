@@ -1119,6 +1119,7 @@ export const register: Register = (on, options) => {
         diagramOf,
         config.fitted,
         whole,
+        config.borders,
       );
     }
 
@@ -1159,6 +1160,7 @@ export const register: Register = (on, options) => {
       diagramOf,
       config.fitted,
       whole,
+      config.borders,
     );
   });
 
@@ -1258,7 +1260,13 @@ export const register: Register = (on, options) => {
       const output = copy(outputText(shown), tool === "Read" ? "File" : "Output");
 
       if (paint === undefined) {
-        return withCopy(ui, output, outputCard(ui, shown, fold, id, undefined, fit), MARGIN, fit !== undefined);
+        return withCopy(
+          ui,
+          output,
+          outputCard(ui, shown, fold, id, undefined, fit, config.borders),
+          MARGIN,
+          fit !== undefined,
+        );
       }
 
       const [painted, background] = await Promise.all([
@@ -1271,7 +1279,7 @@ export const register: Register = (on, options) => {
       return withCopy(
         ui,
         output,
-        outputCard(ui, painted, fold, id, outputFill(background, path !== undefined, painted), fit),
+        outputCard(ui, painted, fold, id, outputFill(background, path !== undefined, painted), fit, config.borders),
         MARGIN,
         fit !== undefined,
       );
@@ -1287,7 +1295,7 @@ export const register: Register = (on, options) => {
     return withCopy(
       ui,
       copy(diffText(diff), "Diff"),
-      diffCard(ui, diff, palette?.isAnsi ?? false, fold, id, runs, background, fit),
+      diffCard(ui, diff, palette?.isAnsi ?? false, fold, id, runs, background, fit, config.borders),
       MARGIN,
       fit !== undefined,
     );
@@ -1470,7 +1478,7 @@ export const register: Register = (on, options) => {
         return withCopy(
           ui,
           copyFor(callId, diffText(diff), "Diff"),
-          diffCard(ui, diff, palette?.isAnsi ?? false, fold, callId, runs, background, fit),
+          diffCard(ui, diff, palette?.isAnsi ?? false, fold, callId, runs, background, fit, config.borders),
           MARGIN,
           fit !== undefined,
         );
@@ -1493,6 +1501,7 @@ export const register: Register = (on, options) => {
       { cards, flip: (id) => flipEdit($, id), pills },
       fit,
       copyFor,
+      config.borders,
     );
   });
 
