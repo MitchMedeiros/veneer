@@ -3,7 +3,9 @@ import type { ElementTable, RenderElement } from "claude-code";
 import { changeCounts, withBadges } from "./badge";
 import type { PillLook } from "./badge";
 import { foldOf } from "./fold";
-import { outputCard, parseOutput } from "./output";
+import { withCopy } from "./copy-button";
+import type { CopyAction } from "./copy-button";
+import { outputCard, outputText, parseOutput } from "./output";
 import type { OutputLine } from "./output";
 import { outputFill } from "./paint";
 import { MARGIN } from "./reply";
@@ -80,6 +82,7 @@ export function toolGroup(
   gap = 0,
   edits: GroupEdits = {},
   fit?: number,
+  copyFor?: (id: string, text: string, noun: string) => CopyAction,
 ): RenderElement {
   const fillOf = (tool: string, lines: readonly OutputLine[]) =>
     tool === "Read"
@@ -127,6 +130,10 @@ export function toolGroup(
     const rowLit = litOf(callId);
     const moreId = `more:${callId}`;
     const card = edits.cards?.[i];
+    const output =
+      callOpen && lines !== null
+        ? outputCard({ Box, Button, Text }, lines, foldOf(open, toggle, moreId), callId, fillOf(call.tool, lines), fit)
+        : null;
     const changes = card === undefined ? null : changeCounts(call.output);
     const press = () => {
       if (card !== undefined && call.tool_use_id !== undefined) {
@@ -163,18 +170,19 @@ export function toolGroup(
     return (
       <Box key={callId} flexDirection="column" marginLeft={single ? MARGIN : 4} marginTop={gap}>
         {changes === null ? header : withBadges({ Box, Text }, header, changes, edits.pills)}
-        {callOpen ? (
+        {output === null || lines === null ? null : (
           <Box marginLeft={2} flexDirection="column">
-            {outputCard(
-              { Box, Button, Text },
-              lines,
-              foldOf(open, toggle, moreId),
-              callId,
-              fillOf(call.tool, lines),
-              fit,
-            )}
+            {copyFor === undefined
+              ? output
+              : withCopy(
+                  { Box, Text, Button },
+                  copyFor(callId, outputText(lines), call.tool === "Read" ? "File" : "Output"),
+                  output,
+                  MARGIN,
+                  fit !== undefined,
+                )}
           </Box>
-        ) : null}
+        )}
         {card === undefined || card === null ? null : (
           <Box marginLeft={2} flexDirection="column">
             {card}

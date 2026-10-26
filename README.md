@@ -16,6 +16,7 @@ theme format. Furthermore, it can display attached and read images in the chat.
 - [Syntax Highlighting](#syntax-highlighting)
 - [General Settings](#general-settings)
   - [Collapsing edits](#collapsing-edits)
+  - [Copying](#copying)
   - [Diagrams and charts](#diagrams-and-charts)
   - [Math](#math)
 - [Supported Languages and File Types](#supported-languages-and-file-types)
@@ -115,6 +116,12 @@ Settings are stored under `pluginConfigs` in the global `~/.claude/settings.json
 
 A button above the prompt either folds every file edit into a single collapsed row or re-opens them all. Alternatively,
 use the commands `/veneer edits` and `/veneer edits collapse`.
+
+### Copying
+
+Hover a block to show its Copy button. Code blocks, tables, diagrams, equations, command output, file reads and diffs
+each have one, and so do your messages and Claude's replies. To copy without the mouse, run `/veneer copy` for the last
+reply or `/veneer copy code` for its last code block.
 
 ### Diagrams and charts
 

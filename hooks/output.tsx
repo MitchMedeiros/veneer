@@ -58,6 +58,8 @@ export function parseOutput(tool: string, output: unknown, cwd: string, isErrore
   return lines.length === 0 ? null : lines;
 }
 
+export const outputText = (lines: readonly OutputLine[]): string => lines.map((line) => line.text).join("\n");
+
 // The result as a rounded card of lines, the same shape as the diff card, with a numbered column where lines carry
 // numbers and the error colour on what a command wrote to stderr. A background fills the card.
 export function outputCard(

@@ -20,6 +20,11 @@ export type DiffLine = {
 
 export type Diff = { lines: DiffLine[]; breaks: ReadonlySet<number>; created?: boolean };
 
+const MARKS = { add: "+", remove: "-", context: " " } as const;
+
+// The diff as the text of its lines, each opening with its `+`, `-` or space mark.
+export const diffText = (diff: Diff): string => diff.lines.map((line) => `${MARKS[line.kind]}${line.text}`).join("\n");
+
 type Hunk = { oldStart?: number; newStart?: number; lines?: unknown };
 
 // The hunks of an edit's stored result. A newly created file stores no patch, only its content, so that becomes one hunk

@@ -1,11 +1,12 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
 import { codeCard } from "./code";
-import { copyRow } from "./copy-button";
+import { copyCorner, copyRow } from "./copy-button";
 import type { CopyAction } from "./copy-button";
 import { headingCard } from "./heading-card";
 import type { Segment } from "./markdown";
 import { mathCard } from "./math-card";
+import { texToText } from "./math-unicode";
 import { mermaidCard } from "./mermaid-card";
 import type { Row } from "./mermaid-cells";
 import type { Picture } from "./picture";
@@ -28,7 +29,7 @@ export const BULLET = "✦";
 // without a picture falls back to its own markdown, so one failed picture never hides content. The first block of a
 // reply starts with the bullet, in the theme's accent colour. A fence with runs in `fences` is drawn highlighted, on
 // the fence background where there is one. A Mermaid fence with no picture is drawn as the characters `diagramOf` gives
-// for its source, and stays a code block where it gives none.
+// for its source, and stays a code block where it gives none. With `whole`, a copy button copies all of the reply, and shows while the pointer is on the reply's text. It sits in the blank row above a reply that starts with the bullet, and over the top right corner of one that has no blank row above it. A scope around the whole reply would hide the buttons of its blocks.
 export function replyTree(
   { Box, Text, Markdown, Button, Image }: Ui,
   segments: readonly Segment[],
@@ -40,6 +41,7 @@ export function replyTree(
   available: number,
   diagramOf: (source: string) => Row[] | null,
   fitted = false,
+  whole?: CopyAction,
 ): RenderElement {
   const isBeside = (segment: Segment | undefined) =>
     segment?.kind === "table" || (segment?.kind === "code" && segment.lang === "mermaid");
@@ -87,7 +89,11 @@ export function replyTree(
     const drawn = pictures.get(segment);
 
     if (segment.kind === "text") {
-      return <Markdown key={`text-${i}`} text={segment.text} />;
+      return (
+        <Box key={`text-${i}`} flexDirection="column" hover={whole === undefined ? undefined : { scope: whole.scope }}>
+          <Markdown text={segment.text} />
+        </Box>
+      );
     }
 
     if (segment.kind === "code" && segment.lang === "mermaid") {
@@ -109,7 +115,12 @@ export function replyTree(
           ? pictureOf(Image, i, drawn, false)
           : mathCard({ Box, Text }, segment.tex);
 
-      return framed(i, copyFor(i, segment.tex, "Equation"), equation, "flex-start");
+      const copy = {
+        ...copyFor(i, texToText(segment.tex), "Equation"),
+        also: { label: "LaTeX", onCopy: copyFor(i, segment.tex, "LaTeX").onCopy },
+      };
+
+      return framed(i, copy, equation, "flex-start");
     }
 
     if (segment.kind === "code") {
@@ -124,6 +135,7 @@ export function replyTree(
           fenceBackground,
           fitted ? available : undefined,
         ),
+        fitted ? "flex-start" : undefined,
       );
     }
 
@@ -173,6 +185,9 @@ export function replyTree(
       </Box>
       <Box flexDirection="column" flexGrow={1}>
         {blocks}
+        {whole === undefined
+          ? null
+          : copyCorner({ Box, Text, Button }, whole, bullet === null ? { right: 0 } : { left: -GUTTER, top: -1 })}
       </Box>
     </Box>
   );

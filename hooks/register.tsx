@@ -1,5 +1,13 @@
 import { atom, read, update } from "claude-code";
-import type { EngineInterface, PluginOptions, Register, RenderElement, Timer, UiScrollResult } from "claude-code";
+import type {
+  EngineInterface,
+  PluginOptions,
+  Register,
+  RenderElement,
+  RenderSurface,
+  Timer,
+  UiScrollResult,
+} from "claude-code";
 
 import type { Off, Palette, SettingsPane, SyntaxPane, Tab } from "../types";
 import { configOf } from "./config";
@@ -7,10 +15,22 @@ import type { Backdrop, Config } from "./config";
 import { iconsArePlain, linksArePlain, OFF_TEXT, terminalOff } from "./gate";
 import { changeCounts, withBadges } from "./badge";
 import type { PillLook } from "./badge";
-import { diffCard, parseDiff } from "./diff";
+import { withCopy } from "./copy-button";
+import type { CopyAction } from "./copy-button";
+import { diffCard, diffText, parseDiff } from "./diff";
 import { bandButtons } from "./edits";
 import type { Target } from "./transcript";
-import { bottomTarget, CHUNK_BYTES, endsOf, forgetEnds, noteAppended, noteEnds, topTarget } from "./transcript";
+import {
+  bottomTarget,
+  CHUNK_BYTES,
+  endsOf,
+  forgetEnds,
+  lastReply,
+  noteAppended,
+  noteEnds,
+  noteReply,
+  topTarget,
+} from "./transcript";
 import { foldOf, limitOf } from "./fold";
 import { callIdOf, hiddenIdOf, toolGroup } from "./group";
 import { headingSketch } from "./heading";
@@ -32,7 +52,7 @@ import { imageColumn } from "./image-card";
 import type { Shown } from "./image-card";
 import { hasDrawn, splitReply } from "./markdown";
 import type { Segment } from "./markdown";
-import { outputCard, parseOutput } from "./output";
+import { outputCard, outputText, parseOutput } from "./output";
 import { baseOf } from "./palette";
 import { cellHeightOf, hashOf, MAX_COLUMNS, pictureFor } from "./picture";
 import type { Font, Picture, PictureIo, Sketch } from "./picture";
@@ -730,6 +750,26 @@ async function plainOf($: EngineInterface): Promise<Plain> {
   return { icons, links };
 }
 
+// A copy button's action: it copies `text` and toasts what it was, or that the copy failed.
+function copyAction(
+  $: EngineInterface,
+  surface: RenderSurface,
+  scope: string,
+  isPlain: boolean,
+  text: string,
+  noun: string,
+): CopyAction {
+  return {
+    scope,
+    isPlain,
+    onCopy: async () => {
+      const { isCopied } = await $.ui.copy({ text, surface });
+
+      $.ui.toast(isCopied ? `${noun} copied` : "Copy failed");
+    },
+  };
+}
+
 // How the counts of an edit are drawn as pills, or undefined while the setting leaves them plain text. Rounded ends need
 // a symbol font, so a terminal without one gets square ends.
 async function pillsFor($: EngineInterface): Promise<PillLook | undefined> {
@@ -839,6 +879,24 @@ async function runSettingsCommand($: EngineInterface, args: string): Promise<{ t
     return openPane($, "settings");
   }
 
+  const copy = /^copy(?:\s+(code))?$/i.exec(args.trim());
+
+  if (copy !== null) {
+    const reply = lastReply();
+    const code = splitReply(reply)
+      .filter((segment) => segment.kind === "code")
+      .at(-1);
+    const text = copy[1] === undefined ? reply : code?.kind === "code" ? code.code : "";
+
+    if (text === "") {
+      return { text: copy[1] === undefined ? "There is no reply to copy yet." : "The last reply has no code block." };
+    }
+
+    const { isCopied } = await $.ui.copy({ text });
+
+    return { text: isCopied ? "Copied." : "Copy failed." };
+  }
+
   const edits = /^edits(?:\s+(collapse|expand))?$/i.exec(args.trim());
 
   if (edits !== null) {
@@ -945,7 +1003,10 @@ export const register: Register = (on, options) => {
   on("session.append", async ($, e, next) => {
     const result = await next(e);
 
-    noteAppended({ ...e, isMeta: e.message.isMeta, isSidechain: e.agentId !== undefined, type: e.message.type });
+    const row = { ...e, isMeta: e.message.isMeta, isSidechain: e.agentId !== undefined, type: e.message.type };
+
+    noteAppended(row);
+    noteReply(row);
 
     return result;
   });
@@ -1007,15 +1068,7 @@ export const register: Register = (on, options) => {
       return withImages(native);
     }
 
-    const copy = {
-      scope: `bubble:${e.requestId}`,
-      isPlain: await read($, plainIconsAtom),
-      onCopy: async () => {
-        const { isCopied } = await $.ui.copy({ text: words, surface: e.surface });
-
-        $.ui.toast(isCopied ? "Message copied" : "Copy failed");
-      },
-    };
+    const copy = copyAction($, e.surface, `bubble:${e.requestId}`, await read($, plainIconsAtom), words, "Message");
 
     return withImages(userBubble(ui, words, columns, config.align, copy));
   });
@@ -1046,22 +1099,28 @@ export const register: Register = (on, options) => {
       isPictured ? read($, paletteAtom) : undefined,
       isPictured ? pictureDir($) : undefined,
     ]);
-    const copyFor = (index: number, source: string, noun: string) => ({
-      scope: `copy:${e.requestId}:${index}`,
-      isPlain,
-      onCopy: async () => {
-        const { isCopied } = await $.ui.copy({ text: source, surface: e.surface });
-
-        $.ui.toast(isCopied ? `${noun} copied` : "Copy failed");
-      },
-    });
+    const copyFor = (index: number, source: string, noun: string) =>
+      copyAction($, e.surface, `copy:${e.requestId}:${index}`, isPlain, source, noun);
+    const whole = copyAction($, e.surface, `copy:${e.requestId}:reply`, isPlain, text, "Reply");
     const drawn = new Map<Segment, { picture: Picture; alt: string }>();
     const width = (e.viewport?.columns ?? 100) - GUTTER - 2 * MARGIN;
     const diagramOf = (source: string) =>
       diagramText(source, { columns: width - CARD_COLUMNS, ratio: config.cellRatio });
 
     if (!isPictured || palette === undefined || dir === undefined) {
-      return replyTree(ui, segments, drawn, bullet, fences, fenceBackground, copyFor, width, diagramOf, config.fitted);
+      return replyTree(
+        ui,
+        segments,
+        drawn,
+        bullet,
+        fences,
+        fenceBackground,
+        copyFor,
+        width,
+        diagramOf,
+        config.fitted,
+        whole,
+      );
     }
 
     const font = { family: config.fontFamily, cellHeight: cellHeightOf(config.cellRatio) };
@@ -1089,7 +1148,19 @@ export const register: Register = (on, options) => {
       }),
     );
 
-    return replyTree(ui, segments, drawn, bullet, fences, fenceBackground, copyFor, width, diagramOf, config.fitted);
+    return replyTree(
+      ui,
+      segments,
+      drawn,
+      bullet,
+      fences,
+      fenceBackground,
+      copyFor,
+      width,
+      diagramOf,
+      config.fitted,
+      whole,
+    );
   });
 
   on("ui.render", { component: "ToolUse" }, async ($, e, next) => {
@@ -1169,23 +1240,26 @@ export const register: Register = (on, options) => {
     }
 
     const path = tool === "Read" || diff !== null ? filePathOf(output) : undefined;
-    const [config, open, paint, palette] = await Promise.all([
+    const [config, open, paint, palette, isPlain] = await Promise.all([
       configNow($),
       read($, expandedAtom),
       path !== undefined || tool === "Bash" || tool === "Grep" ? painterFor($) : undefined,
       diff === null ? undefined : read($, paletteAtom),
+      read($, plainIconsAtom),
     ]);
     const fold = foldOf(new Set(open), (stepId) => flip($, stepId), id);
     const ui = $.ui.resolve(e);
+    const copy = (text: string, noun: string) => copyAction($, e.surface, `copy:${id}`, isPlain, text, noun);
     const fit = fitCap(config, e.viewport?.columns ?? 100);
     // A folded card shows its first lines only, so only those are tokenized; unfolding paints the rest.
     const visible = fold.limit;
 
     if (diff === null) {
       const shown = lines ?? [];
+      const output = copy(outputText(shown), tool === "Read" ? "File" : "Output");
 
       if (paint === undefined) {
-        return outputCard(ui, shown, fold, id, undefined, fit);
+        return withCopy(ui, output, outputCard(ui, shown, fold, id, undefined, fit), MARGIN, fit !== undefined);
       }
 
       const [painted, background] = await Promise.all([
@@ -1195,7 +1269,13 @@ export const register: Register = (on, options) => {
         backgroundFor($, config, path === undefined ? "output" : "reads"),
       ]);
 
-      return outputCard(ui, painted, fold, id, outputFill(background, path !== undefined, painted), fit);
+      return withCopy(
+        ui,
+        output,
+        outputCard(ui, painted, fold, id, outputFill(background, path !== undefined, painted), fit),
+        MARGIN,
+        fit !== undefined,
+      );
     }
 
     const [runs, background] = await Promise.all([
@@ -1205,7 +1285,13 @@ export const register: Register = (on, options) => {
       backgroundFor($, config, "diffs"),
     ]);
 
-    return diffCard(ui, diff, palette?.isAnsi ?? false, fold, id, runs, background, fit);
+    return withCopy(
+      ui,
+      copy(diffText(diff), "Diff"),
+      diffCard(ui, diff, palette?.isAnsi ?? false, fold, id, runs, background, fit),
+      MARGIN,
+      fit !== undefined,
+    );
   });
 
   on("ui.render", { component: "Spinner" }, async ($, e, next) => {
@@ -1354,6 +1440,8 @@ export const register: Register = (on, options) => {
 
       return column;
     });
+    const copyFor = (id: string, text: string, noun: string) =>
+      copyAction($, e.surface, `copy:${id}`, plain.icons, text, noun);
     const hasEdits = showsRows && diffs.some((diff) => diff !== null);
     const [collapsed, flipped, palette, pills] = hasEdits
       ? await Promise.all([read($, editsCollapsedAtom), read($, flippedEditsAtom), read($, paletteAtom), pillsFor($)])
@@ -1380,7 +1468,13 @@ export const register: Register = (on, options) => {
           backgroundFor($, config, "diffs"),
         ]);
 
-        return diffCard(ui, diff, palette?.isAnsi ?? false, fold, callId, runs, background, fit);
+        return withCopy(
+          ui,
+          copyFor(callId, diffText(diff), "Diff"),
+          diffCard(ui, diff, palette?.isAnsi ?? false, fold, callId, runs, background, fit),
+          MARGIN,
+          fit !== undefined,
+        );
       }),
     );
 
@@ -1399,6 +1493,7 @@ export const register: Register = (on, options) => {
       config.rowGap,
       { cards, flip: (id) => flipEdit($, id), pills },
       fit,
+      copyFor,
     );
   });
 

@@ -1,6 +1,16 @@
 import { expect, test } from "claude-code/testing";
 
-import { bottomTarget, endsOf, entriesOf, forgetEnds, noteAppended, noteEnds, topTarget } from "../hooks/transcript";
+import {
+  bottomTarget,
+  endsOf,
+  entriesOf,
+  forgetEnds,
+  lastReply,
+  noteAppended,
+  noteEnds,
+  noteReply,
+  topTarget,
+} from "../hooks/transcript";
 
 const line = (fields: Record<string, unknown>): string =>
   JSON.stringify({ parentUuid: null, isSidechain: false, ...fields });
@@ -114,4 +124,16 @@ test("a row appended after the file was read becomes the newest, and a clear for
 
   expect(topTarget()).toBeUndefined();
   expect(bottomTarget()).toBeUndefined();
+});
+
+test("the last reply is the text the model wrote since the person's last prompt", () => {
+  forgetEnds();
+  noteReply(JSON.parse(prompt("u1")));
+  noteReply(JSON.parse(reply("a1", text("old"))));
+  noteReply(JSON.parse(prompt("u2")));
+  noteReply(JSON.parse(reply("a2", text("first"), call("c1"))));
+  noteReply(JSON.parse(line({ type: "user", message: { role: "user", content: [returned("c1")] }, uuid: "r1" })));
+  noteReply(JSON.parse(reply("a3", text("second"))));
+
+  expect(lastReply()).toBe("first\n\nsecond");
 });

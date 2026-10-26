@@ -96,12 +96,14 @@ test("columns are as wide as their longest cell until the table is too wide, the
   expect(columnWidths(table, 20)).toEqual([3, 11]);
 });
 
-test("a reply with no code block or table has no copy button", async ($, on) => {
-  stub(on, NATIVE);
-
+test("pressing the copy button of a reply with no blocks copies the whole reply", async ($, on) => {
+  const seen = copying(on, true);
   const ui = await $.ui.mount(reply("just words", "m5"));
 
-  expect(await ui.find({ type: "Button" })).toBeUndefined();
+  await $.ui.press({ plugin: "veneer", key: (await ui.find({ type: "Button" }))!.key! });
+
+  expect(seen.copied).toEqual(["just words"]);
+  expect(seen.toasts).toEqual(["Reply copied"]);
 });
 
 test("a reply another mod drew passes through untouched", async ($, on) => {
@@ -142,6 +144,19 @@ test("pressing a code block's copy button copies its code and says so", async ($
 
   expect(seen.copied).toEqual(["const a = 1;"]);
   expect(seen.toasts).toEqual(["Code copied"]);
+});
+
+test("an equation has a copy button for its Unicode form and one for its LaTeX", async ($, on) => {
+  const seen = copying(on, true);
+  const ui = await $.ui.mount(reply("$$\n\\alpha^2 \\leq \\beta\n$$\n\nafter", "k3"));
+
+  expect(await ui.find({ type: "Button", text: " Copy LaTeX " })).toBeDefined();
+
+  await $.ui.press({ plugin: "veneer", key: (await ui.find({ type: "Button" }))!.key! });
+  await $.ui.press({ plugin: "veneer", key: (await ui.find({ type: "Button", text: " Copy LaTeX " }))!.key! });
+
+  expect(seen.copied).toEqual(["α² ≤ β", "\\alpha^2 \\leq \\beta"]);
+  expect(seen.toasts).toEqual(["Equation copied", "LaTeX copied"]);
 });
 
 test("pressing a table's copy button copies its markdown, and a failed copy says so", async ($, on) => {

@@ -22,6 +22,7 @@ export type Target = { id: string; before?: string };
 
 let top: string | undefined;
 let recent: Entry[] = [];
+let reply: string[] = [];
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
 
@@ -37,9 +38,7 @@ export function entriesOf(row: unknown): Entry[] {
   const { uuid } = row;
 
   if (row.type === "user") {
-    const isTyped = row.isMeta !== true && (typeof content === "string" || !blocksOf(content).some(isToolResult));
-
-    return isTyped && content !== "" ? [{ id: uuid }] : [];
+    return isTyped(row, content) ? [{ id: uuid }] : [];
   }
 
   if (row.type !== "assistant") {
@@ -51,7 +50,7 @@ export function entriesOf(row: unknown): Entry[] {
       return [{ id: block.id, tool: typeof block.name === "string" ? block.name : undefined }];
     }
 
-    return block.type === "text" && typeof block.text === "string" && block.text.trim() !== "" ? [{ id: uuid }] : [];
+    return textOf(block) === undefined ? [] : [{ id: uuid }];
   });
 }
 
@@ -59,6 +58,14 @@ const blocksOf = (content: unknown): Record<string, unknown>[] =>
   Array.isArray(content) ? content.filter(isRecord) : [];
 
 const isToolResult = (block: Record<string, unknown>): boolean => block.type === "tool_result";
+
+// Whether a user line is what the person typed, and not a tool result or a note.
+const isTyped = (row: Record<string, unknown>, content: unknown): boolean =>
+  row.isMeta !== true && (typeof content === "string" || !blocksOf(content).some(isToolResult)) && content !== "";
+
+// The text of a block that holds some, else undefined.
+const textOf = (block: Record<string, unknown>): string | undefined =>
+  block.type === "text" && typeof block.text === "string" && block.text.trim() !== "" ? block.text : undefined;
 
 function entriesOfLine(line: string): Entry[] {
   try {
@@ -118,8 +125,27 @@ export function noteAppended(row: unknown): void {
   recent = [...recent, ...entries].slice(-RECENT);
 }
 
+// Notes the text of a line just appended: a typed prompt starts a new reply, and each assistant text block adds to it.
+export function noteReply(row: unknown): void {
+  if (!isRecord(row) || row.isSidechain === true || !isRecord(row.message)) {
+    return;
+  }
+
+  const { content } = row.message;
+
+  if (row.type === "user" && isTyped(row, content)) {
+    reply = [];
+  } else if (row.type === "assistant") {
+    reply.push(...blocksOf(content).flatMap((block) => textOf(block) ?? []));
+  }
+}
+
+// The text of the newest reply, which is every text block the model wrote since the person's last prompt.
+export const lastReply = (): string => reply.join("\n\n");
+
 // A new session or a cleared one starts its own transcript.
 export function forgetEnds(): void {
   top = undefined;
   recent = [];
+  reply = [];
 }
