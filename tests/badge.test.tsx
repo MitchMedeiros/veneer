@@ -1,4 +1,5 @@
-import { expect, test } from "claude-code/testing";
+import type { On } from "claude-code";
+import { expect, mock, test } from "claude-code/testing";
 
 import { changeCounts } from "../hooks/badge";
 import { paletteOf } from "../hooks/palette";
@@ -43,13 +44,56 @@ test("only the ansi themes are marked as ansi", () => {
   expect(paletteOf("dark", undefined).isAnsi).toBe(false);
 });
 
-test("a finished edit gets a pill for each count after the native row", async ($, on) => {
+test("a finished edit gets a count of added and removed lines after the native row", async ($, on) => {
   stub(on, NATIVE);
 
   const ui = await $.ui.mount(edit(PATCH));
 
+  expect(await ui.find({ type: "Text", text: "+2" })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "-1" })).toBeDefined();
+});
+
+const LEFT_CAP = "\u{e0b6}";
+
+// A world where the edit line counts setting holds `style`, started as a session in the terminal.
+function withStyle(on: On, style: string) {
+  mock.clock(on, { now: 10_000 });
+  mock.env(on, { TERM_PROGRAM: "ghostty", HOME: "/home/a" });
+  mock.store(on);
+  on("session.cwd", () => ({ value: "/work" }));
+  on("ui.toast", () => ({ value: undefined }));
+  on("ui.log", () => ({ value: undefined }));
+  on("ui.render", () => NATIVE);
+  on("config.list", () => ({
+    value: [{ key: "veneer.changeStyle", label: "counts", kind: "choice", value: style, isLocked: false }] as never,
+  }));
+  on("command.register", () => ({ value: undefined }) as never);
+  on("session.start", (_$, e) => ({ cwd: e.cwd }));
+  on("process.run", () => ({
+    value: { exitCode: 0, stdout: "", stderr: "", isStdoutTruncated: false, isStderrTruncated: false },
+  }));
+}
+
+const START = { cwd: "/work", surface: "terminal", isInteractive: true } as never;
+
+test("the rounded style draws each count as a filled pill with rounded ends", async ($, on) => {
+  withStyle(on, "rounded");
+  await $.session.start(START);
+
+  const ui = await $.ui.mount(edit(PATCH));
+
   expect(await ui.find({ type: "Text", text: " +2 " })).toBeDefined();
-  expect(await ui.find({ type: "Text", text: " -1 " })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: LEFT_CAP })).toBeDefined();
+});
+
+test("the square style draws each count as a filled pill with square ends", async ($, on) => {
+  withStyle(on, "square");
+  await $.session.start(START);
+
+  const ui = await $.ui.mount(edit(PATCH));
+
+  expect(await ui.find({ type: "Text", text: " +2 " })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: LEFT_CAP })).toBeUndefined();
 });
 
 test("a running or failed edit is left alone", async ($, on) => {
@@ -59,7 +103,7 @@ test("a running or failed edit is left alone", async ($, on) => {
     ["running", { isRunning: true }],
     ["failed", { isErrored: true }],
   ] as const) {
-    expect(await (await $.ui.mount(edit(PATCH, overrides, id))).find({ type: "Text", text: " +2 " })).toBeUndefined();
+    expect(await (await $.ui.mount(edit(PATCH, overrides, id))).find({ type: "Text", text: "+2" })).toBeUndefined();
   }
 });
 
@@ -69,5 +113,5 @@ test("a row another mod drew passes through untouched", async ($, on) => {
   const ui = await $.ui.mount(edit(PATCH));
 
   expect(await ui.find({ type: "Text", text: "another mod" })).toBeDefined();
-  expect(await ui.find({ type: "Text", text: " +2 " })).toBeUndefined();
+  expect(await ui.find({ type: "Text", text: "+2" })).toBeUndefined();
 });

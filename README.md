@@ -90,21 +90,23 @@ To change a setting without opening the pane, run `/veneer <setting> <value>`, s
 can be either its display name or its option name, in any case: `/veneer cell-proportion 1.9` and
 `/veneer cellRatio 1.9` do the same thing. Switches take `on` or `off`.
 
-| Display Name              | Setting            | Default | Use                                                      |
-| ------------------------- | ------------------ | ------- | -------------------------------------------------------- |
-| Message alignment         | `messageAlign`     | `left`  | `left` or `right`                                        |
-| Message styling           | `styleUserMessage` | `true`  | Draw your messages as a bubble. Off leaves it to a mod.  |
-| Icons                     | `icons`            | `auto`  | `auto`, `nerd` or `plain`. Nerd Font or Unicode icons.   |
-| File links                | `links`            | `auto`  | `auto`, `link` or `text`. How file paths are drawn.      |
-| Text-based graphics       | `nativeGraphics`   | `false` | Draw tables, headings and Mermaid diagrams as text.      |
-| Diagram hint              | `diagramHint`      | `true`  | Off stops Claude from responding with diagrams and math. |
-| Spinner styling           | `styleSpinner`     | `true`  | Turn off to leave spinner styling to another mod.        |
-| Table font                | `fontFamily`       | blank   | Font for tables and headings. Blank uses defaults.       |
-| Cell proportion           | `cellRatio`        | `2.9`   | Terminal cell height over width. Fixes letterboxing.     |
-| Code blocks               | `fenceBackground`  | `true`  | Fill code blocks with the syntax theme's background.     |
-| File reads                | `readBackground`   | `true`  | The same for the card of a file read.                    |
-| Command and search output | `outputBackground` | `true`  | The same for highlighted Bash and Grep output.           |
-| Diffs                     | `diffBackground`   | `true`  | The same for diffs. Added and removed lines keep theirs. |
+| Display Name              | Setting            | Default   | Use                                                     |
+| ------------------------- | ------------------ | --------- | ------------------------------------------------------- |
+| Message alignment         | `messageAlign`     | `left`    | `left` or `right`                                       |
+| Message styling           | `styleUserMessage` | `true`    | Draw your messages as a bubble. Off leaves it to a mod. |
+| Icons                     | `icons`            | `auto`    | `auto`, `nerd` or `plain`. Nerd Font or Unicode icons.  |
+| File links                | `links`            | `auto`    | `auto`, `link` or `text`. How file paths are drawn.     |
+| Text-based graphics       | `nativeGraphics`   | `false`   | Draw tables, headings and Mermaid diagrams as text.     |
+| Diagram hint              | `diagramHint`      | `true`    | Off stops Claude from answering with diagrams and math. |
+| Spinner styling           | `styleSpinner`     | `true`    | Turn off to leave spinner styling to another mod.       |
+| Tool spacing              | `toolSpacing`      | `compact` | `compact` or `spacious`. Blank line above each tool.    |
+| Edit line counts          | `changeStyle`      | `text`    | `text`, `rounded` or `square`. How `+N -M` is drawn.    |
+| Table font                | `fontFamily`       | blank     | Font for tables and headings. Blank uses defaults.      |
+| Cell proportion           | `cellRatio`        | `2.9`     | Terminal cell height over width. Fixes letterboxing.    |
+| Code blocks               | `fenceBackground`  | `true`    | Fill code blocks with the syntax theme's background.    |
+| File reads                | `readBackground`   | `true`    | The same for the card of a file read.                   |
+| Command and search output | `outputBackground` | `true`    | The same for highlighted Bash and Grep output.          |
+| Diffs                     | `diffBackground`   | `true`    | The same for diffs. Added/removed lines keep theirs.    |
 
 Settings are stored under `pluginConfigs` in the global `~/.claude/settings.json`.
 

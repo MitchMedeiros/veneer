@@ -69,6 +69,20 @@
       "description": "Wrap the spinner line in Veneer's left margin. Turn off to leave it to Claude Code or another mod.",
       "default": true
     },
+    "toolSpacing": {
+      "type": "string",
+      "title": "Tool spacing",
+      "description": "compact stacks tool rows and groups with no blank line between them. spacious puts a blank line above each one.",
+      "default": "compact",
+      "options": ["compact", "spacious"]
+    },
+    "changeStyle": {
+      "type": "string",
+      "title": "Edit line counts",
+      "description": "How the added and removed line counts on an edit are drawn. text is colored numbers with no background. rounded is a filled pill with rounded ends, which needs a Nerd Font or a terminal with its own symbol font. square is a filled pill with square ends. Filled pills in neighbouring rows touch.",
+      "default": "text",
+      "options": ["text", "rounded", "square"]
+    },
     "fontFamily": {
       "type": "string",
       "title": "Table font",

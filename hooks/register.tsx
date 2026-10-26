@@ -6,6 +6,7 @@ import { configOf } from "./config";
 import type { Backdrop, Config } from "./config";
 import { iconsArePlain, linksArePlain, OFF_TEXT, terminalOff } from "./gate";
 import { changeCounts, withBadges } from "./badge";
+import type { PillLook } from "./badge";
 import { diffCard, parseDiff } from "./diff";
 import { editsButton } from "./edits";
 import { MAX_LINES } from "./fold";
@@ -623,6 +624,20 @@ async function plainOf($: EngineInterface): Promise<Plain> {
   return { icons, links };
 }
 
+// How the counts of an edit are drawn as pills, or undefined while the setting leaves them plain text. Rounded ends need
+// a symbol font, so a terminal without one gets square ends.
+async function pillsFor($: EngineInterface): Promise<PillLook | undefined> {
+  const { changeStyle } = await configNow($);
+
+  if (changeStyle === "text") {
+    return undefined;
+  }
+
+  const [palette, plain] = await Promise.all([read($, paletteAtom), plainOf($)]);
+
+  return { isAnsi: palette.isAnsi, hasRoundEnds: changeStyle === "rounded" && !plain.icons };
+}
+
 async function settle($: EngineInterface, { icons, links }: Pick<Config, "icons" | "links">): Promise<Off | null> {
   const env = {
     force: await $.env.get("CLAUDE_CODE_FORCE_TERMINAL_IMAGES"),
@@ -963,17 +978,18 @@ export const register: Register = (on, options) => {
 
     const ui = $.ui.resolve(e);
     const changes = !isRunning && !isErrored ? changeCounts(output) : null;
-    const [commandRuns, plain, cwd, isAnsi] = await Promise.all([
+    const [commandRuns, plain, cwd, pills, { rowGap }] = await Promise.all([
       e.props.tool === "Bash" ? painterFor($).then((paint) => paintCommand(paint, e.props)) : undefined,
       plainOf($),
       $.session.cwd(),
-      changes === null ? undefined : read($, paletteAtom).then((palette) => palette.isAnsi),
+      changes === null ? undefined : pillsFor($),
+      configNow($),
     ]);
     const id = e.props.tool_use_id;
     const press = changes === null ? undefined : () => flipEdit($, id);
-    const row = toolRow(ui, e.props, cwd, commandRuns, plain, press) ?? native;
+    const row = toolRow(ui, e.props, cwd, commandRuns, plain, press, rowGap) ?? native;
 
-    return changes === null || isAnsi === undefined ? row : withBadges(ui, row, changes, isAnsi, plain.icons);
+    return changes === null ? row : withBadges(ui, row, changes, pills, rowGap);
   });
 
   on("ui.render", { component: "ToolResult" }, async ($, e, next) => {
@@ -1181,6 +1197,7 @@ export const register: Register = (on, options) => {
       plain,
       images,
       imageCalls,
+      config.rowGap,
     );
   });
 

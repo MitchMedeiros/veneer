@@ -114,7 +114,7 @@ export const litOf = (scope: string) =>
 
 // The tool row as an icon, a bold name and a dim detail, or null for a tool with no look of its own. A path is a link,
 // so a click opens the file as the native row's does. `detailRuns` colour the detail, as a Command's shell line. Given
-// `onPress`, the icon and name are a button that runs it.
+// `onPress`, the icon and name are a button that runs it. `gap` is the blank rows above the row.
 export function toolRow(
   { Box, Button, Text, Link }: Ui,
   call: ToolCall,
@@ -122,6 +122,7 @@ export function toolRow(
   detailRuns?: StyledRun[],
   plain: Plain = NOT_PLAIN,
   onPress?: () => void,
+  gap = 0,
 ): RenderElement | null {
   if (LOOKS[call.tool] === undefined) {
     return null;
@@ -145,7 +146,7 @@ export function toolRow(
   ];
 
   return (
-    <Box flexDirection="row" marginTop={1} marginLeft={MARGIN} marginRight={MARGIN} gap={2}>
+    <Box flexDirection="row" marginTop={gap} marginLeft={MARGIN} marginRight={MARGIN} gap={2}>
       <Box flexShrink={0} gap={plain.icons ? 1 : 2}>
         {onPress === undefined ? (
           name

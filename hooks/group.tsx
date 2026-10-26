@@ -52,7 +52,7 @@ export const hiddenIdOf = (callId: string): string => `hidden:${callId}`;
 // that has output opens into its card. A run of one call has nothing to count, so it is drawn as its row. The whole line takes the text colour while the pointer is on it. A path stays a
 // link beside its row's button, so a click on it opens the file and a click on the rest folds the row. The images a
 // call returned, drawn by the caller, sit under its row; a click on the row of a call in `imageCalls` folds them away
-// and shows them again.
+// and shows them again. `gap` is the blank rows above the line and above each row.
 export function toolGroup(
   { Box, Button, Link, Text }: Ui,
   calls: readonly GroupCall[],
@@ -65,6 +65,7 @@ export function toolGroup(
   plain: Plain = NOT_PLAIN,
   images: readonly (RenderElement | null)[] = [],
   imageCalls: ReadonlySet<string> = new Set(),
+  gap = 0,
 ): RenderElement {
   const fillOf = (tool: string, lines: readonly OutputLine[]) =>
     tool === "Read"
@@ -79,7 +80,7 @@ export function toolGroup(
   const summaryLit = litOf(groupId);
 
   const summary = (
-    <Box flexDirection="row" marginTop={1} marginLeft={MARGIN} marginRight={MARGIN}>
+    <Box flexDirection="row" marginTop={gap} marginLeft={MARGIN} marginRight={MARGIN}>
       <Button key={groupId} plain hover={summaryLit} onPress={() => toggle(groupId)}>
         {segmentsOf(calls, plain.icons).flatMap((segment, i) => {
           const { tone } = segment;
@@ -120,7 +121,7 @@ export function toolGroup(
     };
 
     return (
-      <Box key={callId} flexDirection="column" marginLeft={single ? 2 : 4} marginTop={single ? 1 : 0}>
+      <Box key={callId} flexDirection="column" marginLeft={single ? MARGIN : 4} marginTop={gap}>
         <Box flexDirection="row" gap={2}>
           <Button key={`row:${callId}`} plain hover={rowLit} onPress={press}>
             <Text key="icon" color={tone} dimColor={call.isRunning} hover={rowLit}>{`${look.icon}${iconGap}`}</Text>
