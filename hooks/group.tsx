@@ -2,6 +2,7 @@ import type { ElementTable, RenderElement } from "claude-code";
 
 import { changeCounts, withBadges } from "./badge";
 import type { PillLook } from "./badge";
+import { foldOf } from "./fold";
 import { outputCard, parseOutput } from "./output";
 import type { OutputLine } from "./output";
 import { outputFill } from "./paint";
@@ -163,14 +164,7 @@ export function toolGroup(
         {changes === null ? header : withBadges({ Box, Text }, header, changes, edits.pills)}
         {callOpen ? (
           <Box marginLeft={2} flexDirection="column">
-            {outputCard(
-              { Box, Button, Text },
-              lines,
-              open.has(moreId),
-              () => toggle(moreId),
-              callId,
-              fillOf(call.tool, lines),
-            )}
+            {outputCard({ Box, Button, Text }, lines, foldOf(open, toggle, moreId), callId, fillOf(call.tool, lines))}
           </Box>
         ) : null}
         {card === undefined || card === null ? null : (

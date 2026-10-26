@@ -3,7 +3,7 @@ import { expect, test } from "claude-code/testing";
 import { commandOfCall, rememberInput } from "../hooks/calls";
 import { codeCard } from "../hooks/code";
 import { copyRow } from "../hooks/copy-button";
-import { foldButton, MAX_LINES } from "../hooks/fold";
+import { foldButton, foldOf, limitOf, MAX_LINES } from "../hooks/fold";
 import { headingCard } from "../hooks/heading-card";
 import { ANCHOR_MARK, BACK_REFERENCE_MARK, FIRST_LINE_MARK, withoutMarks } from "../hooks/syntax/mark";
 import { lineChildren } from "../hooks/syntax/runs";
@@ -81,18 +81,35 @@ test("a call seen again counts as the newest", () => {
 });
 
 test("a card that fits has no fold button, and a longer one says how many lines it hides", () => {
-  const toggle = () => {};
+  const none = () => {};
+  const closed = { limit: MAX_LINES, more: none, less: none };
+  const partly = { limit: MAX_LINES * 2, more: none, less: none };
 
-  expect(foldButton(UI, MAX_LINES, false, toggle, "a")).toBeNull();
-  expect(textOf(foldButton(UI, MAX_LINES + 6, false, toggle, "a"))).toBe("Show 6 more lines");
-  expect(textOf(foldButton(UI, MAX_LINES + 1, false, toggle, "a"))).toBe("Show 1 more line");
-  expect(textOf(foldButton(UI, MAX_LINES + 6, true, toggle, "a"))).toBe("Show fewer lines");
+  expect(foldButton(UI, MAX_LINES, closed, "a")).toBeNull();
+  expect(textOf(foldButton(UI, MAX_LINES + 6, closed, "a"))).toBe("Show 6 more lines");
+  expect(textOf(foldButton(UI, MAX_LINES + 1, closed, "a"))).toBe("Show 1 more line");
+  expect(textOf(foldButton(UI, MAX_LINES * 3, closed, "a"))).toBe(`Show ${MAX_LINES} more lines`);
+  expect(textOf(foldButton(UI, MAX_LINES * 3, partly, "a"))).toBe(`Show ${MAX_LINES} more linesShow fewer lines`);
+  expect(textOf(foldButton(UI, MAX_LINES * 2, partly, "a"))).toBe("Show fewer lines");
+});
+
+test("a fold counts the step ids that are open, and a press adds or removes the next one", () => {
+  const open = new Set(["a#1", "a#2", "a#4"]);
+  const pressed: string[] = [];
+  const fold = foldOf(open, (id) => pressed.push(id), "a");
+
+  expect(limitOf(new Set(), "a")).toBe(MAX_LINES);
+  expect(fold.limit).toBe(MAX_LINES * 3);
+
+  fold.more();
+  fold.less();
+
+  expect(pressed).toEqual(["a#3", "a#2"]);
 });
 
 test("the fold button's key carries the card's id", () => {
-  const button = elements(foldButton(UI, MAX_LINES + 1, false, () => {}, "card-7")).find(
-    (node) => node.type === "Button",
-  );
+  const closed = { limit: MAX_LINES, more: () => {}, less: () => {} };
+  const button = elements(foldButton(UI, MAX_LINES + 1, closed, "card-7")).find((node) => node.type === "Button");
 
   expect(button?.props?.key).toBe("fold:card-7");
 });

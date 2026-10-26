@@ -1,6 +1,7 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
-import { foldButton, MAX_LINES, TAB } from "./fold";
+import { foldButton, TAB } from "./fold";
+import type { Fold } from "./fold";
 import { MARGIN } from "./reply";
 import { lineChildren } from "./syntax/runs";
 import type { StyledRun } from "./syntax/types";
@@ -56,16 +57,9 @@ export function parseOutput(tool: string, output: unknown, cwd: string, isErrore
 
 // The result as a rounded card of lines, the same shape as the diff card, with a numbered column where lines carry
 // numbers and the error colour on what a command wrote to stderr. A background fills the card.
-export function outputCard(
-  ui: Ui,
-  lines: OutputLine[],
-  expanded: boolean,
-  toggle: () => void,
-  id: string,
-  background?: string,
-): RenderElement {
+export function outputCard(ui: Ui, lines: OutputLine[], fold: Fold, id: string, background?: string): RenderElement {
   const { Box, Text } = ui;
-  const shown = expanded ? lines : lines.slice(0, MAX_LINES);
+  const shown = lines.slice(0, fold.limit);
   const digits = Math.max(0, ...shown.map((line) => String(line.number ?? "").length));
 
   return (
@@ -87,7 +81,7 @@ export function outputCard(
           </Box>
         </Box>
       ))}
-      {foldButton(ui, lines.length, expanded, toggle, id)}
+      {foldButton(ui, lines.length, fold, id)}
     </Box>
   );
 }

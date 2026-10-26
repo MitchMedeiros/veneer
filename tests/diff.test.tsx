@@ -60,7 +60,7 @@ test("an edit result is drawn as the card, not the native block", async ($, on) 
   expect(await ui.find({ type: "Text", text: "two" })).toBeDefined();
 });
 
-test("a long diff folds, and pressing the fold line shows every line and back", async ($, on) => {
+test("a long diff folds, and pressing the fold line shows more lines and then fewer", async ($, on) => {
   stub(on, NATIVE);
 
   const content = Array.from({ length: 30 }, (_, i) => `line ${i + 1}`).join("\n");
@@ -72,7 +72,7 @@ test("a long diff folds, and pressing the fold line shows every line and back", 
   await ui.press({ key: "fold:r4" });
   expect(await ui.find({ type: "Text", text: "line 30" })).toBeDefined();
 
-  await ui.press({ key: "fold:r4" });
+  await ui.press({ key: "unfold:r4" });
   expect(await ui.find({ type: "Text", text: "line 30" })).toBeUndefined();
 });
 

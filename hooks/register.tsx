@@ -11,7 +11,7 @@ import { diffCard, parseDiff } from "./diff";
 import { bandButtons } from "./edits";
 import type { Target } from "./transcript";
 import { bottomTarget, CHUNK_BYTES, endsOf, forgetEnds, noteAppended, noteEnds, topTarget } from "./transcript";
-import { MAX_LINES } from "./fold";
+import { foldOf, limitOf } from "./fold";
 import { callIdOf, hiddenIdOf, toolGroup } from "./group";
 import { headingSketch } from "./heading";
 import { mathSketch } from "./math";
@@ -1170,17 +1170,16 @@ export const register: Register = (on, options) => {
       path !== undefined || tool === "Bash" || tool === "Grep" ? painterFor($) : undefined,
       diff === null ? undefined : read($, paletteAtom),
     ]);
-    const expanded = open.includes(id);
-    const toggle = () => flip($, id);
+    const fold = foldOf(new Set(open), (stepId) => flip($, stepId), id);
     const ui = $.ui.resolve(e);
     // A folded card shows its first lines only, so only those are tokenized; unfolding paints the rest.
-    const visible = expanded ? Infinity : MAX_LINES;
+    const visible = fold.limit;
 
     if (diff === null) {
       const shown = lines ?? [];
 
       if (paint === undefined) {
-        return outputCard(ui, shown, expanded, toggle, id);
+        return outputCard(ui, shown, fold, id);
       }
 
       const [painted, background] = await Promise.all([
@@ -1190,7 +1189,7 @@ export const register: Register = (on, options) => {
         backgroundFor($, config, path === undefined ? "output" : "reads"),
       ]);
 
-      return outputCard(ui, painted, expanded, toggle, id, outputFill(background, path !== undefined, painted));
+      return outputCard(ui, painted, fold, id, outputFill(background, path !== undefined, painted));
     }
 
     const [runs, background] = await Promise.all([
@@ -1200,7 +1199,7 @@ export const register: Register = (on, options) => {
       backgroundFor($, config, "diffs"),
     ]);
 
-    return diffCard(ui, diff, palette?.isAnsi ?? false, expanded, toggle, id, runs, background);
+    return diffCard(ui, diff, palette?.isAnsi ?? false, fold, id, runs, background);
   });
 
   on("ui.render", { component: "Spinner" }, async ($, e, next) => {
@@ -1313,7 +1312,7 @@ export const register: Register = (on, options) => {
         const path = call.tool === "Read" ? filePathOf(call.output) : undefined;
 
         if (path !== undefined) {
-          const visible = open.has(`more:${callIdOf(call, e.requestId, i)}`) ? Infinity : MAX_LINES;
+          const visible = limitOf(open, `more:${callIdOf(call, e.requestId, i)}`);
 
           return paintLines(paint, path, lines.slice(0, visible)).then((head) => [...head, ...lines.slice(visible)]);
         }
@@ -1366,15 +1365,15 @@ export const register: Register = (on, options) => {
 
         const callId = callIdOf(call, e.requestId, i);
         const path = filePathOf(call.output);
-        const isOpen = open.has(callId);
+        const fold = foldOf(open, (stepId) => flip($, stepId), callId);
         const [runs, background] = await Promise.all([
           path === undefined || paint === undefined
             ? []
-            : paintDiff(paint, path, { ...diff, lines: diff.lines.slice(0, isOpen ? Infinity : MAX_LINES) }),
+            : paintDiff(paint, path, { ...diff, lines: diff.lines.slice(0, fold.limit) }),
           backgroundFor($, config, "diffs"),
         ]);
 
-        return diffCard(ui, diff, palette?.isAnsi ?? false, isOpen, () => flip($, callId), callId, runs, background);
+        return diffCard(ui, diff, palette?.isAnsi ?? false, fold, callId, runs, background);
       }),
     );
 

@@ -1,6 +1,7 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
-import { foldButton, MAX_LINES, TAB } from "./fold";
+import { foldButton, TAB } from "./fold";
+import type { Fold } from "./fold";
 import { MARGIN } from "./reply";
 import { lineChildren } from "./syntax/runs";
 import type { StyledRun } from "./syntax/types";
@@ -86,14 +87,13 @@ export function diffCard(
   ui: Ui,
   diff: Diff,
   isAnsi: boolean,
-  expanded: boolean,
-  toggle: () => void,
+  fold: Fold,
   id: string,
   runs: readonly (StyledRun[] | undefined)[] = [],
   background?: string,
 ): RenderElement {
   const { Box, Text } = ui;
-  const shown = expanded ? diff.lines : diff.lines.slice(0, MAX_LINES);
+  const shown = diff.lines.slice(0, fold.limit);
   const numberOf = (line: DiffLine) => line.newNumber ?? line.oldNumber;
   const digits = Math.max(1, ...shown.map((line) => String(numberOf(line) ?? "").length));
   const plainLines = diff.created === true;
@@ -128,7 +128,7 @@ export function diffCard(
           </Box>
         </Box>
       ))}
-      {foldButton(ui, diff.lines.length, expanded, toggle, id)}
+      {foldButton(ui, diff.lines.length, fold, id)}
     </Box>
   );
 }
