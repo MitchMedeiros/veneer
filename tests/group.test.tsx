@@ -102,12 +102,12 @@ test("pressing the row of an image Read folds its image away, and again shows it
   expect(await ui.find({ type: "Text", text: "shot.png · 400×300" })).toBeDefined();
 });
 
-test("a group the engine already expanded keeps the native drawing", async ($, on) => {
+test("a group the engine expanded is still drawn as the summary line", async ($, on) => {
   stub(on);
 
   const ui = await $.ui.mount(group("g4", true));
 
-  expect(await ui.find({ type: "Text", text: "Command " })).toBeUndefined();
+  expect(await ui.find({ type: "Text", text: "Command " })).toBeDefined();
 });
 
 test("an edit in a group shows its diff card with change counts, and pressing its row folds the card away", async ($, on) => {

@@ -24,6 +24,13 @@ test("a command's output keeps stdout then stderr, with colour codes removed", (
   expect(parseOutput("Bash", { stdout: "", stderr: "" }, "/work")).toBeNull();
 });
 
+test("the notice that the shell's folder was reset is not shown as output", () => {
+  const stderr = "Shell cwd was reset to /work\n";
+
+  expect(parseOutput("Bash", { stdout: "ok\n", stderr }, "/work")).toEqual([{ text: "ok", tone: undefined }]);
+  expect(parseOutput("Bash", { stdout: "", stderr }, "/work")).toBeNull();
+});
+
 test("a read is numbered from its first line", () => {
   const lines = parseOutput("Read", { type: "text", file: { content: "a\nb", startLine: 10 } }, "/work");
 

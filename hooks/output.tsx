@@ -14,8 +14,10 @@ export type OutputLine = { text: string; number?: number; tone?: "error"; runs?:
 
 const ESCAPE = new RegExp(`${String.fromCharCode(27)}\\[[0-?]*[ -/]*[@-~]`, "g");
 
+const CWD_NOTICE = /^Shell cwd was reset to .*$/gm;
+
 const linesOf = (text: string, tone?: "error"): OutputLine[] => {
-  const clean = text.replace(ESCAPE, "").replace(/\s+$/, "");
+  const clean = text.replace(ESCAPE, "").replace(CWD_NOTICE, "").replace(/\s+$/, "");
 
   return clean === "" ? [] : clean.split("\n").map((line) => ({ text: line.replace(/\t/g, TAB), tone }));
 };

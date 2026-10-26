@@ -1277,7 +1277,7 @@ export const register: Register = (on, options) => {
   on("ui.render", { component: "ToolGroup" }, async ($, e, next) => {
     const native = await next(e);
 
-    if (e.surface !== "terminal" || native.type !== "engine" || e.props.isExpanded) {
+    if (e.surface !== "terminal" || native.type !== "engine") {
       return native;
     }
 
