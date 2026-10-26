@@ -1252,21 +1252,31 @@ export const register: Register = (on, options) => {
     const showsRows = calls.length === 1 || open.has(`group:${e.requestId}`);
     const diffs = calls.map((call) => (call.isRunning || call.isErrored ? null : parseDiff(call.output)));
     const paint =
-      showsRows && calls.some((call, i) => call.tool === "Bash" || call.tool === "Grep" || diffs[i] !== null)
+      showsRows && calls.some((call, i) => ["Bash", "Grep", "Read"].includes(call.tool) || diffs[i] !== null)
         ? await painterFor($)
         : undefined;
     const commandRuns = await Promise.all(
       calls.map((call) => (paint === undefined ? undefined : paintCommand(paint, call))),
     );
     const paintedOutput = await Promise.all(
-      calls.map(async (call) => {
+      calls.map(async (call, i) => {
         const lines =
           paint === undefined || call.isRunning ? null : parseOutput(call.tool, call.output, cwd, call.isErrored);
         const command = (call.input as { command?: unknown } | null | undefined)?.command;
 
-        return paint === undefined || lines === null || call.isErrored
-          ? undefined
-          : paintOutput(paint, call.tool, typeof command === "string" ? command : undefined, lines);
+        if (paint === undefined || lines === null || call.isErrored) {
+          return undefined;
+        }
+
+        const path = call.tool === "Read" ? filePathOf(call.output) : undefined;
+
+        if (path !== undefined) {
+          const visible = open.has(`more:${callIdOf(call, e.requestId, i)}`) ? Infinity : MAX_LINES;
+
+          return paintLines(paint, path, lines.slice(0, visible)).then((head) => [...head, ...lines.slice(visible)]);
+        }
+
+        return paintOutput(paint, call.tool, typeof command === "string" ? command : undefined, lines);
       }),
     );
 

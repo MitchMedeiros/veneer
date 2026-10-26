@@ -423,3 +423,28 @@ test("the output of a call in an opened group is highlighted", async ($, on) => 
   await ui.press({ key: "row:call:h20-0" });
   expect(await keywords(ui)).toBe(1);
 });
+
+test("the lines of a file read in an opened group are highlighted by the file's extension", async ($, on) => {
+  stub(on);
+
+  const call = (id: string, path: string) => ({
+    tool: "Read",
+    input: { file_path: path },
+    output: { type: "text", file: { filePath: path, content: "let a", startLine: 1 } },
+    isRunning: false,
+    isErrored: false,
+    tool_use_id: id,
+  });
+  const ui = await $.ui.mount({
+    plugin: "veneer",
+    viewport: { columns: 100, rows: 30 },
+    surface: "terminal",
+    component: "ToolGroup",
+    requestId: "h21",
+    props: { isActive: false, isExpanded: false, calls: [call("h21-0", "/work/a.toy"), call("h21-1", "/work/b.toy")] },
+  } as never);
+
+  await ui.press({ key: "group:h21" });
+  await ui.press({ key: "row:call:h21-0" });
+  expect(await keywords(ui)).toBe(1);
+});
