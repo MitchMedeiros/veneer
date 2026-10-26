@@ -104,6 +104,11 @@ const expandedAtom = atom({ plugin: "veneer", key: "expanded" } as const, [] as 
 const editsCollapsedAtom = atom({ plugin: "veneer", key: "editsCollapsed" } as const, false);
 // The tool calls whose diff card is the opposite of `editsCollapsedAtom`, because the person pressed its row.
 const flippedEditsAtom = atom({ plugin: "veneer", key: "flippedEdits" } as const, [] as string[]);
+// Whether the expand button has opened the groups that hold edits, and the Read rows in them. It starts off, so a group
+// is open only when it was pressed open.
+const groupsExpandedAtom = atom({ plugin: "veneer", key: "groupsExpanded" } as const, false);
+// The groups and Read rows that `groupsExpandedAtom` opens but were pressed shut.
+const flippedGroupsAtom = atom({ plugin: "veneer", key: "flippedGroups" } as const, [] as string[]);
 const paletteAtom = atom({ plugin: "veneer", key: "palette" } as const, baseOf("dark") as Palette);
 // The syntax theme chosen with /syntax, by file name without `.json`; empty is the shipped default. Kept in the store.
 const syntaxAtom = atom({ plugin: "veneer", key: "syntax" } as const, "");
@@ -148,11 +153,20 @@ function flip($: EngineInterface, id: string): void {
   void update($, expandedAtom, (ids) => (ids.includes(id) ? ids.filter((other) => other !== id) : [...ids, id]));
 }
 
+// Opens or shuts an entry that `groupsExpandedAtom` opens. A group the person opened themselves stays open once the
+// button folds the rest, so pressing one shut takes it out of the opened entries as well.
+function flipDefaultOpen($: EngineInterface, id: string, isOpen: boolean): void {
+  void update($, expandedAtom, (ids) => ids.filter((other) => other !== id));
+  void update($, flippedGroupsAtom, (ids) => (isOpen ? [...ids, id] : ids.filter((other) => other !== id)));
+}
+
 // Folds every edit card, or opens them all, for this session and as the choice later sessions start from. A card
-// pressed on its own row is set back to follow the rest.
+// pressed on its own row is set back to follow the rest. The groups that hold edits open and fold with the cards.
 async function setEditsCollapsed($: EngineInterface, collapsed: boolean): Promise<void> {
   await update($, editsCollapsedAtom, () => collapsed);
   await update($, flippedEditsAtom, () => []);
+  await update($, groupsExpandedAtom, () => !collapsed);
+  await update($, flippedGroupsAtom, () => []);
   await $.store.set(EDITS_KEY, collapsed);
 }
 
@@ -162,6 +176,8 @@ async function seedEdits($: EngineInterface): Promise<void> {
 
   await update($, editsCollapsedAtom, () => collapsed);
   await update($, flippedEditsAtom, () => []);
+  await update($, groupsExpandedAtom, () => false);
+  await update($, flippedGroupsAtom, () => []);
 }
 
 // Finds the first and the newest row in the session's file, which may hold rows from before Veneer was loaded.
@@ -1247,10 +1263,22 @@ export const register: Register = (on, options) => {
     }
 
     const [config, expandedIds, cwd] = await Promise.all([configNow($), read($, expandedAtom), $.session.cwd()]);
-    const open = new Set(expandedIds);
+    const [isGroupsExpanded, flippedGroups] = await Promise.all([
+      read($, groupsExpandedAtom),
+      read($, flippedGroupsAtom),
+    ]);
     const { calls } = e.props;
-    const showsRows = calls.length === 1 || open.has(`group:${e.requestId}`);
     const diffs = calls.map((call) => (call.isRunning || call.isErrored ? null : parseDiff(call.output)));
+    const defaultOpen = new Set(
+      isGroupsExpanded && diffs.some((diff) => diff !== null)
+        ? [
+            `group:${e.requestId}`,
+            ...calls.flatMap((call, i) => (call.tool === "Read" ? [callIdOf(call, e.requestId, i)] : [])),
+          ]
+        : [],
+    );
+    const open = new Set([...expandedIds, ...[...defaultOpen].filter((id) => !flippedGroups.includes(id))]);
+    const showsRows = calls.length === 1 || open.has(`group:${e.requestId}`);
     const paint =
       showsRows && calls.some((call, i) => ["Bash", "Grep", "Read"].includes(call.tool) || diffs[i] !== null)
         ? await painterFor($)
@@ -1341,7 +1369,7 @@ export const register: Register = (on, options) => {
       calls,
       e.requestId,
       cwd,
-      { open, toggle: (id) => flip($, id) },
+      { open, toggle: (id) => (defaultOpen.has(id) ? flipDefaultOpen($, id, open.has(id)) : flip($, id)) },
       commandRuns,
       paintedOutput,
       paint === undefined ? {} : { reads, output },

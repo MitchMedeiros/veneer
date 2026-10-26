@@ -1,4 +1,4 @@
-import { expect, test } from "claude-code/testing";
+import { expect, mock, test } from "claude-code/testing";
 
 import { stub } from "./helpers";
 
@@ -139,4 +139,48 @@ test("an edit in a group shows its diff card with change counts, and pressing it
 
   await ui.press({ key: "row:call:e2" });
   expect(await ui.find({ type: "Text", text: "TWO" })).toBeUndefined();
+});
+
+test("the expand button opens a group that holds an edit and its Read rows, and collapse folds it again", async ($, on) => {
+  stub(on);
+  mock.store(on);
+
+  const patch = { structuredPatch: [{ oldStart: 1, newStart: 1, lines: [" one", "-two", "+TWO"] }] };
+  const ui = await $.ui.mount({
+    plugin: "veneer",
+    viewport: { columns: 100, rows: 30 },
+    surface: "terminal",
+    component: "ToolGroup",
+    requestId: "g7",
+    props: {
+      isActive: false,
+      isExpanded: false,
+      calls: [
+        call("Edit", { file_path: "/work/a.ts" }, patch, "e1"),
+        call("Read", { file_path: "/work/b.ts" }, { type: "text", file: { content: "readbody", startLine: 1 } }, "c1"),
+        call("Bash", { command: "ls" }, { stdout: "bashout", stderr: "" }, "c2"),
+      ],
+    },
+  } as never);
+  const band = await $.ui.mount({
+    plugin: "veneer",
+    viewport: { columns: 100, rows: 30 },
+    surface: "terminal",
+    component: "AbovePrompt",
+    props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 100 },
+  } as never);
+
+  expect(await ui.find({ type: "Text", text: "TWO" })).toBeUndefined();
+
+  await band.press({ key: "edits:toggle" });
+  await band.press({ key: "edits:toggle" });
+
+  expect(await ui.find({ type: "Text", text: "TWO" })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "readbody" })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "bashout" })).toBeUndefined();
+
+  await band.press({ key: "edits:toggle" });
+
+  expect(await ui.find({ type: "Text", text: "TWO" })).toBeUndefined();
+  expect(await ui.find({ type: "Text", text: "readbody" })).toBeUndefined();
 });
