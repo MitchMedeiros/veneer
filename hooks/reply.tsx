@@ -40,6 +40,12 @@ export function replyTree(
   available: number,
   diagramOf: (source: string) => Row[] | null,
 ): RenderElement {
+  const isBeside = (segment: Segment | undefined) =>
+    segment?.kind === "table" || (segment?.kind === "code" && segment.lang === "mermaid");
+
+  // Whether block `i` and the one after it are both tables or diagrams, which share a line.
+  const sharesLine = (i: number) => isBeside(segments[i]) && isBeside(segments[i + 1]);
+
   // A code block or table: a blank row above it, holding its copy button, and a blank row below it, unless a block
   // follows, whose own blank row above is the gap.
   const framed = (i: number, copy: CopyAction, child: RenderElement, alignSelf?: "flex-start") => {
@@ -50,7 +56,7 @@ export function replyTree(
         key={`framed-${i}`}
         flexDirection="column"
         alignSelf={alignSelf}
-        marginBottom={next === undefined || next.kind === "text" ? 1 : 0}
+        marginBottom={next === undefined || next.kind === "text" || sharesLine(i) ? 1 : 0}
         hover={{ scope: copy.scope }}
       >
         {copyRow({ Box, Text, Button }, copy)}
@@ -130,13 +136,35 @@ export function replyTree(
     return segment.kind === "table" ? framed(i, copyFor(i, segment.raw, "Table"), picture, "flex-start") : picture;
   });
 
+  // Tables and diagrams that follow one another share a line and wrap to the next one where a block does not fit.
+  const blocks: RenderElement[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    let end = i;
+
+    while (sharesLine(end)) {
+      end++;
+    }
+
+    blocks.push(
+      end === i ? (
+        rows[i]!
+      ) : (
+        <Box key={`beside-${i}`} flexDirection="row" flexWrap="wrap" columnGap={2} alignItems="flex-start">
+          {rows.slice(i, end + 1)}
+        </Box>
+      ),
+    );
+    i = end;
+  }
+
   return (
     <Box flexDirection="row" marginLeft={MARGIN} marginRight={MARGIN} marginTop={bullet === null ? 0 : 1}>
       <Box width={GUTTER} flexShrink={0}>
         <Text color="claude">{bullet ?? " "}</Text>
       </Box>
       <Box flexDirection="column" flexGrow={1}>
-        {rows}
+        {blocks}
       </Box>
     </Box>
   );

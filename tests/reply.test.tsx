@@ -51,6 +51,17 @@ test("a table with no picture is a native card with a copy button", async ($, on
   expect(await ui.find({ type: "Button" })).toBeDefined();
 });
 
+test("tables that follow one another are all drawn", async ($, on) => {
+  stub(on, NATIVE);
+
+  const table = (name: string) => `| ${name} | Role |\n| --- | --- |\n| x | y |`;
+  const ui = await $.ui.mount(reply(`${table("One")}\n\n${table("Two")}\n\nafter`, "m8"));
+
+  expect(await ui.find({ type: "Text", text: "One" })).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "Two" })).toBeDefined();
+  expect(await ui.find({ type: "Markdown" })).toBeDefined();
+});
+
 test("a heading with no picture is bold text with a rule under the first two levels", async ($, on) => {
   stub(on, NATIVE);
 
