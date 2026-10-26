@@ -64,12 +64,20 @@ function zip(keys: string, values: string[]): Map<string, string> {
   return new Map([...keys].map((key, i) => [key, values[i]!]));
 }
 
-const script = (map: ReadonlyMap<string, string>, marker: string, text: string): string => {
+// Whether an expression keeps its scripts as glyphs: one script that has no glyph turns every script in it literal.
+interface Scripts {
+  literal: boolean;
+  fellBack: boolean;
+}
+
+const script = (scripts: Scripts, map: ReadonlyMap<string, string>, marker: string, text: string): string => {
   const chars = [...text.replaceAll(" − ", "-").replace(/\s+/g, "")];
 
-  if (chars.length > 0 && chars.every((char) => map.has(char))) {
+  if (!scripts.literal && chars.length > 0 && chars.every((char) => map.has(char))) {
     return chars.map((char) => map.get(char)!).join("");
   }
+
+  scripts.fellBack = true;
 
   return chars.length === 1 ? `${marker}${text}` : `${marker}(${text})`;
 };
@@ -80,13 +88,24 @@ const group = (text: string): string => (isAtom(text) || /^[\w.]+$/.test(text) ?
 // TeX as one line of Unicode text: Greek letters, operators and sub and superscripts as glyphs, fractions as `a/b`. It
 // covers what reads well in a line; layout that needs two dimensions, such as a stacked fraction, is flattened.
 export function texToText(tex: string): string {
-  return new Reader(tex).run().replace(/\s+/g, " ").replace(/\( /g, "(").replace(/ \)/g, ")").trim();
+  const scripts: Scripts = { literal: false, fellBack: false };
+  let text = new Reader(tex, scripts).run();
+
+  if (scripts.fellBack) {
+    scripts.literal = true;
+    text = new Reader(tex, scripts).run();
+  }
+
+  return text.replace(/\s+/g, " ").replace(/\( /g, "(").replace(/ \)/g, ")").trim();
 }
 
 class Reader {
   private at = 0;
 
-  constructor(private readonly source: string) {}
+  constructor(
+    private readonly source: string,
+    private readonly scripts: Scripts,
+  ) {}
 
   run(): string {
     let out = "";
@@ -105,7 +124,7 @@ class Reader {
     if (char === "^" || char === "_") {
       const inner = this.operand();
 
-      return script(char === "^" ? SUPERSCRIPT : SUBSCRIPT, char, inner);
+      return script(this.scripts, char === "^" ? SUPERSCRIPT : SUBSCRIPT, char, inner);
     }
 
     if (char === "\\") {
@@ -113,7 +132,7 @@ class Reader {
     }
 
     if (char === "{") {
-      return new Reader(this.braced()).run();
+      return new Reader(this.braced(), this.scripts).run();
     }
 
     if (char === "-") {
@@ -161,7 +180,7 @@ class Reader {
     if (this.source[this.at] === "{") {
       this.at++;
 
-      return new Reader(this.braced()).run().trim();
+      return new Reader(this.braced(), this.scripts).run().trim();
     }
 
     if (this.source[this.at] === "\\") {
@@ -214,7 +233,7 @@ class Reader {
       const body = this.operand();
       const root = index === "3" ? "∛" : index === "4" ? "∜" : "√";
 
-      return `${index === undefined || root !== "√" ? "" : `${script(SUPERSCRIPT, "^", index)}`}${root}${isAtom(body) ? body : `(${body})`}`;
+      return `${index === undefined || root !== "√" ? "" : `${script(this.scripts, SUPERSCRIPT, "^", index)}`}${root}${isAtom(body) ? body : `(${body})`}`;
     }
 
     if (name === "mathbb") {
@@ -282,7 +301,7 @@ class Reader {
       .map((row) =>
         row
           .split("&")
-          .map((cell) => new Reader(cell).run().trim())
+          .map((cell) => new Reader(cell, this.scripts).run().trim())
           .join(MATRICES.test(kind) ? " " : "  "),
       )
       .filter((row) => row.trim() !== "");

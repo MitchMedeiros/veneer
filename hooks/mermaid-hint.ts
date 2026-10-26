@@ -1,6 +1,6 @@
-// What reaches the model while Veneer draws diagrams: one short paragraph, so a request to show something is answered
-// with a diagram that can be drawn.
-export const MERMAID_HINT = [
+// What reaches the model while Veneer draws diagrams and equations: two short paragraphs, so a request to show something
+// is answered with a diagram or an equation that can be drawn.
+const DIAGRAMS = [
   "# Diagrams",
   "A fenced ```mermaid block is drawn as a picture in this terminal: flowchart TD|LR, stateDiagram-v2, sequenceDiagram,",
   "classDiagram, erDiagram, pie, xychart-beta (bars and lines), radar-beta, sankey-beta, treemap-beta, quadrantChart,",
@@ -8,3 +8,16 @@ export const MERMAID_HINT = [
   "Avoid subgraphs, styling directives and more than 40 nodes, which are left as code.",
   "Draw one when a process, schedule, numeric comparison or breakdown reads better as a picture.",
 ].join(" ");
+
+const MATH = [
+  "# Math",
+  "A display equation written as LaTeX in a `$$ ... $$` block, a `\\[ ... \\]` block or a `\\begin{align}` block",
+  "(equation, align, gather or multline) is typeset as a picture in this terminal.",
+  "Put the delimiters on lines of their own with the TeX between them, and leave a blank line before and after.",
+  "Never put an equation in a code fence, where it stays as plain text.",
+  "Inline math, `$ ... $` or `\\( ... \\)` inside a sentence, becomes Unicode text and never a picture.",
+  "Keep it to short expressions such as `$x^2 + \\alpha$`, and give anything with fractions, sums or matrices a block.",
+  "Use math syntax only for formulas, and write prices without a `$` pair.",
+].join(" ");
+
+export const MERMAID_HINT = `${DIAGRAMS}\n\n${MATH}`;

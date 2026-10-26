@@ -96,7 +96,7 @@ can be either its display name or its option name, in any case: `/veneer cell-pr
 | Icons                     | `icons`            | `auto`  | `auto`, `nerd` or `plain`. Nerd Font or Unicode icons.   |
 | File links                | `links`            | `auto`  | `auto`, `link` or `text`. How file paths are drawn.      |
 | Text-based graphics       | `nativeGraphics`   | `false` | Draw tables, headings and Mermaid diagrams as text.      |
-| Diagram hint              | `diagramHint`      | `true`  | Off stops Claude from responding with diagrams.          |
+| Diagram hint              | `diagramHint`      | `true`  | Off stops Claude from responding with diagrams and math. |
 | Spinner styling           | `styleSpinner`     | `true`  | Turn off to leave spinner styling to another mod.        |
 | Table font                | `fontFamily`       | blank   | Font for tables and headings. Blank uses defaults.       |
 | Cell proportion           | `cellRatio`        | `2.9`   | Terminal cell height over width. Fixes letterboxing.     |
