@@ -7,7 +7,7 @@ import { MARGIN } from "./reply";
 import { lineChildren } from "./syntax/runs";
 import type { StyledRun } from "./syntax/types";
 import type { Look, Plain, ToolCall } from "./tool-row";
-import { inputOf, lookFor, NOT_PLAIN, pathHover, pathOf, shortPath, toneOf } from "./tool-row";
+import { inputOf, litOf, lookFor, NOT_PLAIN, pathHover, pathOf, shortPath, toneOf } from "./tool-row";
 
 type Ui = Pick<ElementTable, "Box" | "Button" | "Link" | "Text">;
 
@@ -76,9 +76,7 @@ export function toolGroup(
   const groupId = `group:${id}`;
   const groupOpen = open.has(groupId);
   const single = calls.length === 1;
-  const lit = (scope: string) =>
-    ({ scope, color: "text", dimColor: false, backgroundColor: "userMessageBackground", inverse: false }) as const;
-  const summaryLit = lit(groupId);
+  const summaryLit = litOf(groupId);
 
   const summary = (
     <Box flexDirection="row" marginTop={1} marginLeft={MARGIN} marginRight={MARGIN}>
@@ -111,7 +109,7 @@ export function toolGroup(
       ? null
       : (paintedOutput[i] ?? parseOutput(call.tool, call.output, cwd, call.isErrored));
     const callOpen = lines !== null && open.has(callId);
-    const rowLit = lit(callId);
+    const rowLit = litOf(callId);
     const moreId = `more:${callId}`;
     const press = () => {
       if (lines !== null) {

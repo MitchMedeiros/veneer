@@ -15,6 +15,7 @@ theme format. Furthermore, it can display attached and read images in the chat.
   - [tmux](#tmux)
 - [Syntax Highlighting](#syntax-highlighting)
 - [General Settings](#general-settings)
+  - [Collapsing edits](#collapsing-edits)
   - [Diagrams and charts](#diagrams-and-charts)
   - [Math](#math)
 - [Supported Languages and File Types](#supported-languages-and-file-types)
@@ -106,6 +107,11 @@ can be either its display name or its option name, in any case: `/veneer cell-pr
 | Diffs                     | `diffBackground`   | `true`  | The same for diffs. Added and removed lines keep theirs. |
 
 Settings are stored under `pluginConfigs` in the global `~/.claude/settings.json`.
+
+### Collapsing edits
+
+A button above the prompt either folds every file edit into a single collapsed row or re-opens them all. Alternatively,
+use the commands `/veneer edits` and `/veneer edits collapse`.
 
 ### Diagrams and charts
 

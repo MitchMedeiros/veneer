@@ -4,7 +4,7 @@ import { MARGIN } from "./reply";
 import { lineChildren } from "./syntax/runs";
 import type { StyledRun } from "./syntax/types";
 
-type Ui = Pick<ElementTable, "Box" | "Text" | "Link">;
+type Ui = Pick<ElementTable, "Box" | "Button" | "Text" | "Link">;
 
 export type ToolCall = {
   tool: string;
@@ -107,14 +107,21 @@ export type Plain = { icons: boolean; links: boolean };
 
 export const NOT_PLAIN: Plain = { icons: false, links: false };
 
+// How a pressable row looks under the pointer: the grey band of a tool group's rows, in place of the inverted colours.
+// The scope joins the row's icon, gap and name, so they light as one.
+export const litOf = (scope: string) =>
+  ({ scope, color: "text", dimColor: false, backgroundColor: "userMessageBackground", inverse: false }) as const;
+
 // The tool row as an icon, a bold name and a dim detail, or null for a tool with no look of its own. A path is a link,
-// so a click opens the file as the native row's does. `detailRuns` colour the detail, as a Command's shell line.
+// so a click opens the file as the native row's does. `detailRuns` colour the detail, as a Command's shell line. Given
+// `onPress`, the icon and name are a button that runs it.
 export function toolRow(
-  { Box, Text, Link }: Ui,
+  { Box, Button, Text, Link }: Ui,
   call: ToolCall,
   cwd: string,
   detailRuns?: StyledRun[],
   plain: Plain = NOT_PLAIN,
+  onPress?: () => void,
 ): RenderElement | null {
   if (LOOKS[call.tool] === undefined) {
     return null;
@@ -126,16 +133,29 @@ export function toolRow(
   const detail = look.detail(input);
   const tone = toneOf(call);
   const path = pathOf(look, input);
+  const id = `row:${call.tool_use_id ?? call.tool}`;
+  const lit = onPress === undefined ? undefined : litOf(id);
+  const name = [
+    <Text key="icon" color={tone} dimColor={call.isRunning} hover={lit}>
+      {look.icon}
+    </Text>,
+    <Text key="label" color={tone} bold hover={lit}>
+      {labelOf(look, call)}
+    </Text>,
+  ];
 
   return (
     <Box flexDirection="row" marginTop={1} marginLeft={MARGIN} marginRight={MARGIN} gap={2}>
       <Box flexShrink={0} gap={plain.icons ? 1 : 2}>
-        <Text color={tone} dimColor={call.isRunning}>
-          {look.icon}
-        </Text>
-        <Text color={tone} bold>
-          {labelOf(look, call)}
-        </Text>
+        {onPress === undefined ? (
+          name
+        ) : (
+          <Button key={id} plain hover={lit} onPress={onPress}>
+            {name[0]}
+            <Text hover={lit}>{plain.icons ? " " : "  "}</Text>
+            {name[1]}
+          </Button>
+        )}
       </Box>
       {detail === undefined ? null : (
         <Box flexShrink={1}>

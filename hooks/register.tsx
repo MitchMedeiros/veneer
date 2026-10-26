@@ -7,6 +7,7 @@ import type { Backdrop, Config } from "./config";
 import { iconsArePlain, linksArePlain, OFF_TEXT, terminalOff } from "./gate";
 import { changeCounts, withBadges } from "./badge";
 import { diffCard, parseDiff } from "./diff";
+import { editsButton } from "./edits";
 import { MAX_LINES } from "./fold";
 import { callIdOf, hiddenIdOf, toolGroup } from "./group";
 import { headingSketch } from "./heading";
@@ -95,6 +96,11 @@ const plainIconsAtom = atom({ plugin: "veneer", key: "plainIcons" } as const, fa
 const plainLinksAtom = atom({ plugin: "veneer", key: "plainLinks" } as const, false);
 // The tool calls whose diff card shows every line.
 const expandedAtom = atom({ plugin: "veneer", key: "expanded" } as const, [] as string[]);
+// Whether the diff cards of edits and file writes are folded away. Each session takes the last choice from the store when
+// it starts and keeps its own after that.
+const editsCollapsedAtom = atom({ plugin: "veneer", key: "editsCollapsed" } as const, false);
+// The tool calls whose diff card is the opposite of `editsCollapsedAtom`, because the person pressed its row.
+const flippedEditsAtom = atom({ plugin: "veneer", key: "flippedEdits" } as const, [] as string[]);
 const paletteAtom = atom({ plugin: "veneer", key: "palette" } as const, baseOf("dark") as Palette);
 // The syntax theme chosen with /syntax, by file name without `.json`; empty is the shipped default. Kept in the store.
 const syntaxAtom = atom({ plugin: "veneer", key: "syntax" } as const, "");
@@ -131,11 +137,32 @@ const SETTINGS_COMMAND = "veneer-settings";
 const PANE_ROWS = 24;
 const PANE_COLUMNS = 72;
 const SYNTAX_KEY = "syntaxTheme";
+const EDITS_KEY = "editsCollapsed";
 const MAX_REDIRECTS = 3;
 
 // Opens a folded entry, or folds an open one again.
 function flip($: EngineInterface, id: string): void {
   void update($, expandedAtom, (ids) => (ids.includes(id) ? ids.filter((other) => other !== id) : [...ids, id]));
+}
+
+// Folds every edit card, or opens them all, for this session and as the choice later sessions start from. A card
+// pressed on its own row is set back to follow the rest.
+async function setEditsCollapsed($: EngineInterface, collapsed: boolean): Promise<void> {
+  await update($, editsCollapsedAtom, () => collapsed);
+  await update($, flippedEditsAtom, () => []);
+  await $.store.set(EDITS_KEY, collapsed);
+}
+
+// Starts a session from the last choice, which a session already running does not follow when another changes it.
+async function seedEdits($: EngineInterface): Promise<void> {
+  const collapsed = (await $.store.get(EDITS_KEY)) === true;
+
+  await update($, editsCollapsedAtom, () => collapsed);
+  await update($, flippedEditsAtom, () => []);
+}
+
+function flipEdit($: EngineInterface, id: string): void {
+  void update($, flippedEditsAtom, (ids) => (ids.includes(id) ? ids.filter((other) => other !== id) : [...ids, id]));
 }
 
 async function themeFile($: EngineInterface, path: string): Promise<string | undefined> {
@@ -686,6 +713,17 @@ async function runSettingsCommand($: EngineInterface, args: string): Promise<{ t
     return openPane($, "settings");
   }
 
+  const edits = /^edits(?:\s+(collapse|expand))?$/i.exec(args.trim());
+
+  if (edits !== null) {
+    const collapsed =
+      edits[1] === undefined ? !(await read($, editsCollapsedAtom)) : edits[1].toLowerCase() === "collapse";
+
+    await setEditsCollapsed($, collapsed);
+
+    return { text: collapsed ? "Edits are collapsed." : "Edits are expanded." };
+  }
+
   const change = parseSettingChange(await settingsOf($), args);
 
   if ("error" in change) {
@@ -740,6 +778,7 @@ async function openPane($: EngineInterface, tab: Tab): Promise<{ text?: string }
 export const register: Register = (on, options) => {
   on("session.start", async ($, e, next) => {
     await seedOptions($, options);
+    await seedEdits($);
 
     const off = await settle($, await configNow($));
 
@@ -762,6 +801,7 @@ export const register: Register = (on, options) => {
   // /clear, /resume and /branch reset the session's state and skip session.start.
   on("classic.SessionStart", { source: ["clear", "resume", "fork"] }, async ($, e, next) => {
     await seedOptions($, options);
+    await seedEdits($);
     await settle($, await configNow($));
 
     return next(e);
@@ -929,7 +969,9 @@ export const register: Register = (on, options) => {
       $.session.cwd(),
       changes === null ? undefined : read($, paletteAtom).then((palette) => palette.isAnsi),
     ]);
-    const row = toolRow(ui, e.props, cwd, commandRuns, plain) ?? native;
+    const id = e.props.tool_use_id;
+    const press = changes === null ? undefined : () => flipEdit($, id);
+    const row = toolRow(ui, e.props, cwd, commandRuns, plain, press) ?? native;
 
     return changes === null || isAnsi === undefined ? row : withBadges(ui, row, changes, isAnsi, plain.icons);
   });
@@ -971,6 +1013,17 @@ export const register: Register = (on, options) => {
     }
 
     const id = e.props.tool_use_id;
+
+    if (diff !== null) {
+      const [collapsed, flipped] = await Promise.all([read($, editsCollapsedAtom), read($, flippedEditsAtom)]);
+
+      if (collapsed !== flipped.includes(id)) {
+        const { Box } = $.ui.resolve(e);
+
+        return <Box />;
+      }
+    }
+
     const path = tool === "Read" || diff !== null ? filePathOf(output) : undefined;
     const [config, open, paint, palette] = await Promise.all([
       configNow($),
@@ -1029,24 +1082,36 @@ export const register: Register = (on, options) => {
 
   on("ui.render", { component: "AbovePrompt" }, async ($, e, next) => {
     const native = await next(e);
-    const ids = await read($, draftImagesAtom);
 
-    if (e.surface !== "terminal" || e.props.hasSurvey || native.type !== "engine" || ids.length === 0) {
+    if (e.surface !== "terminal" || e.props.hasSurvey || native.type !== "engine") {
       return native;
     }
 
-    const config = await configNow($);
-
-    if (!config.images) {
-      return native;
-    }
-
+    const [ids, config, collapsed, plain] = await Promise.all([
+      read($, draftImagesAtom),
+      configNow($),
+      read($, editsCollapsedAtom),
+      plainOf($),
+    ]);
     const ui = $.ui.resolve(e);
-    const found = await draftImagesOf($, ids);
+    const { Box } = ui;
+    const button = editsButton(ui, collapsed, plain.icons, () => void setEditsCollapsed($, !collapsed));
     const fit = { ...config, imageRows: Math.min(config.imageRows, Math.max(2, e.props.maxRows - 2)) };
-    const shown = await shownImages($, found, fit, e.props.bodyColumns, "Image" in ui);
+    const pictures =
+      ids.length === 0 || !config.images
+        ? null
+        : imageColumn(
+            ui,
+            await shownImages($, await draftImagesOf($, ids), fit, e.props.bodyColumns, "Image" in ui),
+            MARGIN,
+          );
 
-    return imageColumn(ui, shown, MARGIN) ?? native;
+    return (
+      <Box flexDirection="column">
+        {pictures ?? native}
+        {button}
+      </Box>
+    );
   });
 
   on("ui.render", { component: "ToolGroup" }, async ($, e, next) => {

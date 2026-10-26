@@ -67,6 +67,10 @@ declare module "claude-code" {
       syntaxPreview: string | null;
       // The numbers of the images pasted into the prompt box and not yet sent, in the order the draft holds them.
       draftImages: string[];
+      // Whether the diff cards of edits and file writes are folded away in this session.
+      editsCollapsed: boolean;
+      // The tool calls whose diff card is the opposite of `editsCollapsed`, because the person pressed its row.
+      flippedEdits: string[];
     };
   }
 }
