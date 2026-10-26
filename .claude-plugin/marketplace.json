@@ -1,6 +1,6 @@
 {
   "name": "veneer",
-  "description": "Mods for Claude Code that upgrade the terminal with richer visuals, syntax highlighting and diagrams.",
+  "description": "Mods for Claude Code that upgrade the terminal with richer visuals, syntax highlighting, diagrams, and more!",
   "owner": {
     "name": "Mitchell Medeiros"
   },
@@ -8,7 +8,7 @@
     {
       "name": "veneer",
       "source": "./",
-      "description": "Syntax highlighting for 100+ languages with any VS Code or Open VSX theme, tables, headings and Mermaid diagrams drawn as images, and polished messages, code blocks and tool output."
+      "description": "Syntax highlighting for 100+ languages with any VS Code theme, tables, headings, visualizations, polished messages, better tool output, pasted image preview, and more!"
     }
   ]
 }
