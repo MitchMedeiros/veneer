@@ -71,6 +71,8 @@ declare module "claude-code" {
       editsCollapsed: boolean;
       // The tool calls whose diff card is the opposite of `editsCollapsed`, because the person pressed its row.
       flippedEdits: string[];
+      // Whether Claude Code's focus view is on.
+      focusView: boolean;
       // Whether the groups that hold edits, and the Read rows in them, are opened by the expand button.
       groupsExpanded: boolean;
       // The groups and Read rows that `groupsExpanded` opens but were pressed shut.

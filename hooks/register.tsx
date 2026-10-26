@@ -104,6 +104,8 @@ const expandedAtom = atom({ plugin: "veneer", key: "expanded" } as const, [] as 
 const editsCollapsedAtom = atom({ plugin: "veneer", key: "editsCollapsed" } as const, false);
 // The tool calls whose diff card is the opposite of `editsCollapsedAtom`, because the person pressed its row.
 const flippedEditsAtom = atom({ plugin: "veneer", key: "flippedEdits" } as const, [] as string[]);
+// Whether Claude Code's focus view is on, as the mode labels in the prompt footer say.
+const focusViewAtom = atom({ plugin: "veneer", key: "focusView" } as const, false);
 // Whether the expand button has opened the groups that hold edits, and the Read rows in them. It starts off, so a group
 // is open only when it was pressed open.
 const groupsExpandedAtom = atom({ plugin: "veneer", key: "groupsExpanded" } as const, false);
@@ -1217,6 +1219,16 @@ export const register: Register = (on, options) => {
     );
   });
 
+  on("ui.render", { component: "SessionMode" }, async ($, e, next) => {
+    const isFocus = e.props.modes.includes("focus");
+
+    if ((await read($, focusViewAtom)) !== isFocus) {
+      await update($, focusViewAtom, () => isFocus);
+    }
+
+    return next(e);
+  });
+
   on("ui.render", { component: "AbovePrompt" }, async ($, e, next) => {
     const native = await next(e);
 
@@ -1224,16 +1236,18 @@ export const register: Register = (on, options) => {
       return native;
     }
 
-    const [ids, config, collapsed, plain] = await Promise.all([
+    const [ids, config, collapsed, plain, isFocus] = await Promise.all([
       ensureEnds($).then(() => read($, draftImagesAtom)),
       configNow($),
       read($, editsCollapsedAtom),
       plainOf($),
+      read($, focusViewAtom),
     ]);
     const ui = $.ui.resolve(e);
     const { Box } = ui;
-    const button = bandButtons(ui, collapsed, plain.icons, {
+    const button = bandButtons(ui, collapsed, isFocus, plain.icons, {
       toggleEdits: () => void setEditsCollapsed($, !collapsed),
+      toggleFocus: () => void $.command.run({ command: "focus", args: isFocus ? "off" : "on" }),
       scrollTop: () => void scrollTranscript($, "top"),
       scrollBottom: () => void scrollTranscript($, "bottom"),
     });
