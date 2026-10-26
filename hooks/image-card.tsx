@@ -7,7 +7,7 @@ type Ui = Pick<ElementTable, "Box" | "Text"> & Partial<Pick<Extract<ElementTable
 // An image as drawn: its picture, or null where it can only be named.
 export type Shown = { id: string; alt: string; picture: Picture | null };
 
-// The images under a row, one under another. An image with no picture, or any image where the terminal has no `Image`
+// The images under a row, side by side and wrapping to the next line where one does not fit. An image with no picture, or any image where the terminal has no `Image`
 // element, is its name and size in dim text.
 export function imageColumn(
   { Box, Text, Image }: Ui,
@@ -20,7 +20,14 @@ export function imageColumn(
   }
 
   return (
-    <Box flexDirection="column" marginLeft={margin} marginRight={margin} alignSelf={alignSelf}>
+    <Box
+      flexDirection="row"
+      flexWrap="wrap"
+      columnGap={1}
+      marginLeft={margin}
+      marginRight={margin}
+      alignSelf={alignSelf}
+    >
       {shown.map(({ id, alt, picture }) =>
         picture === null || Image === undefined ? (
           <Text key={id} dimColor>
