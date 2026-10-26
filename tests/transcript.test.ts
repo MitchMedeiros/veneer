@@ -75,11 +75,11 @@ test("the newest row is the last message, or a lone tool call by its own id", ()
   forgetEnds();
   noteLines(prompt("u1"), reply("a1", text("done")));
 
-  expect(bottomTarget()).toEqual({ id: "a1", before: "u1" });
+  expect(bottomTarget()).toEqual({ id: "a1" });
 
   noteLines(prompt("u1"), reply("a1", text("done")), reply("a2", call("toolu_1")));
 
-  expect(bottomTarget()).toEqual({ id: "toolu_1", before: "a1" });
+  expect(bottomTarget()).toEqual({ id: "toolu_1" });
 });
 
 test("two or more folded calls in a row are one group, named for the first call", () => {
@@ -99,7 +99,7 @@ test("a call that is not folded ends a run, and a folded call after it starts a 
   forgetEnds();
   noteLines(reply("a1", call("toolu_1", "Read")), reply("a2", call("toolu_2", "Edit")), reply("a3", call("toolu_3")));
 
-  expect(bottomTarget()).toEqual({ id: "toolu_3", before: "toolu_2" });
+  expect(bottomTarget()).toEqual({ id: "toolu_3" });
 });
 
 test("a row appended after the file was read becomes the newest, and a clear forgets both ends", () => {
@@ -108,7 +108,7 @@ test("a row appended after the file was read becomes the newest, and a clear for
   noteAppended(JSON.parse(reply("a1", text("new"))));
 
   expect(topTarget()).toEqual({ id: "u1" });
-  expect(bottomTarget()).toEqual({ id: "a1", before: "u1" });
+  expect(bottomTarget()).toEqual({ id: "a1" });
 
   forgetEnds();
 

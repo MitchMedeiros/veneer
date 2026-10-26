@@ -17,7 +17,7 @@ type Entry = { id: string; tool?: string };
 
 type Ends = { top?: string; recent: Entry[] };
 
-// Where to scroll for an end, and the row before it to scroll to first when it is not drawn.
+// Where to scroll for an end. A group also names the row before it, which can be reached when the group is not drawn.
 export type Target = { id: string; before?: string };
 
 let top: string | undefined;
@@ -101,7 +101,7 @@ export function bottomTarget(): Target | undefined {
 
   const first = recent[start] ?? last;
 
-  return { id: start < recent.length - 1 ? groupIdOf(first.id) : last.id, before: recent[start - 1]?.id };
+  return start < recent.length - 1 ? { id: groupIdOf(first.id), before: recent[start - 1]?.id } : { id: last.id };
 }
 
 // Takes the ends a read of the file found. The first row never changes once known.

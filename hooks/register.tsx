@@ -234,16 +234,19 @@ async function scrollTranscript($: EngineInterface, end: "top" | "bottom"): Prom
     $.ui
       .scroll({ to: { requestId }, block: at })
       .catch((error: unknown) => ({ deny: error instanceof Error ? error.message : String(error) }));
-  let { deny } = await scrollTo(target.id, block);
 
-  // A group row exists only while it is drawn. The row before it always can be reached, which draws the group.
-  if (deny !== undefined && target.before !== undefined) {
-    await scrollTo(target.before, "start");
-    ({ deny } = await scrollTo(target.id, block));
-  }
+  // A group row exists only while it is drawn, so the row before it is asked for first and the group last, so that it
+  // wins when it is drawn. Both calls start before any await: the engine counts a scroll as the person's own input only
+  // until the handler first yields.
+  const near = target.before === undefined ? undefined : scrollTo(target.before, "start");
+  const direct = scrollTo(target.id, block);
+  const [nearResult, directResult] = await Promise.all([near, direct]);
 
-  if (deny !== undefined) {
-    $.ui.toast(`Could not scroll to the ${end} (${target.id}): ${deny}`, { timeoutMs: NOTICE_MS });
+  const reasons = [directResult.deny, nearResult?.deny].filter((reason) => reason !== undefined);
+  const hasMoved = directResult.deny === undefined || (nearResult !== undefined && nearResult.deny === undefined);
+
+  if (!hasMoved) {
+    $.ui.toast(`Could not scroll to the ${end} (${target.id}): ${reasons.join("; ")}`, { timeoutMs: NOTICE_MS });
   }
 }
 
