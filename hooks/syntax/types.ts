@@ -68,5 +68,5 @@ export type TokenStyle = {
   strikethrough?: boolean;
 };
 
-// A run of text in one style; the unit the cards draw.
-export type StyledRun = { text: string } & TokenStyle;
+// A run of text in one style, on a background where it is emphasised; the unit the cards draw.
+export type StyledRun = { text: string; background?: string } & TokenStyle;

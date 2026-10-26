@@ -21,6 +21,7 @@ export function lineChildren(
     <Text
       key={`run-${i}`}
       color={run.color}
+      backgroundColor={run.background}
       bold={run.bold}
       italic={run.italic}
       underline={run.underline}

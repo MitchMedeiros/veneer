@@ -2,6 +2,8 @@ import type { ElementTable, RenderElement } from "claude-code";
 
 import { fitWidth, foldButton, TAB } from "./fold";
 import type { Fold } from "./fold";
+import { inlineMarks, markRuns } from "./inline-diff";
+import type { Span } from "./inline-diff";
 import { MARGIN } from "./reply";
 import { lineChildren } from "./syntax/runs";
 import type { StyledRun } from "./syntax/types";
@@ -105,6 +107,8 @@ export function diffCard(
     plainLines ? undefined : kind === "add" ? "success" : kind === "remove" ? "error" : undefined;
   const fillOf = (kind: DiffLine["kind"]) =>
     isAnsi || plainLines ? undefined : kind === "add" ? "diffAdded" : kind === "remove" ? "diffRemoved" : undefined;
+  const marks = isAnsi || plainLines ? new Map<number, Span[]>() : inlineMarks(shown);
+  const wordFill = (kind: DiffLine["kind"]) => (kind === "add" ? "diffAddedWord" : "diffRemovedWord");
   const numberTone = (kind: DiffLine["kind"]) => (isAnsi ? tone(kind) : fillOf(kind));
 
   return (
@@ -126,9 +130,14 @@ export function diffCard(
               color={numberTone(line.kind)}
               dimColor={line.kind === "context" || plainLines}
             >{` ${String(numberOf(line) ?? "").padStart(digits)} `}</Text>
-            <Box flexGrow={1} flexShrink={1} paddingLeft={1} backgroundColor={fillOf(line.kind)}>
+            <Box
+              flexGrow={line.kind === "add" ? 0 : 1}
+              flexShrink={1}
+              paddingLeft={1}
+              backgroundColor={fillOf(line.kind)}
+            >
               <Text color={isAnsi ? tone(line.kind) : undefined} wrap="wrap">
-                {lineChildren(ui, line.text, runs[i])}
+                {lineChildren(ui, line.text, markRuns(line.text, runs[i], marks.get(i), wordFill(line.kind)))}
               </Text>
             </Box>
           </Box>
