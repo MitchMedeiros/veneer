@@ -1,5 +1,6 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
+import { alertCard } from "./alert-card";
 import { codeCard } from "./code";
 import { copyCorner, copyRow } from "./copy-button";
 import type { CopyAction } from "./copy-button";
@@ -92,6 +93,14 @@ export function replyTree(
       return (
         <Box key={`text-${i}`} flexDirection="column" hover={whole === undefined ? undefined : { scope: whole.scope }}>
           <Markdown text={segment.text} />
+        </Box>
+      );
+    }
+
+    if (segment.kind === "alert") {
+      return (
+        <Box key={`alert-${i}`} flexDirection="column" marginTop={i > 0 ? 1 : 0}>
+          {alertCard({ Box, Text, Markdown }, segment, fitted ? available : undefined)}
         </Box>
       );
     }

@@ -17,6 +17,7 @@ theme format. Furthermore, it can display attached and read images in the chat.
 - [General Settings](#general-settings)
   - [Collapsing edits](#collapsing-edits)
   - [Copying](#copying)
+  - [Alerts](#alerts)
   - [Diagrams and charts](#diagrams-and-charts)
   - [Math](#math)
 - [Supported Languages and File Types](#supported-languages-and-file-types)
@@ -98,7 +99,7 @@ can be either its display name or its option name, in any case: `/veneer cell-pr
 | Icons                     | `icons`            | `auto`    | `auto`, `nerd` or `plain`. Nerd Font or Unicode icons.        |
 | File links                | `links`            | `auto`    | `auto`, `link` or `text`. How file paths are drawn.           |
 | Text-based graphics       | `nativeGraphics`   | `false`   | Draw tables, headings and Mermaid diagrams as text.           |
-| Diagram hint              | `diagramHint`      | `true`    | Off stops Claude from answering with diagrams and math.       |
+| Diagram hint              | `diagramHint`      | `true`    | Off stops Claude from using diagrams, math and alerts.        |
 | Spinner styling           | `styleSpinner`     | `true`    | Turn off to leave spinner styling to another mod.             |
 | Tool spacing              | `toolSpacing`      | `compact` | `compact` or `spacious`. Blank line above each tool.          |
 | Block width               | `blockWidth`       | `full`    | `full` or `fitted`. Fitted blocks are only as wide as needed. |

@@ -60,7 +60,7 @@
     "diagramHint": {
       "type": "boolean",
       "title": "Diagram hint",
-      "description": "Tell the model that Mermaid diagrams and display equations are drawn here, so it answers with one when a picture reads better. Adds about 250 tokens to the system prompt.",
+      "description": "Tell the model that Mermaid diagrams, display equations and alerts are drawn here, so it uses them where they help. Adds about 350 tokens to the system prompt.",
       "default": true
     },
     "styleSpinner": {

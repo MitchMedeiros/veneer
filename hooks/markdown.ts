@@ -10,7 +10,14 @@ export type Code = { kind: "code"; lang: string; code: string; raw: string };
 
 export type Math = { kind: "math"; tex: string; raw: string };
 
-export type Segment = { kind: "text"; text: string } | Table | Heading | Code | Math;
+export type AlertType = "note" | "tip" | "important" | "warning" | "caution";
+
+export type Alert = { kind: "alert"; type: AlertType; text: string; raw: string };
+
+export type Segment = { kind: "text"; text: string } | Table | Heading | Code | Math | Alert;
+
+const ALERT = /^ {0,3}>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*$/i;
+const QUOTE = /^ {0,3}>/;
 
 const SEPARATOR = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
 const FENCE = /^(\s*)(`{3,}|~{3,})\s*([^\s`]*)/;
@@ -73,7 +80,7 @@ const alignOf = (cell: string): Align => {
 const MEMORY_REPLIES = 64;
 const splits = new Map<string, Segment[]>();
 
-// The reply as runs of text with each table, heading and closed code fence taken out as its own segment. A fence still
+// The reply as runs of text with each table, heading, alert and closed code fence taken out as its own segment. A fence still
 // open, as while the reply streams, stays text with everything after it. A reply is split once however often it is
 // drawn.
 export function splitReply(markdown: string): Segment[] {
@@ -146,6 +153,30 @@ function split(markdown: string): Segment[] {
       continue;
     }
 
+    const alert = ALERT.exec(line);
+
+    if (alert !== null) {
+      let end = i + 1;
+
+      while (end < lines.length && QUOTE.test(lines[end] ?? "")) {
+        end++;
+      }
+
+      flush();
+      segments.push({
+        kind: "alert",
+        type: alert[1]!.toLowerCase() as AlertType,
+        text: lines
+          .slice(i + 1, end)
+          .map((row) => row.replace(/^ {0,3}>\s?/, ""))
+          .join("\n")
+          .trim(),
+        raw: lines.slice(i, end).join("\n"),
+      });
+      i = end - 1;
+      continue;
+    }
+
     const heading = HEADING.exec(line);
 
     // The last line of the text may still be streaming; a line is final once another follows it.
@@ -194,4 +225,6 @@ function split(markdown: string): Segment[] {
   return segments;
 }
 
-export const hasDrawn = (segments: readonly Segment[]): boolean => segments.some((segment) => segment.kind !== "text");
+// Whether a reply has a block that may be drawn as a picture. An alert is native text, so it is not one.
+export const hasDrawn = (segments: readonly Segment[]): boolean =>
+  segments.some((segment) => segment.kind !== "text" && segment.kind !== "alert");

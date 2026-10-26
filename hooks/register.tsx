@@ -519,9 +519,12 @@ async function importTheme($: EngineInterface, requested: string): Promise<void>
   $.ui.toast(`Added ${name} from ${baseNameOf(path)}.`);
 }
 
+// The blocks of a reply that can be drawn as a picture: all but text, which is native, and an alert, a native card.
+type Pictured = Exclude<Segment, { kind: "text" | "alert" }>;
+
 // Whether a block of a reply is drawn as a picture: a table, a heading, an equation or a Mermaid fence, unless the settings leave
 // graphics to native drawing.
-function wantsPicture(segment: Segment, config: Config): segment is Exclude<Segment, { kind: "text" }> {
+function wantsPicture(segment: Segment, config: Config): segment is Pictured {
   return (
     !config.nativeGraphics &&
     (segment.kind === "table" ||
@@ -532,12 +535,7 @@ function wantsPicture(segment: Segment, config: Config): segment is Exclude<Segm
 }
 
 // The picture a block of a reply is drawn as, or null where it stays text.
-function sketchOf(
-  segment: Exclude<Segment, { kind: "text" }>,
-  available: number,
-  palette: Palette,
-  font: Font,
-): Sketch | null {
+function sketchOf(segment: Pictured, available: number, palette: Palette, font: Font): Sketch | null {
   switch (segment.kind) {
     case "table":
       return tableSketch(segment, available, palette, font);

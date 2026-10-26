@@ -1,6 +1,7 @@
 import type { On } from "claude-code";
 import { expect, mock, test } from "claude-code/testing";
 
+import { splitReply } from "../hooks/markdown";
 import type { Table } from "../hooks/markdown";
 import { columnWidths } from "../hooks/table-card";
 import { NATIVE, OTHER_MOD, stub } from "./helpers";
@@ -144,6 +145,23 @@ test("pressing a code block's copy button copies its code and says so", async ($
 
   expect(seen.copied).toEqual(["const a = 1;"]);
   expect(seen.toasts).toEqual(["Code copied"]);
+});
+
+test("a blockquote tagged as an alert is split out with its kind and its quoted text", () => {
+  const segments = splitReply("before\n\n> [!WARNING]\n> Back up **first**.\n> Then run it.\n\nafter");
+
+  expect(segments.map((segment) => segment.kind)).toEqual(["text", "alert", "text"]);
+  expect(segments[1]).toMatchObject({ type: "warning", text: "Back up **first**.\nThen run it." });
+  expect(splitReply("> an ordinary quote").map((segment) => segment.kind)).toEqual(["text"]);
+});
+
+test("an alert is a titled card holding its text", async ($, on) => {
+  stub(on, NATIVE);
+
+  const ui = await $.ui.mount(reply("> [!TIP]\n> Use `/veneer copy`.\n\nafter", "a1"));
+
+  expect(await ui.find({ type: "Text", text: "✦ Tip" })).toBeDefined();
+  expect(await ui.find({ type: "Markdown", text: "Use `/veneer copy`." })).toBeDefined();
 });
 
 test("an equation has a copy button for its Unicode form and one for its LaTeX", async ($, on) => {

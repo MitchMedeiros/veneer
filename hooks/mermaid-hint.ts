@@ -1,5 +1,6 @@
-// What reaches the model while Veneer draws diagrams and equations: two short paragraphs, so a request to show something
-// is answered with a diagram or an equation that can be drawn.
+// What reaches the model while Veneer draws diagrams, equations and alerts: three short paragraphs, so a request to show
+// something is answered with a diagram or an equation that can be drawn, and a point the reader must not miss is set
+// off as an alert.
 const DIAGRAMS = [
   "# Diagrams",
   "A fenced ```mermaid block is drawn as a picture in this terminal: flowchart TD|LR, stateDiagram-v2, sequenceDiagram,",
@@ -20,4 +21,13 @@ const MATH = [
   "Use math syntax only for formulas, and write prices without a `$` pair.",
 ].join(" ");
 
-export const MERMAID_HINT = `${DIAGRAMS}\n\n${MATH}`;
+const ALERTS = [
+  "# Alerts",
+  "A blockquote that opens with `> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`, `> [!WARNING]` or `> [!CAUTION]` is drawn as a",
+  "titled box in this terminal, its kind shown by colour and icon. Put the tag alone on the first line and the text on",
+  "the quoted lines after it.",
+  "Use one for something the reader must not miss, such as a risk, a breaking change or a required step, and use at most",
+  "one or two in a reply. Leave ordinary asides in the text.",
+].join(" ");
+
+export const MERMAID_HINT = `${DIAGRAMS}\n\n${MATH}\n\n${ALERTS}`;
