@@ -8,7 +8,8 @@ import { iconsArePlain, linksArePlain, OFF_TEXT, terminalOff } from "./gate";
 import { changeCounts, withBadges } from "./badge";
 import type { PillLook } from "./badge";
 import { diffCard, parseDiff } from "./diff";
-import { editsButton } from "./edits";
+import { bandButtons } from "./edits";
+import { firstRow, forgetRows, lastRow, noteRow } from "./transcript";
 import { MAX_LINES } from "./fold";
 import { callIdOf, hiddenIdOf, toolGroup } from "./group";
 import { headingSketch } from "./heading";
@@ -160,6 +161,25 @@ async function seedEdits($: EngineInterface): Promise<void> {
 
   await update($, editsCollapsedAtom, () => collapsed);
   await update($, flippedEditsAtom, () => []);
+}
+
+// Scrolls the transcript until its first or newest row shows, with that row at the edge it belongs to.
+async function scrollTranscript($: EngineInterface, end: "top" | "bottom"): Promise<void> {
+  const id = end === "top" ? firstRow() : lastRow();
+
+  if (id === undefined) {
+    $.ui.toast("The transcript has nothing to scroll to yet.", { timeoutMs: NOTICE_MS });
+
+    return;
+  }
+
+  const { deny } = await $.ui
+    .scroll({ to: { requestId: id }, block: end === "top" ? "start" : "end" })
+    .catch((error: unknown) => ({ deny: error instanceof Error ? error.message : String(error) }));
+
+  if (deny !== undefined) {
+    $.ui.toast(`Could not scroll to the ${end}: ${deny}`, { timeoutMs: NOTICE_MS });
+  }
 }
 
 function flipEdit($: EngineInterface, id: string): void {
@@ -792,6 +812,7 @@ async function openPane($: EngineInterface, tab: Tab): Promise<{ text?: string }
 
 export const register: Register = (on, options) => {
   on("session.start", async ($, e, next) => {
+    forgetRows();
     await seedOptions($, options);
     await seedEdits($);
 
@@ -815,6 +836,7 @@ export const register: Register = (on, options) => {
 
   // /clear, /resume and /branch reset the session's state and skip session.start.
   on("classic.SessionStart", { source: ["clear", "resume", "fork"] }, async ($, e, next) => {
+    forgetRows();
     await seedOptions($, options);
     await seedEdits($);
     await settle($, await configNow($));
@@ -832,6 +854,8 @@ export const register: Register = (on, options) => {
   });
 
   on("ui.render", { component: "UserMessage" }, async ($, e, next) => {
+    noteRow(e.requestId);
+
     const { text, origin } = e.props;
     const config = await configNow($);
     const hasImages = config.images && text.includes(PASTED_MARKER);
@@ -893,6 +917,8 @@ export const register: Register = (on, options) => {
   });
 
   on("ui.render", { component: "AssistantMessage" }, async ($, e, next) => {
+    noteRow(e.requestId);
+
     const native = await next(e);
     const { text, isFirstOfReply, isSummary } = e.props;
 
@@ -965,6 +991,8 @@ export const register: Register = (on, options) => {
   });
 
   on("ui.render", { component: "ToolUse" }, async ($, e, next) => {
+    noteRow(e.requestId);
+
     if (e.props.tool === "Bash" || e.props.tool === "Read") {
       rememberInput(e.props.tool_use_id, e.props.input);
     }
@@ -1111,7 +1139,11 @@ export const register: Register = (on, options) => {
     ]);
     const ui = $.ui.resolve(e);
     const { Box } = ui;
-    const button = editsButton(ui, collapsed, plain.icons, () => void setEditsCollapsed($, !collapsed));
+    const button = bandButtons(ui, collapsed, plain.icons, {
+      toggleEdits: () => void setEditsCollapsed($, !collapsed),
+      scrollTop: () => void scrollTranscript($, "top"),
+      scrollBottom: () => void scrollTranscript($, "bottom"),
+    });
     const fit = { ...config, imageRows: Math.min(config.imageRows, Math.max(2, e.props.maxRows - 2)) };
     const pictures =
       ids.length === 0 || !config.images
@@ -1131,6 +1163,8 @@ export const register: Register = (on, options) => {
   });
 
   on("ui.render", { component: "ToolGroup" }, async ($, e, next) => {
+    noteRow(e.requestId);
+
     const native = await next(e);
 
     if (e.surface !== "terminal" || native.type !== "engine" || e.props.isExpanded) {

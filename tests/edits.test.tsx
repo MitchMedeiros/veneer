@@ -83,3 +83,28 @@ test("a session starts from the last choice stored", async ($, on) => {
 
   expect(await (await $.ui.mount(result("e4"))).find({ type: "Text", text: "TWO" })).toBeUndefined();
 });
+
+test("a scroll button that cannot scroll says why", async ($, on) => {
+  mock.clock(on, { now: 10_000 });
+  mock.env(on, {});
+  mock.store(on);
+  on("session.cwd", () => ({ value: "/work" }));
+  on("ui.log", () => ({ value: undefined }));
+  on("ui.render", () => NATIVE);
+
+  const toasts: string[] = [];
+
+  on("ui.toast", (_$, e) => {
+    toasts.push((e as unknown as { text: string }).text);
+
+    return { value: undefined };
+  });
+
+  await $.ui.mount(use("row-newest"));
+
+  const bandUi = await $.ui.mount(band);
+
+  await bandUi.press({ key: "scroll:bottom" });
+
+  expect(toasts.join(" ")).toContain("Could not scroll to the bottom");
+});
