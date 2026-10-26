@@ -5,12 +5,13 @@ import { litOf } from "./tool-row";
 
 type Ui = Pick<ElementTable, "Box" | "Button" | "Text">;
 
-// Nerd Font fold and unfold arrows and a file, then Unicode arrows and a pencil for terminals with no Nerd Font.
-const NERD = { collapse: "\u{eaf5}", expand: "\u{eb6f}", file: "\u{f016}" } as const;
-const PLAIN = { collapse: "▴", expand: "▾", file: "✎" } as const;
+// Nerd Font unfold-less and unfold-more arrows, then Unicode corner arrows for terminals with no Nerd Font.
+const NERD = { collapse: "\u{f054e}", expand: "\u{f054f}" } as const;
+const PLAIN = { collapse: "⇱", expand: "⇲" } as const;
 
 // The button above the prompt that folds every edit and file write, or opens them all again, on the user message
-// background. It shows the action a press takes.
+// background. It shows the action a press takes. The padding is part of the button, so a press anywhere on the fill
+// counts.
 export function editsButton(
   { Box, Button, Text }: Ui,
   isCollapsed: boolean,
@@ -21,18 +22,9 @@ export function editsButton(
   const lit = litOf("edits:toggle");
 
   return (
-    <Box
-      key="veneer:edits"
-      alignSelf="flex-start"
-      marginLeft={MARGIN}
-      paddingX={1}
-      backgroundColor="userMessageBackground"
-    >
+    <Box key="veneer:edits" alignSelf="flex-start" marginLeft={MARGIN} backgroundColor="userMessageBackground">
       <Button key="edits:toggle" plain hover={lit} onPress={toggle}>
-        <Text dimColor hover={lit}>
-          {isCollapsed ? glyphs.expand : glyphs.collapse}
-        </Text>
-        <Text dimColor hover={lit}>{` ${glyphs.file}`}</Text>
+        <Text dimColor hover={lit}>{` ${isCollapsed ? glyphs.expand : glyphs.collapse} `}</Text>
       </Button>
     </Box>
   );
