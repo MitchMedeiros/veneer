@@ -780,6 +780,11 @@ async function settle($: EngineInterface, { icons, links }: Pick<Config, "icons"
   return off;
 }
 
+// The columns a fitted card may take, which leaves room for the margins and the indent of a card in a group; undefined
+// where cards fill their parent.
+const FIT_MARGIN = 8;
+const fitCap = ({ fitted }: Config, columns: number): number | undefined => (fitted ? columns - FIT_MARGIN : undefined);
+
 const configNow = async ($: EngineInterface): Promise<Config> => configOf(await read($, optionsAtom));
 
 // Takes the settings as `/config` holds them, which may be newer than the ones the plugin was registered with.
@@ -1056,7 +1061,7 @@ export const register: Register = (on, options) => {
       diagramText(source, { columns: width - CARD_COLUMNS, ratio: config.cellRatio });
 
     if (!isPictured || palette === undefined || dir === undefined) {
-      return replyTree(ui, segments, drawn, bullet, fences, fenceBackground, copyFor, width, diagramOf);
+      return replyTree(ui, segments, drawn, bullet, fences, fenceBackground, copyFor, width, diagramOf, config.fitted);
     }
 
     const font = { family: config.fontFamily, cellHeight: cellHeightOf(config.cellRatio) };
@@ -1084,7 +1089,7 @@ export const register: Register = (on, options) => {
       }),
     );
 
-    return replyTree(ui, segments, drawn, bullet, fences, fenceBackground, copyFor, width, diagramOf);
+    return replyTree(ui, segments, drawn, bullet, fences, fenceBackground, copyFor, width, diagramOf, config.fitted);
   });
 
   on("ui.render", { component: "ToolUse" }, async ($, e, next) => {
@@ -1172,6 +1177,7 @@ export const register: Register = (on, options) => {
     ]);
     const fold = foldOf(new Set(open), (stepId) => flip($, stepId), id);
     const ui = $.ui.resolve(e);
+    const fit = fitCap(config, e.viewport?.columns ?? 100);
     // A folded card shows its first lines only, so only those are tokenized; unfolding paints the rest.
     const visible = fold.limit;
 
@@ -1179,7 +1185,7 @@ export const register: Register = (on, options) => {
       const shown = lines ?? [];
 
       if (paint === undefined) {
-        return outputCard(ui, shown, fold, id);
+        return outputCard(ui, shown, fold, id, undefined, fit);
       }
 
       const [painted, background] = await Promise.all([
@@ -1189,7 +1195,7 @@ export const register: Register = (on, options) => {
         backgroundFor($, config, path === undefined ? "output" : "reads"),
       ]);
 
-      return outputCard(ui, painted, fold, id, outputFill(background, path !== undefined, painted));
+      return outputCard(ui, painted, fold, id, outputFill(background, path !== undefined, painted), fit);
     }
 
     const [runs, background] = await Promise.all([
@@ -1199,7 +1205,7 @@ export const register: Register = (on, options) => {
       backgroundFor($, config, "diffs"),
     ]);
 
-    return diffCard(ui, diff, palette?.isAnsi ?? false, fold, id, runs, background);
+    return diffCard(ui, diff, palette?.isAnsi ?? false, fold, id, runs, background, fit);
   });
 
   on("ui.render", { component: "Spinner" }, async ($, e, next) => {
@@ -1323,6 +1329,7 @@ export const register: Register = (on, options) => {
 
     const ui = $.ui.resolve(e);
     const columns = e.viewport?.columns ?? 100;
+    const fit = fitCap(config, columns);
     const foundIn = calls.map((call, i) => {
       const path = (call.input as { file_path?: unknown } | null | undefined)?.file_path;
 
@@ -1373,7 +1380,7 @@ export const register: Register = (on, options) => {
           backgroundFor($, config, "diffs"),
         ]);
 
-        return diffCard(ui, diff, palette?.isAnsi ?? false, fold, callId, runs, background);
+        return diffCard(ui, diff, palette?.isAnsi ?? false, fold, callId, runs, background, fit);
       }),
     );
 
@@ -1391,6 +1398,7 @@ export const register: Register = (on, options) => {
       imageCalls,
       config.rowGap,
       { cards, flip: (id) => flipEdit($, id), pills },
+      fit,
     );
   });
 

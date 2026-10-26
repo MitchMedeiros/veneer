@@ -112,7 +112,8 @@ test("every card takes the syntax theme background unless its switch is false", 
 });
 
 test("the message bubble and spinner margin are on unless their switch is false", () => {
-  expect(configOf({})).toMatchObject({ styleUserMessage: true, styleSpinner: true });
+  expect(configOf({})).toMatchObject({ styleUserMessage: true, styleSpinner: true, fitted: false });
+  expect(configOf({ blockWidth: "fitted" }).fitted).toBe(true);
   expect(configOf({ styleUserMessage: false, styleSpinner: "false" })).toMatchObject({
     styleUserMessage: false,
     styleSpinner: false,

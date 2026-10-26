@@ -76,6 +76,13 @@
       "default": "compact",
       "options": ["compact", "spacious"]
     },
+    "blockWidth": {
+      "type": "string",
+      "title": "Block width",
+      "description": "full stretches code blocks and the cards of edits, reads and commands across the window. fitted makes each one only as wide as its longest line.",
+      "default": "full",
+      "options": ["full", "fitted"]
+    },
     "changeStyle": {
       "type": "string",
       "title": "Edit line counts",

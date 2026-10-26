@@ -1,10 +1,11 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
-import { foldButton, TAB } from "./fold";
+import { fitWidth, foldButton, TAB } from "./fold";
 import type { Fold } from "./fold";
 import { MARGIN } from "./reply";
 import { lineChildren } from "./syntax/runs";
 import type { StyledRun } from "./syntax/types";
+import { cellWidth } from "./svg-text";
 
 type Ui = Pick<ElementTable, "Box" | "Text" | "Button">;
 
@@ -91,11 +92,14 @@ export function diffCard(
   id: string,
   runs: readonly (StyledRun[] | undefined)[] = [],
   background?: string,
+  fit?: number,
 ): RenderElement {
   const { Box, Text } = ui;
   const shown = diff.lines.slice(0, fold.limit);
   const numberOf = (line: DiffLine) => line.newNumber ?? line.oldNumber;
   const digits = Math.max(1, ...shown.map((line) => String(numberOf(line) ?? "").length));
+  const numberWidth = Math.max(1, ...diff.lines.map((line) => String(numberOf(line) ?? "").length));
+  const widest = Math.max(0, ...diff.lines.map((line) => cellWidth(line.text)));
   const plainLines = diff.created === true;
   const tone = (kind: DiffLine["kind"]) =>
     plainLines ? undefined : kind === "add" ? "success" : kind === "remove" ? "error" : undefined;
@@ -106,6 +110,8 @@ export function diffCard(
   return (
     <Box
       flexDirection="column"
+      alignSelf={fit === undefined ? undefined : "flex-start"}
+      width={fitWidth(numberWidth + 3 + widest, diff.lines.length, fit)}
       marginLeft={MARGIN}
       marginRight={MARGIN}
       borderStyle="round"

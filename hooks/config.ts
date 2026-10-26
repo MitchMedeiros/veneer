@@ -16,6 +16,8 @@ export type Config = {
   changeStyle: "text" | "rounded" | "square";
   // The blank rows above each tool row and group line: 0 for compact spacing, 1 for spacious.
   rowGap: 0 | 1;
+  // Whether code, read, output and diff blocks are as wide as their longest line rather than the whole window.
+  fitted: boolean;
 };
 
 // The cards that may take the syntax theme's `editor.background`.
@@ -79,4 +81,5 @@ export const configOf = (options: PluginOptions): Config => ({
   styleSpinner: onUnlessFalse(options.styleSpinner),
   changeStyle: options.changeStyle === "rounded" || options.changeStyle === "square" ? options.changeStyle : "text",
   rowGap: options.toolSpacing === "spacious" ? 1 : 0,
+  fitted: options.blockWidth === "fitted",
 });

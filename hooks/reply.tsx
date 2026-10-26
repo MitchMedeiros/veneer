@@ -39,6 +39,7 @@ export function replyTree(
   copyFor: (index: number, text: string, noun: string) => CopyAction,
   available: number,
   diagramOf: (source: string) => Row[] | null,
+  fitted = false,
 ): RenderElement {
   const isBeside = (segment: Segment | undefined) =>
     segment?.kind === "table" || (segment?.kind === "code" && segment.lang === "mermaid");
@@ -115,7 +116,14 @@ export function replyTree(
       return framed(
         i,
         copyFor(i, segment.code, "Code"),
-        codeCard({ Box, Text }, segment.lang, segment.code, fences.get(segment), fenceBackground),
+        codeCard(
+          { Box, Text },
+          segment.lang,
+          segment.code,
+          fences.get(segment),
+          fenceBackground,
+          fitted ? available : undefined,
+        ),
       );
     }
 

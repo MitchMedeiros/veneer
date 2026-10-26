@@ -1,10 +1,11 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
-import { foldButton, TAB } from "./fold";
+import { fitWidth, foldButton, TAB } from "./fold";
 import type { Fold } from "./fold";
 import { MARGIN } from "./reply";
 import { lineChildren } from "./syntax/runs";
 import type { StyledRun } from "./syntax/types";
+import { cellWidth } from "./svg-text";
 import { shortPath } from "./tool-row";
 
 type Ui = Pick<ElementTable, "Box" | "Text" | "Button">;
@@ -57,14 +58,26 @@ export function parseOutput(tool: string, output: unknown, cwd: string, isErrore
 
 // The result as a rounded card of lines, the same shape as the diff card, with a numbered column where lines carry
 // numbers and the error colour on what a command wrote to stderr. A background fills the card.
-export function outputCard(ui: Ui, lines: OutputLine[], fold: Fold, id: string, background?: string): RenderElement {
+export function outputCard(
+  ui: Ui,
+  lines: OutputLine[],
+  fold: Fold,
+  id: string,
+  background?: string,
+  fit?: number,
+): RenderElement {
   const { Box, Text } = ui;
   const shown = lines.slice(0, fold.limit);
-  const digits = Math.max(0, ...shown.map((line) => String(line.number ?? "").length));
+  const digitsOf = (of: readonly OutputLine[]) => Math.max(0, ...of.map((line) => String(line.number ?? "").length));
+  const digits = digitsOf(shown);
+  const gutter = digitsOf(lines) > 0 ? digitsOf(lines) + 2 : 0;
+  const widest = Math.max(0, ...lines.map((line) => cellWidth(line.text)));
 
   return (
     <Box
       flexDirection="column"
+      alignSelf={fit === undefined ? undefined : "flex-start"}
+      width={fitWidth(gutter + 1 + widest, lines.length, fit)}
       marginLeft={MARGIN}
       marginRight={MARGIN}
       borderStyle="round"

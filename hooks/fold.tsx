@@ -6,6 +6,18 @@ type Ui = Pick<ElementTable, "Box" | "Button" | "Text">;
 export const MAX_LINES = 24;
 export const TAB = "    ";
 
+// The columns the fold buttons take, so a fitted card with a fold line is never narrower than its buttons.
+const FOLD_WIDTH = 38;
+const BORDER = 2;
+
+// The width of a fitted card whose content is `content` columns wide, or undefined where that is not narrower than the
+// `cap` columns it may take, so the card then fills its parent as an unfitted one does.
+export function fitWidth(content: number, total: number, cap: number | undefined): number | undefined {
+  const width = Math.max(content, total > MAX_LINES ? FOLD_WIDTH : 0) + BORDER;
+
+  return cap === undefined || width >= cap ? undefined : width;
+}
+
 // How far a card is open: the lines it draws, and the presses that draw one step more or one step fewer.
 export type Fold = { limit: number; more: () => void; less: () => void };
 

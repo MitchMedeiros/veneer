@@ -79,6 +79,7 @@ export function toolGroup(
   imageCalls: ReadonlySet<string> = new Set(),
   gap = 0,
   edits: GroupEdits = {},
+  fit?: number,
 ): RenderElement {
   const fillOf = (tool: string, lines: readonly OutputLine[]) =>
     tool === "Read"
@@ -164,7 +165,14 @@ export function toolGroup(
         {changes === null ? header : withBadges({ Box, Text }, header, changes, edits.pills)}
         {callOpen ? (
           <Box marginLeft={2} flexDirection="column">
-            {outputCard({ Box, Button, Text }, lines, foldOf(open, toggle, moreId), callId, fillOf(call.tool, lines))}
+            {outputCard(
+              { Box, Button, Text },
+              lines,
+              foldOf(open, toggle, moreId),
+              callId,
+              fillOf(call.tool, lines),
+              fit,
+            )}
           </Box>
         ) : null}
         {card === undefined || card === null ? null : (
