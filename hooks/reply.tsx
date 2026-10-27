@@ -4,6 +4,7 @@ import { alertCard } from "./alert-card";
 import { codeCard } from "./code";
 import { copyCorner, copyRow } from "./copy-button";
 import type { CopyAction } from "./copy-button";
+import type { Frame } from "./fold";
 import { headingCard } from "./heading-card";
 import { listCard } from "./list-card";
 import type { Segment } from "./markdown";
@@ -45,7 +46,7 @@ export function replyTree(
   diagramOf: (source: string) => Row[] | null,
   fitted = false,
   whole?: CopyAction,
-  isBordered = true,
+  frame: Frame = "bordered",
 ): RenderElement {
   const isBeside = (segment: Segment | undefined) =>
     segment?.kind === "table" || (segment?.kind === "code" && segment.lang === "mermaid");
@@ -118,7 +119,7 @@ export function replyTree(
     }
 
     if (segment.kind === "tasks") {
-      return spaced(i, tasksCard({ Box, Text }, segment, fitted ? available : undefined, isBordered));
+      return spaced(i, tasksCard({ Box, Text }, segment, fitted ? available : undefined, frame));
     }
 
     if (segment.kind === "list") {
@@ -134,7 +135,7 @@ export function replyTree(
       }
 
       if (diagram !== null) {
-        return framed(i, copy, mermaidCard({ Box, Text }, diagram, isBordered), "flex-start");
+        return framed(i, copy, mermaidCard({ Box, Text }, diagram, frame), "flex-start");
       }
     }
 
@@ -163,7 +164,7 @@ export function replyTree(
           fences.get(segment),
           fenceBackground,
           fitted ? available : undefined,
-          isBordered,
+          frame,
         ),
         fitted ? "flex-start" : undefined,
       );
@@ -174,7 +175,7 @@ export function replyTree(
         return framed(
           i,
           copyFor(i, segment.raw, "Table"),
-          tableCard({ Box, Text }, segment, available, isBordered),
+          tableCard({ Box, Text }, segment, available, frame),
           "flex-start",
         );
       }

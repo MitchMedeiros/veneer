@@ -10,9 +10,17 @@ export const TAB = "    ";
 const FOLD_WIDTH = 38;
 const BORDER = 2;
 
-// The props that give a card its rounded border, or none where borders are off.
-export const borderOf = (isBordered: boolean) =>
-  isBordered ? ({ borderStyle: "round", borderColor: "subtle" } as const) : {};
+// How a card is framed: a rounded border, a blank row above and below that stands in for a border that is off, or
+// nothing.
+export type Frame = "bordered" | "padded" | "plain";
+
+// The props that frame a card.
+export const borderOf = (frame: Frame) =>
+  frame === "bordered"
+    ? ({ borderStyle: "round", borderColor: "subtle" } as const)
+    : frame === "padded"
+      ? ({ paddingY: 1 } as const)
+      : {};
 
 // The width of a fitted card whose content is `content` columns wide, or undefined where that is not narrower than the
 // `cap` columns it may take, so the card then fills its parent as an unfitted one does. A card with no border is two
@@ -21,9 +29,9 @@ export function fitWidth(
   content: number,
   total: number,
   cap: number | undefined,
-  isBordered = true,
+  frame: Frame = "bordered",
 ): number | undefined {
-  const width = Math.max(content, total > MAX_LINES ? FOLD_WIDTH : 0) + (isBordered ? BORDER : 0);
+  const width = Math.max(content, total > MAX_LINES ? FOLD_WIDTH : 0) + (frame === "bordered" ? BORDER : 0);
 
   return cap === undefined || width >= cap ? undefined : width;
 }

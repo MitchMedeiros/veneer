@@ -72,16 +72,16 @@
     "toolSpacing": {
       "type": "string",
       "title": "Tool spacing",
-      "description": "compact stacks tool rows and groups with no blank line between them. spacious puts a blank line above each one.",
-      "default": "compact",
-      "options": ["compact", "spacious"]
+      "description": "low stacks tool rows and groups with no blank line between them, and blocks sit tight when Block borders is off. medium gives blocks the room a border takes, even with Block borders off. high also puts a blank line above each tool row and group.",
+      "default": "low",
+      "options": ["low", "medium", "high"]
     },
     "blockWidth": {
       "type": "string",
       "title": "Block width",
       "description": "full stretches code blocks and the cards of edits, reads and commands across the window. fitted makes each one only as wide as its longest line.",
-      "default": "full",
-      "options": ["full", "fitted"]
+      "default": "fitted",
+      "options": ["fitted", "full"]
     },
     "blockBorders": {
       "type": "boolean",
@@ -108,28 +108,10 @@
       "description": "Height of a terminal cell over its width. Change it if pictures look tall, short or letterboxed.",
       "default": "2.9"
     },
-    "fenceBackground": {
+    "syntaxBackground": {
       "type": "boolean",
-      "title": "Code blocks",
-      "description": "Fill fenced code blocks with the syntax theme's background, when the theme sets one.",
-      "default": true
-    },
-    "readBackground": {
-      "type": "boolean",
-      "title": "File reads",
-      "description": "Fill the card of a file read with the syntax theme's background, when the theme sets one.",
-      "default": true
-    },
-    "outputBackground": {
-      "type": "boolean",
-      "title": "Command and search output",
-      "description": "Fill highlighted Bash and Grep output with the syntax theme's background, when the theme sets one.",
-      "default": true
-    },
-    "diffBackground": {
-      "type": "boolean",
-      "title": "Diffs",
-      "description": "Fill diff lines that have no added or removed fill with the syntax theme's background.",
+      "title": "Syntax theme background",
+      "description": "Fill code blocks, file reads, Bash and Grep output, and diffs with the syntax theme's background, when the theme sets one.",
       "default": true
     }
   }

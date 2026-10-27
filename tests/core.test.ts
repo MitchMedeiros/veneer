@@ -101,25 +101,34 @@ test("message alignment is left unless set to right", () => {
   expect(configOf({ messageAlign: "middle" }).align).toBe("left");
 });
 
-test("every card takes the syntax theme background unless its switch is false", () => {
-  expect(configOf({}).backgrounds).toEqual({ fences: true, reads: true, output: true, diffs: true });
-  expect(configOf({ diffBackground: false, outputBackground: "false" }).backgrounds).toEqual({
-    fences: true,
-    reads: true,
-    output: false,
-    diffs: false,
-  });
+test("blocks take the syntax theme background unless its switch is false", () => {
+  expect(configOf({}).syntaxBackground).toBe(true);
+  expect(configOf({ syntaxBackground: false }).syntaxBackground).toBe(false);
+  expect(configOf({ syntaxBackground: "false" }).syntaxBackground).toBe(false);
 });
 
 test("the message bubble and spinner margin are on unless their switch is false", () => {
-  expect(configOf({})).toMatchObject({ styleUserMessage: true, styleSpinner: true, fitted: false });
-  expect(configOf({ blockWidth: "fitted" }).fitted).toBe(true);
-  expect(configOf({}).borders).toBe(true);
-  expect(configOf({ blockBorders: false }).borders).toBe(false);
+  expect(configOf({})).toMatchObject({ styleUserMessage: true, styleSpinner: true, fitted: true });
+  expect(configOf({ blockWidth: "full" }).fitted).toBe(false);
   expect(configOf({ styleUserMessage: false, styleSpinner: "false" })).toMatchObject({
     styleUserMessage: false,
     styleSpinner: false,
   });
+});
+
+test("tool spacing sets the row gap, and with borders off the room a border takes", () => {
+  const of = (blockBorders: boolean, toolSpacing = "low") => {
+    const { frame, rowGap } = configOf({ blockBorders, toolSpacing });
+
+    return { frame, rowGap };
+  };
+
+  expect(of(true)).toEqual({ frame: "bordered", rowGap: 0 });
+  expect(of(true, "medium")).toEqual({ frame: "bordered", rowGap: 0 });
+  expect(of(true, "high")).toEqual({ frame: "bordered", rowGap: 1 });
+  expect(of(false, "low")).toEqual({ frame: "plain", rowGap: 0 });
+  expect(of(false, "medium")).toEqual({ frame: "padded", rowGap: 0 });
+  expect(of(false, "high")).toEqual({ frame: "padded", rowGap: 1 });
 });
 
 test("picture options fall back to their defaults when blank or out of range", () => {

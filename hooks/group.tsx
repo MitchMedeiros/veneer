@@ -2,7 +2,7 @@ import type { ElementTable, RenderElement } from "claude-code";
 
 import { changeCounts, withBadges } from "./badge";
 import type { PillLook } from "./badge";
-import { foldOf } from "./fold";
+import { foldOf, type Frame } from "./fold";
 import { withCopy } from "./copy-button";
 import type { CopyAction } from "./copy-button";
 import { outputCard, outputText, parseOutput } from "./output";
@@ -83,7 +83,7 @@ export function toolGroup(
   edits: GroupEdits = {},
   fit?: number,
   copyFor?: (id: string, text: string, noun: string) => CopyAction,
-  isBordered = true,
+  frame: Frame = "bordered",
 ): RenderElement {
   const fillOf = (tool: string, lines: readonly OutputLine[]) =>
     tool === "Read"
@@ -140,7 +140,7 @@ export function toolGroup(
             callId,
             fillOf(call.tool, lines),
             fit,
-            isBordered,
+            frame,
           )
         : null;
     const changes = card === undefined ? null : changeCounts(call.output);

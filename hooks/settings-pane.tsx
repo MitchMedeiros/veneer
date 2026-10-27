@@ -13,14 +13,19 @@ export const SETTING_KEY = "setting:";
 const GROUPS = [
   {
     title: "Styling",
-    fields: ["messageAlign", "toolSpacing", "blockWidth", "blockBorders", "changeStyle", "fontFamily", "cellRatio"],
+    fields: [
+      "messageAlign",
+      "toolSpacing",
+      "blockWidth",
+      "blockBorders",
+      "syntaxBackground",
+      "changeStyle",
+      "fontFamily",
+      "cellRatio",
+    ],
   },
   { title: "Rendering", fields: ["icons", "links", "nativeGraphics", "images", "imageRows", "diagramHint"] },
   { title: "Mod Compatibility", fields: ["styleUserMessage", "styleSpinner"] },
-  {
-    title: "Syntax theme backgrounds",
-    fields: ["fenceBackground", "readBackground", "outputBackground", "diffBackground"],
-  },
 ];
 const OTHER = "Other";
 

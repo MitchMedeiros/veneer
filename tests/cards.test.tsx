@@ -140,10 +140,14 @@ test("a code card with no language has no label, and a background fills it", () 
 
 test("a code card has a rounded border unless borders are off", () => {
   const bordered = codeCard(UI, "", "x") as unknown as Node;
-  const bare = codeCard(UI, "", "x", undefined, undefined, undefined, false) as unknown as Node;
+  const bare = codeCard(UI, "", "x", undefined, undefined, undefined, "plain") as unknown as Node;
+  const padded = codeCard(UI, "", "x", undefined, undefined, undefined, "padded") as unknown as Node;
 
   expect(bordered.props?.borderStyle).toBe("round");
   expect(bare.props?.borderStyle).toBeUndefined();
+  expect(bare.props?.paddingY).toBeUndefined();
+  expect(padded.props?.borderStyle).toBeUndefined();
+  expect(padded.props?.paddingY).toBe(1);
 });
 
 test("a code card colours a line by its runs", () => {

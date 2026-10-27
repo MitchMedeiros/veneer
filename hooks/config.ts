@@ -1,35 +1,32 @@
 import type { PluginOptions } from "claude-code";
 
+import type { Frame } from "./fold";
+
 export type Config = {
   align: "left" | "right";
   fontFamily: string;
   cellRatio: number;
-  backgrounds: Record<Backdrop, boolean>;
+  // Whether code, read, output and diff blocks take the syntax theme's `editor.background`.
+  syntaxBackground: boolean;
   icons: "auto" | "nerd" | "plain";
   links: "auto" | "link" | "text";
   nativeGraphics: boolean;
   images: boolean;
   imageRows: number;
   diagramHint: boolean;
-  borders: boolean;
+  frame: Frame;
   styleUserMessage: boolean;
   styleSpinner: boolean;
   changeStyle: "text" | "rounded" | "square";
-  // The blank rows above each tool row and group line: 0 for compact spacing, 1 for spacious.
+  // The blank rows above each tool row and group line: 0 for low and medium spacing, 1 for high.
   rowGap: 0 | 1;
   // Whether code, read, output and diff blocks are as wide as their longest line rather than the whole window.
   fitted: boolean;
 };
 
-// The cards that may take the syntax theme's `editor.background`.
-export type Backdrop = "fences" | "reads" | "output" | "diffs";
-
-const BACKDROP_OPTIONS = {
-  fences: "fenceBackground",
-  reads: "readBackground",
-  output: "outputBackground",
-  diffs: "diffBackground",
-} as const satisfies Record<Backdrop, string>;
+// Medium and high spacing keep the room a border takes where borders are off, so blocks sit as far apart either way.
+const frameOf = (hasBorders: boolean, spacing: unknown): Frame =>
+  hasBorders ? "bordered" : spacing === "medium" || spacing === "high" ? "padded" : "plain";
 
 // A switch that is on unless set to false, as a boolean or as the text a settings file may hold.
 const onUnlessFalse = (value: unknown): boolean => value !== false && value !== "false";
@@ -69,19 +66,17 @@ export const configOf = (options: PluginOptions): Config => ({
     .filter((font) => font !== "")
     .join(", "),
   cellRatio: ratioOf(options.cellRatio),
-  backgrounds: Object.fromEntries(
-    Object.entries(BACKDROP_OPTIONS).map(([card, option]) => [card, onUnlessFalse(options[option])]),
-  ) as Record<Backdrop, boolean>,
+  syntaxBackground: onUnlessFalse(options.syntaxBackground),
   icons: options.icons === "nerd" || options.icons === "plain" ? options.icons : "auto",
   links: options.links === "link" || options.links === "text" ? options.links : "auto",
   nativeGraphics: options.nativeGraphics === true || options.nativeGraphics === "true",
   images: onUnlessFalse(options.images),
   imageRows: imageRowsOf(options.imageRows),
   diagramHint: onUnlessFalse(options.diagramHint),
-  borders: onUnlessFalse(options.blockBorders),
+  frame: frameOf(onUnlessFalse(options.blockBorders), options.toolSpacing),
   styleUserMessage: onUnlessFalse(options.styleUserMessage),
   styleSpinner: onUnlessFalse(options.styleSpinner),
   changeStyle: options.changeStyle === "rounded" || options.changeStyle === "square" ? options.changeStyle : "text",
-  rowGap: options.toolSpacing === "spacious" ? 1 : 0,
-  fitted: options.blockWidth === "fitted",
+  rowGap: options.toolSpacing === "high" ? 1 : 0,
+  fitted: options.blockWidth !== "full",
 });

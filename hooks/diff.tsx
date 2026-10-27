@@ -1,6 +1,6 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
-import { borderOf, fitWidth, foldButton, TAB } from "./fold";
+import { borderOf, fitWidth, foldButton, type Frame, TAB } from "./fold";
 import type { Fold } from "./fold";
 import { inlineMarks, markRuns } from "./inline-diff";
 import type { Span } from "./inline-diff";
@@ -100,7 +100,7 @@ export function diffCard(
   runs: readonly (StyledRun[] | undefined)[] = [],
   background?: string,
   fit?: number,
-  isBordered = true,
+  frame: Frame = "bordered",
 ): RenderElement {
   const { Box, Text } = ui;
   const shown = diff.lines.slice(0, fold.limit);
@@ -121,10 +121,10 @@ export function diffCard(
     <Box
       flexDirection="column"
       alignSelf={fit === undefined ? undefined : "flex-start"}
-      width={fitWidth(numberWidth + 3 + widest, diff.lines.length, fit, isBordered)}
+      width={fitWidth(numberWidth + 3 + widest, diff.lines.length, fit, frame)}
       marginLeft={MARGIN}
       marginRight={MARGIN}
-      {...borderOf(isBordered)}
+      {...borderOf(frame)}
       backgroundColor={background}
     >
       {shown.map((line, i) => (

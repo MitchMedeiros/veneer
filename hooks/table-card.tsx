@@ -1,6 +1,6 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
-import { borderOf } from "./fold";
+import { borderOf, type Frame } from "./fold";
 import type { Align, Table } from "./markdown";
 
 type Ui = Pick<ElementTable, "Box" | "Text">;
@@ -35,7 +35,12 @@ export function columnWidths(table: Table, available: number): number[] {
 
 // A table as one native card that fits its content: a rounded border, a bold header row in the accent colour, and every
 // second row filled. The header and the filled rows run the full width of the card. Cells that are too wide wrap.
-export function tableCard({ Box, Text }: Ui, table: Table, available: number, isBordered = true): RenderElement {
+export function tableCard(
+  { Box, Text }: Ui,
+  table: Table,
+  available: number,
+  frame: Frame = "bordered",
+): RenderElement {
   const widths = columnWidths(table, available);
   const row = (cells: readonly string[], key: string, fill?: string, isHeader = false) => (
     <Box key={key} flexDirection="row" gap={GAP} paddingX={PADDING_X} backgroundColor={fill}>
@@ -50,7 +55,7 @@ export function tableCard({ Box, Text }: Ui, table: Table, available: number, is
   );
 
   return (
-    <Box flexDirection="column" alignSelf="flex-start" {...borderOf(isBordered)}>
+    <Box flexDirection="column" alignSelf="flex-start" {...borderOf(frame)}>
       {row(table.header, "header", FILL, true)}
       {table.rows.map((cells, i) => row(cells, `row-${i}`, i % 2 === 1 ? FILL : undefined))}
     </Box>

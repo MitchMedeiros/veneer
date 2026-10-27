@@ -11,7 +11,7 @@ import type {
 
 import type { Off, Palette, SettingsPane, SyntaxPane, Tab } from "../types";
 import { configOf } from "./config";
-import type { Backdrop, Config } from "./config";
+import type { Config } from "./config";
 import { iconsArePlain, linksArePlain, OFF_TEXT, terminalOff } from "./gate";
 import { changeCounts, withBadges } from "./badge";
 import type { PillLook } from "./badge";
@@ -346,9 +346,9 @@ async function painterFor($: EngineInterface): Promise<Painter> {
   return (hint, code) => highlight(io, themePath, hint, code);
 }
 
-// The fill the syntax theme sets behind a kind of card; undefined when that card has the switch off or the theme sets none.
-async function backgroundFor($: EngineInterface, config: Config, card: Backdrop): Promise<string | undefined> {
-  if (!config.backgrounds[card]) {
+// The fill the syntax theme sets behind blocks; undefined when the switch is off or the theme sets none.
+async function backgroundFor($: EngineInterface, config: Config): Promise<string | undefined> {
+  if (!config.syntaxBackground) {
     return undefined;
   }
 
@@ -1094,7 +1094,7 @@ export const register: Register = (on, options) => {
     const isPictured = hasPictures && off === null;
     const [fences, fenceBackground, palette, dir] = await Promise.all([
       hasCode ? painterFor($).then((paint) => paintFences(paint, segments)) : undefined,
-      hasCode ? backgroundFor($, config, "fences") : undefined,
+      hasCode ? backgroundFor($, config) : undefined,
       isPictured ? read($, paletteAtom) : undefined,
       isPictured ? pictureDir($) : undefined,
     ]);
@@ -1119,7 +1119,7 @@ export const register: Register = (on, options) => {
         diagramOf,
         config.fitted,
         whole,
-        config.borders,
+        config.frame,
       );
     }
 
@@ -1160,7 +1160,7 @@ export const register: Register = (on, options) => {
       diagramOf,
       config.fitted,
       whole,
-      config.borders,
+      config.frame,
     );
   });
 
@@ -1263,7 +1263,7 @@ export const register: Register = (on, options) => {
         return withCopy(
           ui,
           output,
-          outputCard(ui, shown, fold, id, undefined, fit, config.borders),
+          outputCard(ui, shown, fold, id, undefined, fit, config.frame),
           MARGIN,
           fit !== undefined,
         );
@@ -1273,13 +1273,13 @@ export const register: Register = (on, options) => {
         path === undefined
           ? paintOutput(paint, tool, commandOfCall(id), shown)
           : paintLines(paint, path, shown.slice(0, visible)).then((head) => [...head, ...shown.slice(visible)]),
-        backgroundFor($, config, path === undefined ? "output" : "reads"),
+        backgroundFor($, config),
       ]);
 
       return withCopy(
         ui,
         output,
-        outputCard(ui, painted, fold, id, outputFill(background, path !== undefined, painted), fit, config.borders),
+        outputCard(ui, painted, fold, id, outputFill(background, path !== undefined, painted), fit, config.frame),
         MARGIN,
         fit !== undefined,
       );
@@ -1289,13 +1289,13 @@ export const register: Register = (on, options) => {
       path === undefined || paint === undefined
         ? []
         : paintDiff(paint, path, { ...diff, lines: diff.lines.slice(0, visible) }),
-      backgroundFor($, config, "diffs"),
+      backgroundFor($, config),
     ]);
 
     return withCopy(
       ui,
       copy(diffText(diff), "Diff"),
-      diffCard(ui, diff, palette?.isAnsi ?? false, fold, id, runs, background, fit, config.borders),
+      diffCard(ui, diff, palette?.isAnsi ?? false, fold, id, runs, background, fit, config.frame),
       MARGIN,
       fit !== undefined,
     );
@@ -1433,9 +1433,8 @@ export const register: Register = (on, options) => {
     });
     const imageCalls = new Set(foundIn.filter(({ found }) => found.length > 0).map(({ id }) => id));
     const drawn = foundIn.map(({ id, found }) => (open.has(hiddenIdOf(id)) ? [] : found));
-    const [reads, output, plain, shown] = await Promise.all([
-      paint === undefined ? undefined : backgroundFor($, config, "reads"),
-      paint === undefined ? undefined : backgroundFor($, config, "output"),
+    const [fill, plain, shown] = await Promise.all([
+      paint === undefined ? undefined : backgroundFor($, config),
       plainOf($),
       shownImages($, drawn.flat(), config, columns, "Image" in ui),
     ]);
@@ -1472,13 +1471,13 @@ export const register: Register = (on, options) => {
           path === undefined || paint === undefined
             ? []
             : paintDiff(paint, path, { ...diff, lines: diff.lines.slice(0, fold.limit) }),
-          backgroundFor($, config, "diffs"),
+          backgroundFor($, config),
         ]);
 
         return withCopy(
           ui,
           copyFor(callId, diffText(diff), "Diff"),
-          diffCard(ui, diff, palette?.isAnsi ?? false, fold, callId, runs, background, fit, config.borders),
+          diffCard(ui, diff, palette?.isAnsi ?? false, fold, callId, runs, background, fit, config.frame),
           MARGIN,
           fit !== undefined,
         );
@@ -1493,7 +1492,7 @@ export const register: Register = (on, options) => {
       { open, toggle: (id) => (defaultOpen.has(id) ? flipDefaultOpen($, id, open.has(id)) : flip($, id)) },
       commandRuns,
       paintedOutput,
-      paint === undefined ? {} : { reads, output },
+      paint === undefined ? {} : { reads: fill, output: fill },
       plain,
       images,
       imageCalls,
@@ -1501,7 +1500,7 @@ export const register: Register = (on, options) => {
       { cards, flip: (id) => flipEdit($, id), pills },
       fit,
       copyFor,
-      config.borders,
+      config.frame,
     );
   });
 
@@ -1640,7 +1639,7 @@ export const register: Register = (on, options) => {
           active,
           folder,
           samples: await Promise.all(SAMPLES.map(async ({ hint, code }) => (await paint(hint, code)) ?? undefined)),
-          background: await backgroundFor($, config, "fences"),
+          background: await backgroundFor($, config),
         },
         {
           pick: (value) => {

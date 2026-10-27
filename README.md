@@ -90,27 +90,27 @@ Run `/veneer` to change every option below in one pane. It has a General tab and
 
 To change a setting without opening the pane, run `/veneer <setting> <value>`, such as `/veneer icons nerd`. The setting
 can be either its display name or its option name, in any case: `/veneer cell-proportion 1.9` and
-`/veneer cellRatio 1.9` do the same thing. Switches take `on` or `off`.
+`/veneer cellRatio 1.9` do the same thing. Switches take `on` or `off`, and are stored as `true` or `false` in
+`settings.json`.
 
-| Display Name              | Setting            | Default   | Use                                                           |
-| ------------------------- | ------------------ | --------- | ------------------------------------------------------------- |
-| Message alignment         | `messageAlign`     | `left`    | `left` or `right`                                             |
-| Message styling           | `styleUserMessage` | `true`    | Draw your messages as a bubble. Off leaves it to a mod.       |
-| Icons                     | `icons`            | `auto`    | `auto`, `nerd` or `plain`. Nerd Font or Unicode icons.        |
-| File links                | `links`            | `auto`    | `auto`, `link` or `text`. How file paths are drawn.           |
-| Text-based graphics       | `nativeGraphics`   | `false`   | Draw tables, headings and Mermaid diagrams as text.           |
-| Diagram hint              | `diagramHint`      | `true`    | Off stops Claude from using diagrams, math and alerts.        |
-| Spinner styling           | `styleSpinner`     | `true`    | Turn off to leave spinner styling to another mod.             |
-| Tool spacing              | `toolSpacing`      | `compact` | `compact` or `spacious`. Blank line above each tool.          |
-| Block width               | `blockWidth`       | `full`    | `full` or `fitted`. Fitted blocks are only as wide as needed. |
-| Block borders             | `blockBorders`     | `true`    | Border around blocks and cards. Alerts always keep theirs.    |
-| Edit line counts          | `changeStyle`      | `text`    | `text`, `rounded` or `square`. How `+N -M` is drawn.          |
-| Table font                | `fontFamily`       | blank     | Font for tables and headings. Blank uses defaults.            |
-| Cell proportion           | `cellRatio`        | `2.9`     | Terminal cell height over width. Fixes letterboxing.          |
-| Code blocks               | `fenceBackground`  | `true`    | Fill code blocks with the syntax theme's background.          |
-| File reads                | `readBackground`   | `true`    | The same for the card of a file read.                         |
-| Command and search output | `outputBackground` | `true`    | The same for highlighted Bash and Grep output.                |
-| Diffs                     | `diffBackground`   | `true`    | The same for diffs. Added/removed lines keep theirs.          |
+| Display Name            | Setting            | Default  | Use                                                           |
+| ----------------------- | ------------------ | -------- | ------------------------------------------------------------- |
+| Message alignment       | `messageAlign`     | `left`   | `left` or `right`                                             |
+| Tool spacing            | `toolSpacing`      | `low`    | `low`, `medium` or `high`. Room around blocks and tools.      |
+| Block width             | `blockWidth`       | `fitted` | `fitted` or `full`. Fitted blocks are only as wide as needed. |
+| Block borders           | `blockBorders`     | `on`     | Border around blocks and cards. Alerts always keep theirs.    |
+| Syntax theme background | `syntaxBackground` | `on`     | Fill code, reads, output and diffs with the theme background. |
+| Edit line counts        | `changeStyle`      | `text`   | `text`, `rounded` or `square`. How `+N -M` is drawn.          |
+| Table font              | `fontFamily`       | blank    | Font for tables and headings. Blank uses defaults.            |
+| Cell proportion         | `cellRatio`        | `2.9`    | Terminal cell height over width. Fixes letterboxing.          |
+| Icons                   | `icons`            | `auto`   | `auto`, `nerd` or `plain`. Nerd Font or Unicode icons.        |
+| File links              | `links`            | `auto`   | `auto`, `link` or `text`. How file paths are drawn.           |
+| Text-based graphics     | `nativeGraphics`   | `off`    | Draw tables, headings and Mermaid diagrams as text.           |
+| Images                  | `images`           | `on`     | Draw images from Read, MCP tools and prompts under their row. |
+| Image height            | `imageRows`        | `14`     | The most terminal rows an image takes, from 2 to 250.         |
+| Diagram hint            | `diagramHint`      | `on`     | Off stops Claude from using diagrams, math and alerts.        |
+| Message styling         | `styleUserMessage` | `on`     | Draw your messages as a bubble. Off leaves it to a mod.       |
+| Spinner styling         | `styleSpinner`     | `on`     | Turn off to leave spinner styling to another mod.             |
 
 Settings are stored under `pluginConfigs` in the global `~/.claude/settings.json`.
 
